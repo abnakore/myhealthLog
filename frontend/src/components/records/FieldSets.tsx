@@ -35,6 +35,7 @@ import type {
   ContactDraft,
   DocumentDraft,
   ImmunizationDraft,
+  LocationDraft,
   MedicationDraft,
   ProfileBasicsDraft,
 } from "./model";
@@ -436,7 +437,9 @@ export function ProfileBasicsFields({
   onChange,
   errors,
   hideName = false,
-}: FieldSetProps<ProfileBasicsDraft> & { hideName?: boolean }) {
+  hidePhone = false,
+  hideCity = false,
+}: FieldSetProps<ProfileBasicsDraft> & { hideName?: boolean; hidePhone?: boolean; hideCity?: boolean }) {
   return (
     <div className="space-y-4">
       {!hideName && (
@@ -508,6 +511,51 @@ export function ProfileBasicsFields({
           optional
         />
       </Row>
+      {hidePhone && hideCity ? null : hidePhone ? (
+        <TextField
+          label="City"
+          value={draft.city}
+          placeholder="Kano"
+          onChange={(e) => onChange({ city: e.target.value })}
+          optional
+        />
+      ) : hideCity ? (
+        <TextField
+          label="Phone"
+          type="tel"
+          value={draft.phone}
+          placeholder="0803 000 1122"
+          onChange={(e) => onChange({ phone: e.target.value })}
+          optional
+        />
+      ) : (
+        <Row>
+          <TextField
+            label="Phone"
+            type="tel"
+            value={draft.phone}
+            placeholder="0803 000 1122"
+            onChange={(e) => onChange({ phone: e.target.value })}
+            optional
+          />
+          <TextField
+            label="City"
+            value={draft.city}
+            placeholder="Kano"
+            onChange={(e) => onChange({ city: e.target.value })}
+            optional
+          />
+        </Row>
+      )}
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- location -- */
+
+export function LocationFields({ draft, onChange }: FieldSetProps<LocationDraft>) {
+  return (
+    <div className="space-y-4">
       <Row>
         <TextField
           label="Phone"
@@ -525,6 +573,29 @@ export function ProfileBasicsFields({
           optional
         />
       </Row>
+      <Row>
+        <TextField
+          label="Country"
+          value={draft.country}
+          placeholder="Nigeria"
+          onChange={(e) => onChange({ country: e.target.value })}
+          optional
+        />
+        <TextField
+          label="State / region"
+          value={draft.state}
+          placeholder="Kano"
+          onChange={(e) => onChange({ state: e.target.value })}
+          optional
+        />
+      </Row>
+      <TextArea
+        label="Address"
+        value={draft.address}
+        placeholder="House no., street, area"
+        onChange={(e) => onChange({ address: e.target.value })}
+        optional
+      />
     </div>
   );
 }
@@ -563,6 +634,20 @@ export function ContactFields({ draft, onChange, errors }: FieldSetProps<Contact
         type="tel"
         value={draft.altPhone}
         onChange={(e) => onChange({ altPhone: e.target.value })}
+        optional
+      />
+      <TextField
+        label="Emergency language / preferences"
+        value={draft.language}
+        placeholder="e.g. Hausa, English"
+        onChange={(e) => onChange({ language: e.target.value })}
+        optional
+      />
+      <TextArea
+        label="Emergency notes"
+        value={draft.notes}
+        placeholder="Anything a first responder should know about you"
+        onChange={(e) => onChange({ notes: e.target.value })}
         optional
       />
     </div>

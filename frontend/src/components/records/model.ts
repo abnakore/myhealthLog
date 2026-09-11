@@ -413,6 +413,42 @@ export function profileBasicsToPatch(d: ProfileBasicsDraft): Partial<HealthProfi
   };
 }
 
+/* ----------------------------------------------------------------- location -- */
+
+export interface LocationDraft {
+  phone: string;
+  country: string;
+  state: string;
+  city: string;
+  address: string;
+}
+
+export const emptyLocationDraft = (): LocationDraft => ({
+  phone: "",
+  country: "",
+  state: "",
+  city: "",
+  address: "",
+});
+
+export const locationToDraft = (p: HealthProfile): LocationDraft => ({
+  phone: p.phone ?? "",
+  country: p.country ?? "",
+  state: p.state ?? "",
+  city: p.city ?? "",
+  address: p.address ?? "",
+});
+
+export function locationToPatch(d: LocationDraft): Partial<HealthProfile> {
+  return {
+    phone: d.phone.trim() || undefined,
+    country: d.country.trim() || undefined,
+    state: d.state.trim() || undefined,
+    city: d.city.trim() || undefined,
+    address: d.address.trim() || undefined,
+  };
+}
+
 /* ------------------------------------------------------- emergency contact -- */
 
 export interface ContactDraft {
@@ -420,6 +456,8 @@ export interface ContactDraft {
   relationship: string;
   phone: string;
   altPhone: string;
+  language: string;
+  notes: string;
 }
 
 export const emptyContactDraft = (): ContactDraft => ({
@@ -427,6 +465,8 @@ export const emptyContactDraft = (): ContactDraft => ({
   relationship: "",
   phone: "",
   altPhone: "",
+  language: "",
+  notes: "",
 });
 
 export const contactToDraft = (c: EmergencyContact): ContactDraft => ({
@@ -434,6 +474,8 @@ export const contactToDraft = (c: EmergencyContact): ContactDraft => ({
   relationship: c.relationship,
   phone: c.phone,
   altPhone: c.altPhone ?? "",
+  language: c.language ?? "",
+  notes: c.notes ?? "",
 });
 
 export function validateContact(d: ContactDraft): FieldErrors {
@@ -451,5 +493,7 @@ export function contactFromDraft(d: ContactDraft, priority: number, base?: Emerg
     phone: d.phone.trim(),
     altPhone: d.altPhone.trim() || undefined,
     priority,
+    language: d.language.trim() || undefined,
+    notes: d.notes.trim() || undefined,
   };
 }

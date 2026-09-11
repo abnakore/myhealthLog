@@ -19,6 +19,9 @@ import {
   emptyContactDraft,
   validateContact,
   contactFromDraft,
+  emptyLocationDraft,
+  locationToPatch,
+  type LocationDraft,
   type ProfileBasicsDraft,
   type AllergyDraft,
   type MedicationDraft,
@@ -32,6 +35,7 @@ import {
   MedicationFields,
   ConditionFields,
   ContactFields,
+  LocationFields,
 } from "@/components/records/FieldSets";
 import { RecordEditModal } from "@/components/records/RecordEditModal";
 import { Card } from "@/components/ui/Card";
@@ -47,6 +51,11 @@ const STEPS = [
     tag: "Basics",
     q: "Let's start with the basics",
     lead: "None of this is required — add what you know and skip the rest.",
+  },
+  {
+    tag: "Location",
+    q: "Where can we reach you?",
+    lead: "So a clinic or emergency team knows how and where to find you.",
   },
   {
     tag: "Allergies",
@@ -78,6 +87,7 @@ const STEPS = [
 interface OnboardingState {
   step: number;
   basics: ProfileBasicsDraft;
+  location: LocationDraft;
   noAllergies: boolean;
   allergies: Allergy[];
   medications: Medication[];
@@ -89,6 +99,7 @@ function defaultState(): OnboardingState {
   return {
     step: 0,
     basics: emptyProfileBasicsDraft(),
+    location: emptyLocationDraft(),
     noAllergies: false,
     allergies: [],
     medications: [],
@@ -103,12 +114,37 @@ function initState(name: string | undefined): OnboardingState {
   let s = defaultState();
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) s = { ...defaultState(), ...(JSON.parse(raw) as Partial<OnboardingState>) };
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<OnboardingState>;
+      // Rehydrate each draft *over* the current empty draft, not in place of it —
+      // a session saved by an older build (missing a newly-added key) otherwise
+      // leaves `undefined` fields behind.
+      s = {
+        ...defaultState(),
+        ...saved,
+        basics: { ...emptyProfileBasicsDraft(), ...(saved.basics ?? {}) },
+        location: { ...emptyLocationDraft(), ...(saved.location ?? {}) },
+        contact: { ...emptyContactDraft(), ...(saved.contact ?? {}) },
+      };
+    }
   } catch {
     /* corrupt / unavailable storage — start fresh */
   }
   if (!s.basics.fullName.trim() && name) {
     s = { ...s, basics: { ...s.basics, fullName: name } };
+  }
+  // Sessions saved before the "Location" step kept phone + city under basics.
+  if (
+    (!s.location.phone.trim() && s.basics.phone.trim()) ||
+    (!s.location.city.trim() && s.basics.city.trim())
+  ) {
+    const prevPhone = s.basics.phone;
+    const prevCity = s.basics.city;
+    s = {
+      ...s,
+      basics: { ...s.basics, phone: "", city: "" },
+      location: { ...s.location, phone: s.location.phone || prevPhone, city: s.location.city || prevCity },
+    };
   }
   return s;
 }
@@ -170,11 +206,11 @@ export default function Onboarding() {
   const meta = STEPS[step];
   const contactComplete = !!state.contact.name.trim() && !!state.contact.phone.trim();
 
-  const goTo = (n: number) => setState((s) => ({ ...s, step: Math.max(0, Math.min(5, n)) }));
+  const goTo = (n: number) => setState((s) => ({ ...s, step: Math.max(0, Math.min(6, n)) }));
 
   function next() {
     // Leaving the contact step: if they started filling it in, it has to be valid.
-    if (step === 4) {
+    if (step === 5) {
       const started = !!state.contact.name.trim() || !!state.contact.phone.trim();
       if (started) {
         const errs = validateContact(state.contact);
@@ -221,6 +257,7 @@ export default function Onboarding() {
     const finalName = state.basics.fullName.trim() || user?.name || profile.fullName;
     updateProfile({
       ...profileBasicsToPatch(state.basics),
+      ...locationToPatch(state.location),
       fullName: finalName,
       ...(contactComplete ? { emergencyContacts: [contactFromDraft(state.contact, 1)] } : {}),
     });
@@ -245,12 +282,23 @@ export default function Onboarding() {
           <ProfileBasicsFields
             draft={state.basics}
             hideName
+            hidePhone
+            hideCity
             errors={{}}
             onChange={(p) => setState((s) => ({ ...s, basics: { ...s.basics, ...p } }))}
           />
         );
 
       case 1:
+        return (
+          <LocationFields
+            draft={state.location}
+            errors={{}}
+            onChange={(p) => setState((s) => ({ ...s, location: { ...s.location, ...p } }))}
+          />
+        );
+
+      case 2:
         return (
           <div className="space-y-4">
             {state.allergies.length > 0 && (
@@ -294,7 +342,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 2:
+      case 3:
         return (
           <div className="space-y-4">
             {state.medications.length > 0 && (
@@ -321,7 +369,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-4">
             {state.conditions.length > 0 && (
@@ -347,7 +395,7 @@ export default function Onboarding() {
           </div>
         );
 
-      case 4:
+      case 5:
         return (
           <ContactFields
             draft={state.contact}
@@ -371,8 +419,14 @@ export default function Onboarding() {
         if (b.genotype) basicsRows.push(["Genotype", b.genotype]);
         if (b.heightCm.trim()) basicsRows.push(["Height", `${b.heightCm} cm`]);
         if (b.weightKg.trim()) basicsRows.push(["Weight", `${b.weightKg} kg`]);
-        if (b.phone.trim()) basicsRows.push(["Phone", b.phone]);
-        if (b.city.trim()) basicsRows.push(["City", b.city]);
+
+        const l = state.location;
+        const locRows: [string, string][] = [];
+        if (l.phone.trim()) locRows.push(["Phone", l.phone]);
+        if (l.country.trim()) locRows.push(["Country", l.country]);
+        if (l.state.trim()) locRows.push(["State / region", l.state]);
+        if (l.city.trim()) locRows.push(["City", l.city]);
+        if (l.address.trim()) locRows.push(["Address", l.address]);
 
         const none = <span className="text-mhl-muted">None added</span>;
 
@@ -392,22 +446,50 @@ export default function Onboarding() {
                 <span className="text-mhl-muted">Nothing added yet</span>
               )}
             </ReviewBlock>
-            <ReviewBlock label="Allergies" onEdit={() => goTo(1)}>
+            <ReviewBlock label="Location" onEdit={() => goTo(1)}>
+              {locRows.length > 0 ? (
+                <ul className="space-y-0.5">
+                  {locRows.map(([k, v]) => (
+                    <li key={k}>
+                      <span className="text-mhl-muted">{k}: </span>
+                      {v}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <span className="text-mhl-muted">Nothing added yet</span>
+              )}
+            </ReviewBlock>
+            <ReviewBlock label="Allergies" onEdit={() => goTo(2)}>
               {state.noAllergies
                 ? "No known allergies"
                 : state.allergies.length > 0
                   ? state.allergies.map((a) => a.substance).join(", ")
                   : none}
             </ReviewBlock>
-            <ReviewBlock label="Medications" onEdit={() => goTo(2)}>
+            <ReviewBlock label="Medications" onEdit={() => goTo(3)}>
               {state.medications.length > 0 ? state.medications.map((m) => m.name).join(", ") : none}
             </ReviewBlock>
-            <ReviewBlock label="Conditions" onEdit={() => goTo(3)}>
+            <ReviewBlock label="Conditions" onEdit={() => goTo(4)}>
               {state.conditions.length > 0 ? state.conditions.map((c) => c.name).join(", ") : none}
             </ReviewBlock>
-            <ReviewBlock label="Emergency contact" onEdit={() => goTo(4)}>
+            <ReviewBlock label="Emergency contact" onEdit={() => goTo(5)}>
               {contactComplete ? (
-                `${state.contact.name}  ·  ${state.contact.phone}`
+                <ul className="space-y-0.5">
+                  <li>{`${state.contact.name}  ·  ${state.contact.phone}`}</li>
+                  {state.contact.language.trim() && (
+                    <li>
+                      <span className="text-mhl-muted">Language / preferences: </span>
+                      {state.contact.language}
+                    </li>
+                  )}
+                  {state.contact.notes.trim() && (
+                    <li>
+                      <span className="text-mhl-muted">Notes: </span>
+                      {state.contact.notes}
+                    </li>
+                  )}
+                </ul>
               ) : (
                 <span className="text-mhl-muted">Not added</span>
               )}
@@ -418,7 +500,7 @@ export default function Onboarding() {
     }
   }
 
-  const primaryLabel = step === 5 ? "Go to Dashboard" : step === 4 ? "Review" : "Continue";
+  const primaryLabel = step === 6 ? "Go to Dashboard" : step === 5 ? "Review" : "Continue";
 
   return (
     <div className="flex min-h-dvh flex-col bg-mhl-bg px-4 py-8 sm:py-10">
@@ -431,10 +513,10 @@ export default function Onboarding() {
         </div>
 
         <div className="mb-2 flex items-baseline justify-between gap-4">
-          <span className="text-mhl-fine font-semibold text-mhl-muted">Step {step + 1} of 6</span>
+          <span className="text-mhl-fine font-semibold text-mhl-muted">Step {step + 1} of 7</span>
           <span className="text-mhl-fine text-mhl-faint">{meta.tag}</span>
         </div>
-        <ProgressBar value={((step + 1) / 6) * 100} label={`Onboarding step ${step + 1} of 6`} />
+        <ProgressBar value={((step + 1) / 7) * 100} label={`Onboarding step ${step + 1} of 7`} />
 
         <Card className="mt-6">
           <h1 className="text-mhl-answer font-bold text-mhl-ink">{meta.q}</h1>
@@ -449,12 +531,12 @@ export default function Onboarding() {
             </Button>
           )}
           <div className="flex-1" />
-          {step >= 1 && step <= 4 && (
+          {step >= 1 && step <= 5 && (
             <Button variant="ghost" onClick={() => goTo(step + 1)}>
               Skip for now
             </Button>
           )}
-          <Button onClick={step === 5 ? finish : next}>{primaryLabel}</Button>
+          <Button onClick={step === 6 ? finish : next}>{primaryLabel}</Button>
         </div>
       </div>
 

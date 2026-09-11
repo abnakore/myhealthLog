@@ -25,6 +25,8 @@ export interface EmergencyContact {
   phone: string;
   altPhone?: string;
   priority: number;
+  language?: string; // emergency language / preferences, if applicable
+  notes?: string; // emergency notes for a first responder
 }
 
 export interface HealthProfile {
@@ -38,6 +40,9 @@ export interface HealthProfile {
   weightKg?: number; // convenience: latest weight (backend keeps it as a VitalReading)
   phone?: string;
   city?: string; // convenience: for the "34 · Kano" identity line
+  country?: string;
+  state?: string; // state / region, e.g. "Kano State"
+  address?: string; // street address, e.g. "12 Ibrahim Crescent, Ungogo"
   photoUrl?: string;
   emergencyContacts: EmergencyContact[];
 }

@@ -21,6 +21,12 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   const panelRef = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
   const titleId = useId();
+  // Keep the latest close handler in a ref: forms inside the modal re-render the
+  // parent on every keystroke (draft state), which would hand the effect a fresh
+  // `onClose` closure and re-run it — stealing focus back to the panel after each
+  // letter. Depending only on `open` keeps typing uninterrupted.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -51,7 +57,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
       } else if (e.key === "Tab") {
         trapTab(e);
       }
@@ -64,7 +70,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       document.body.style.overflow = prevOverflow;
       document.removeEventListener("keydown", onKey, true);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
