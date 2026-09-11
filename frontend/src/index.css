@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   myHealthLog — design tokens (Tailwind v4 `@theme`)
+   Direction: Warm Human (design sample 08). See /DESIGN.md for the full system.
+
+   `--color-*` entries generate color utilities automatically:
+     --color-mhl-accent  ->  bg-mhl-accent / text-mhl-accent / border-mhl-accent
+                             / ring-mhl-accent  and  var(--color-mhl-accent)
+   `--text-*`, `--radius-*`, `--font-*`, `--ease-*` generate their families too.
+   ========================================================================== */
+@theme {
+  /* ---- surfaces & ink ---- */
+  --color-mhl-bg: oklch(0.945 0.023 74); /* warm sand */
+  --color-mhl-surface: oklch(0.995 0.005 74); /* near-white card */
+  --color-mhl-sunk: oklch(0.965 0.016 74); /* recessed well / input */
+  --color-mhl-rule: oklch(0.885 0.02 66); /* 1px borders */
+  --color-mhl-ink: oklch(0.245 0.022 48); /* 16.1:1 on surface */
+  --color-mhl-muted: oklch(0.47 0.028 48); /* 6.8:1 on surface */
+  --color-mhl-faint: oklch(0.525 0.028 48); /* 4.6:1 on the sand bg */
+
+  /* ---- accent (coral) — the one accent ---- */
+  --color-mhl-accent: oklch(0.545 0.16 30); /* 5.3:1 — usable as text */
+  --color-mhl-accent-strong: oklch(0.475 0.15 30); /* pressed / hover */
+  --color-mhl-accent-lo: oklch(0.955 0.03 30); /* coral tint bg */
+
+  /* ---- status ---- */
+  --color-mhl-good: oklch(0.465 0.105 152);
+  --color-mhl-good-lo: oklch(0.945 0.045 152);
+  --color-mhl-danger: oklch(0.525 0.18 25); /* severe / anaphylaxis */
+  --color-mhl-danger-lo: oklch(0.955 0.035 25);
+
+  /* ---- emergency register (inverts to near-black, AAA contrast) ---- */
+  --color-mhl-emerg: oklch(0.185 0.02 48);
+  --color-mhl-emerg-ink: oklch(0.975 0.004 74);
+  --color-mhl-emerg-muted: oklch(0.785 0.014 74);
+  --color-mhl-emerg-faint: oklch(0.735 0.012 74);
+  --color-mhl-emerg-amber: oklch(0.845 0.095 40);
+  --color-mhl-emerg-alert: oklch(0.775 0.15 28);
+
+  /* ---- type: one humanist family, multiple weights ---- */
+  --font-sans: "Hanken Grotesk", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, Consolas, monospace;
+
+  --text-mhl-fine: 0.845rem;
+  --text-mhl-fine--line-height: 1.45;
+  --text-mhl-body: 0.969rem;
+  --text-mhl-body--line-height: 1.55;
+  --text-mhl-lead: 1.094rem;
+  --text-mhl-lead--line-height: 1.4;
+  --text-mhl-title: 1.313rem;
+  --text-mhl-title--line-height: 1.3;
+  --text-mhl-answer: 1.625rem;
+  --text-mhl-answer--line-height: 1.25;
+  --text-mhl-figure: 2rem;
+  --text-mhl-figure--line-height: 1.05;
+
+  /* ---- radii ---- */
+  --radius-mhl: 1.25rem; /* cards */
+  --radius-mhl-sm: 0.75rem; /* rows, inputs */
+
+  /* ---- motion ---- */
+  --ease-mhl: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* =============================================================================
+   Base
+   ========================================================================== */
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  background: var(--color-mhl-bg);
+  color: var(--color-mhl-ink);
+  font-family: var(--font-sans);
+  font-size: var(--text-mhl-body);
+  line-height: 1.55;
+}
+
+/* Headings share the family; hierarchy is weight + size + color, not a display face. */
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+}
+
+/* Coral keyboard focus, everywhere, from one rule. */
+:focus-visible {
+  outline: 2px solid var(--color-mhl-accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection {
+  background: var(--color-mhl-accent-lo);
+  color: var(--color-mhl-ink);
+}
+
+/* Respect users who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

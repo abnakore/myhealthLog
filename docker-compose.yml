@@ -1,0 +1,140 @@
+services:
+  frontend:
+    container_name: mhl-frontend
+
+    build:
+      context: ./frontend
+
+    image: frontend:myhealthlog
+
+    # Runs the Vite dev server (HMR), not a static `serve dist`, so edits hot-reload.
+    entrypoint: ./entrypoint.sh
+
+    ports:
+      - 5173:5173
+
+    env_file:
+      # Optional: the app has a sane default (VITE_API_URL=/api) baked in, so a
+      # fresh clone runs without a .env. Copy .env.example to .env to override.
+      # `required: false` needs Compose v2.24+.
+      - path: ./frontend/.env
+        required: false
+
+    volumes:
+      # Keep the container's node_modules isolated from the host.
+      - node_modules:/react/node_modules
+
+    develop:
+      watch:
+        - path: ./frontend/package.json
+          action: rebuild
+        - path: ./frontend/package-lock.json
+          action: rebuild
+        - path: ./frontend/Dockerfile
+          action: rebuild
+        # `sync` (NOT sync+restart): copies edits into the running container so
+        # Vite's HMR picks them up without killing the dev server.
+        - path: ./frontend
+          target: /react
+          action: sync
+          ignore:
+            - node_modules/
+
+    networks:
+      - mhl_network
+
+  nginx:
+    container_name: mhl-nginx
+
+    restart: unless-stopped
+
+    build:
+      context: ./nginx
+
+    image: nginx:myhealthlog
+
+    ports:
+      - 80:8080
+
+    volumes:
+      # Mounted read-only so you can edit conf without rebuilding the image.
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/include.websocket:/etc/nginx/app/include.websocket:ro
+      - ./nginx/include.forwarded:/etc/nginx/app/include.forwarded:ro
+      # Uncomment once the backend serves collected static / uploaded media:
+      # - static:/app/static
+      # - media:/app/media
+
+    develop:
+      watch:
+        - path: ./nginx/nginx.conf
+          target: /etc/nginx/conf.d/default.conf
+          action: sync+restart
+
+    depends_on:
+      - frontend
+
+    networks:
+      - mhl_network
+
+  # ===========================================================================
+  # BACKEND STACK — commented until the Django project exists in ./backend.
+  # Uncomment these, add the api upstream + location blocks in nginx/nginx.conf,
+  # and re-run `docker compose watch`.
+  # ===========================================================================
+  #
+  # postgresdb:
+  #   image: postgres:17
+  #   container_name: mhl-postgres
+  #   restart: always
+  #   ports:
+  #     - 5433:5432
+  #   environment:
+  #     - POSTGRES_DB=myhealthlog
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=postgres
+  #   volumes:
+  #     - pgdata:/var/lib/postgresql/data/
+  #   networks:
+  #     - mhl_network
+  #
+  # redis:
+  #   image: redis:alpine
+  #   container_name: mhl-redis
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - mhl_network
+  #
+  # backend:
+  #   container_name: mhl-backend
+  #   build:
+  #     context: ./backend
+  #   image: backend:myhealthlog
+  #   entrypoint: ./django.sh
+  #   ports:
+  #     - 8000:8000
+  #   env_file:
+  #     - ./backend/.env
+  #   volumes:
+  #     - ./backend/:/app
+  #     - static:/app/static
+  #     - media:/app/media
+  #   depends_on:
+  #     - postgresdb
+  #     - redis
+  #   networks:
+  #     - mhl_network
+
+volumes:
+  node_modules:
+  # pgdata:
+  # static:
+  # media:
+
+networks:
+  mhl_network:
+    driver: bridge

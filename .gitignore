@@ -1,0 +1,29 @@
+# OS
+.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+
+# Env (each service keeps its own .env; commit .env.example instead)
+**/.env
+!**/.env.example
+
+# Node (frontend has its own .gitignore too)
+node_modules/
+
+# Python / backend (added for later)
+__pycache__/
+*.py[cod]
+.venv/
+db.sqlite3
+
+# Build output
+dist/
+
+# Claude Code local files + working docs (not part of the deployable app)
+.claude/
+docs/
+Claude.html
+claude1.html

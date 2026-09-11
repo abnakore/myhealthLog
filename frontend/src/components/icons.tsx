@@ -1,0 +1,254 @@
+/**
+ * Inline icon set — stroke-based, currentColor, no dependency. A small, hand-picked
+ * set (nav, record types, actions) rather than a full library, so the visual weight
+ * matches the rest of the UI and nothing ships unused.
+ *
+ * All icons share one 24×24 grid and inherit color + stroke from `currentColor`.
+ * They're decorative by default (aria-hidden); when an icon is the only label for a
+ * control, give the control itself an aria-label.
+ */
+import type { ReactNode, SVGProps } from "react";
+
+interface IconProps extends Omit<SVGProps<SVGSVGElement>, "children"> {
+  size?: number;
+  strokeWidth?: number;
+}
+
+function Base({ size = 20, strokeWidth = 1.75, ...rest }: IconProps & { children: ReactNode }) {
+  const { children, ...svg } = rest as IconProps & { children: ReactNode };
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...svg}
+    >
+      {children}
+    </svg>
+  );
+}
+
+/* ---- navigation ---- */
+
+export const HomeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 11.5 12 5l8 6.5" />
+    <path d="M6 10.5V20h12v-9.5" />
+  </Base>
+);
+
+export const RecordsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="5" y="4" width="14" height="17" rx="2.5" />
+    <rect x="9" y="2.5" width="6" height="4" rx="1.3" />
+    <path d="M9 12h6M9 16h4" />
+  </Base>
+);
+
+export const TimelineIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M3 12h3.5l2.5 7 4-14 2.5 7H21" />
+  </Base>
+);
+
+export const UserIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+  </Base>
+);
+
+/* ---- record types ---- */
+
+export const PillIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="8" width="18" height="8" rx="4" />
+    <path d="M12 8v8" />
+  </Base>
+);
+
+export const AllergyIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 4 2.5 20h19L12 4Z" />
+    <path d="M12 10v4" />
+    <path d="M12 17.3h.01" />
+  </Base>
+);
+
+export const ConditionIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 20s-6.5-4.35-9-8.5C1.5 8.5 3 5 6.5 5 9 5 12 7.5 12 7.5S15 5 17.5 5C21 5 22.5 8.5 21 11.5 18.5 15.65 12 20 12 20Z" />
+  </Base>
+);
+
+export const CalendarIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="4" y="5" width="16" height="16" rx="2.5" />
+    <path d="M4 9.5h16M8 3.5v3M16 3.5v3" />
+  </Base>
+);
+
+export const DocumentIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M7 3h7l4 4v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" />
+    <path d="M13.5 3.2V7.5H18M9 13h6M9 16.5h6" />
+  </Base>
+);
+
+export const ScanIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 8V6a2 2 0 0 1 2-2h2M20 8V6a2 2 0 0 0-2-2h-2M4 16v2a2 2 0 0 0 2 2h2M20 16v2a2 2 0 0 1-2 2h-2" />
+    <path d="M4 12h16" />
+  </Base>
+);
+
+export const VaccineIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3.5 5 6v6c0 4.5 3.2 7.3 7 8.5 3.8-1.2 7-4 7-8.5V6l-7-2.5Z" />
+    <path d="m9 12 2 2 4-4" />
+  </Base>
+);
+
+/* ---- actions ---- */
+
+export const PlusIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Base>
+);
+
+export const DownloadIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 4v11M8 11l4 4 4-4" />
+    <path d="M5 19h14" />
+  </Base>
+);
+
+export const ShareIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 15V4M8 8l4-4 4 4" />
+    <path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5" />
+  </Base>
+);
+
+export const EditIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 20l4-1L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z" />
+    <path d="m14 7 3 3" />
+  </Base>
+);
+
+export const TrashIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13M10 11v6M14 11v6" />
+  </Base>
+);
+
+export const CheckIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M20 6 9 17l-5-5" />
+  </Base>
+);
+
+export const ChevronRightIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="m9 6 6 6-6 6" />
+  </Base>
+);
+
+export const ChevronLeftIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="m15 6-6 6 6 6" />
+  </Base>
+);
+
+export const CloseIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M6 6l12 12M18 6 6 18" />
+  </Base>
+);
+
+export const SearchIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </Base>
+);
+
+export const PhoneIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M6.5 4h3l1.5 4-2 1.5a12 12 0 0 0 5.5 5.5l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 4.5 6a2 2 0 0 1 2-2Z" />
+  </Base>
+);
+
+export const ShieldIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3.5 5 6v6c0 4.5 3.2 7.3 7 8.5 3.8-1.2 7-4 7-8.5V6l-7-2.5Z" />
+  </Base>
+);
+
+export const QrIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="4" y="4" width="7" height="7" rx="1" />
+    <rect x="13" y="4" width="7" height="7" rx="1" />
+    <rect x="4" y="13" width="7" height="7" rx="1" />
+    <path d="M14.5 14.5h1.5v1.5M20 14.5v1.5h-1.5M14.5 20v-1.5M18.5 20H20" />
+  </Base>
+);
+
+export const CameraIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="7" width="18" height="13" rx="2.5" />
+    <circle cx="12" cy="13.5" r="3.5" />
+    <path d="M8 7l1.5-2.5h5L16 7" />
+  </Base>
+);
+
+export const InfoIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 11v5M12 8h.01" />
+  </Base>
+);
+
+export const LogoutIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M15 5H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h9" />
+    <path d="m18 15 3-3-3-3M21 12H10" />
+  </Base>
+);
+
+export const UploadIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 16V5M8 9l4-4 4 4" />
+    <path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" />
+  </Base>
+);
+
+/** The four-color Google mark for "Continue with Google" (fills, not stroke). */
+export const GoogleIcon = ({ size = 18, ...rest }: SVGProps<SVGSVGElement> & { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" {...rest}>
+    <path
+      fill="#EA4335"
+      d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
+    />
+    <path
+      fill="#4285F4"
+      d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
+    />
+    <path
+      fill="#34A853"
+      d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
+    />
+  </svg>
+);
