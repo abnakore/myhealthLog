@@ -8,6 +8,7 @@ import {
   ConditionIcon,
   CalendarIcon,
   DocumentIcon,
+  VitalsIcon,
 } from "@/components/icons";
 
 type IconType = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
@@ -32,6 +33,7 @@ export const primaryNav: NavItem[] = [
 export const recordNav: NavItem[] = [
   { to: "/app/allergies", label: "Allergies", icon: AllergyIcon },
   { to: "/app/medications", label: "Medications", icon: PillIcon },
+  { to: "/app/measurements", label: "Measurements", icon: VitalsIcon },
   { to: "/app/conditions", label: "Conditions", icon: ConditionIcon },
   { to: "/app/appointments", label: "Appointments", icon: CalendarIcon },
   { to: "/app/documents", label: "Documents", icon: DocumentIcon },

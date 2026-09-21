@@ -2,13 +2,20 @@ import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useRecords } from "@/store/RecordsContext";
-import { demoEmergencyToken } from "@/data/mock";
-import { isCriticalAllergy } from "@/types/health";
+import { useAppMode } from "@/store/AppModeContext";
+import {
+  isCriticalAllergy,
+  formatVitalValue,
+  vitalName,
+  vitalStatus,
+  type VitalReading,
+} from "@/types/health";
 import { formatRelative, formatShortDate, yearOf } from "@/lib/format";
 import { Section } from "@/components/ui/Section";
-import { Tag, allergyTone, appointmentTone } from "@/components/ui/Tag";
+import { Tag, allergyTone, appointmentTone, type TagTone } from "@/components/ui/Tag";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { buttonStyles } from "@/components/ui/Button";
+import { Sparkline } from "@/components/ui/Sparkline";
 import { EmergencyCard } from "@/components/emergency/EmergencyCard";
 import {
   AllergyIcon,
@@ -17,6 +24,7 @@ import {
   DocumentIcon,
   PlusIcon,
   ScanIcon,
+  VitalsIcon,
 } from "@/components/icons";
 import { APPOINTMENT_STATUS_LABELS } from "@/types/health";
 
@@ -37,13 +45,45 @@ function Stat({ value, label, sub }: { value: ReactNode; label: string; sub?: Re
   );
 }
 
+/** The gentle in/out-of-range cue on a reading — always beside the number, never alone. */
+function NumberStatus({ reading }: { reading: VitalReading }) {
+  const status = vitalStatus(reading);
+  if (!status) return null;
+  const tone: TagTone = status === "normal" ? "ok" : "watch";
+  const label = status === "normal" ? "In range" : status === "low" ? "Low" : "High";
+  return <Tag tone={tone}>{label}</Tag>;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
-  const { profile, allergies, medications, appointments, documents } = useRecords();
+  const { mode, meta: modeMeta } = useAppMode();
+  const ModeIcon = modeMeta.Icon;
+  const { profile, allergies, medications, appointments, documents, vitals } = useRecords();
 
   const firstName = (user?.name ?? profile.fullName).split(" ")[0];
   const critical = allergies.filter((a) => isCriticalAllergy(a.severity));
   const activeMeds = medications.filter((m) => m.active);
+
+  // The latest reading per measure, most-recently-measured first, capped at three —
+  // enough to show momentum without turning the dashboard into the full tracker.
+  const recentVitals = useMemo(() => {
+    const groups = new Map<string, VitalReading[]>();
+    for (const v of vitals) {
+      const key =
+        v.vitalType === "CUSTOM" ? `CUSTOM:${(v.label ?? "").trim().toLowerCase()}` : v.vitalType;
+      const arr = groups.get(key);
+      if (arr) arr.push(v);
+      else groups.set(key, [v]);
+    }
+    const rows = Array.from(groups.values()).map((readings) => {
+      const chrono = [...readings].sort(
+        (a, b) => +new Date(a.measuredAt) - +new Date(b.measuredAt),
+      );
+      return { latest: chrono[chrono.length - 1], values: chrono.slice(-16).map((r) => r.value) };
+    });
+    rows.sort((a, b) => +new Date(b.latest.measuredAt) - +new Date(a.latest.measuredAt));
+    return rows.slice(0, 3);
+  }, [vitals]);
 
   const lastVisit = useMemo(
     () =>
@@ -85,9 +125,20 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-mhl-answer font-bold text-mhl-ink">
-          {timeGreeting()}, {firstName}
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-mhl-answer font-bold text-mhl-ink">
+            {timeGreeting()}, {firstName}
+          </h1>
+          {mode !== "standard" && (
+            <Link
+              to="/app/profile"
+              className="mt-1 inline-flex flex-none items-center gap-1.5 rounded-full bg-mhl-accent-lo px-3 py-1.5 text-mhl-fine font-semibold text-mhl-accent transition-colors hover:bg-mhl-accent/15"
+            >
+              <ModeIcon size={15} />
+              {modeMeta.label} mode
+            </Link>
+          )}
+        </div>
         <p className="mt-1 text-mhl-body text-mhl-muted">Here's where your health record stands today.</p>
       </header>
 
@@ -147,7 +198,50 @@ export default function Dashboard() {
         </div>
       </Section>
 
-      <EmergencyCard token={demoEmergencyToken} />
+      {recentVitals.length > 0 && (
+        <Section
+          question="How have your numbers been?"
+          action={
+            <Link
+              to="/app/measurements"
+              className="text-mhl-fine font-semibold text-mhl-accent hover:text-mhl-accent-strong"
+            >
+              See all
+            </Link>
+          }
+        >
+          <ul className="mt-2 divide-y divide-mhl-rule">
+            {recentVitals.map(({ latest, values }) => (
+              <li key={latest.id} className="flex items-center gap-3 py-3">
+                <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent">
+                  <VitalsIcon size={18} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-mhl-body font-medium text-mhl-ink">
+                    {vitalName(latest)}
+                  </p>
+                  <p className="text-mhl-fine text-mhl-muted">
+                    measured {formatRelative(latest.measuredAt)}
+                  </p>
+                </div>
+                {values.length > 1 && (
+                  <Sparkline values={values} className="hidden text-mhl-accent sm:block" />
+                )}
+                <div className="flex-none text-right">
+                  <p className="whitespace-nowrap text-mhl-body font-bold text-mhl-ink">
+                    {formatVitalValue(latest)}
+                  </p>
+                  <div className="mt-0.5 flex justify-end">
+                    <NumberStatus reading={latest} />
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      )}
+
+      <EmergencyCard />
 
       <div className="flex flex-wrap gap-2">
         <Link to="/app/add" className={buttonStyles("primary", "md")}>

@@ -1,24 +1,42 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
+import { useSharing } from "@/store/SharingContext";
 import { isCriticalAllergy } from "@/types/health";
-import { ShieldIcon, DownloadIcon, ShareIcon, CheckIcon } from "@/components/icons";
+import { ShieldIcon, DownloadIcon, ShareIcon, CheckIcon, LockIcon } from "@/components/icons";
 import { QrPlaceholder, qrSvgMarkup } from "./QrPlaceholder";
 
 interface EmergencyCardProps {
-  token: string;
   className?: string;
+  /** On the settings page the card is its own preview, so the "manage" link is hidden
+      and an honest "this is what a responder sees" line takes its place. */
+  hideManageLink?: boolean;
 }
 
-/** The dashboard's emergency block. Kept in the near-black high-contrast register
-    (readable in any light, by anyone) and deliberately separate from the warm rest
-    of the page. Download saves the code; Share opens the device sheet. */
-export function EmergencyCard({ token, className }: EmergencyCardProps) {
-  const { profile, allergies } = useRecords();
+/** Join a list for the card, keeping it to one short line: "A, B, C +2". */
+function capList(items: string[], max = 3): string {
+  if (items.length <= max) return items.join(", ");
+  return `${items.slice(0, max).join(", ")} +${items.length - max}`;
+}
+
+/** The emergency block — on the dashboard it's the person's live card; on the
+    Emergency access page it's the preview of the very same thing. Kept in the
+    near-black high-contrast register (readable in any light, by anyone) and
+    deliberately separate from the warm rest of the page. What it shows is driven by
+    the emergency settings, so toggles there change this immediately. Download saves
+    the code; Share opens the device sheet. */
+export function EmergencyCard({ className, hideManageLink = false }: EmergencyCardProps) {
+  const { profile, allergies, medications, conditions } = useRecords();
+  const { emergency } = useSharing();
   const [copied, setCopied] = useState(false);
 
+  const token = emergency.token;
   const critical = allergies.filter((a) => isCriticalAllergy(a.severity)).map((a) => a.substance);
+  const activeMeds = medications.filter((m) => m.active).map((m) => m.name);
+  const activeConditions = conditions.filter((c) => c.status === "ACTIVE").map((c) => c.name);
   const primaryContact = [...profile.emergencyContacts].sort((a, b) => a.priority - b.priority)[0];
+  const note = emergency.note.trim();
 
   function handleDownload() {
     const blob = new Blob([qrSvgMarkup(token)], { type: "image/svg+xml" });
@@ -75,19 +93,35 @@ export function EmergencyCard({ token, className }: EmergencyCardProps) {
           <QrPlaceholder token={token} size={104} className="block text-mhl-emerg" />
         </div>
         <dl className="min-w-0 space-y-2 text-mhl-fine">
-          <div>
-            <dt className="text-mhl-emerg-faint">Blood &amp; genotype</dt>
-            <dd className="text-mhl-lead font-bold text-mhl-emerg-ink">
-              {profile.bloodType ?? "—"} · {profile.genotype ?? "—"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-mhl-emerg-faint">Critical allergies</dt>
-            <dd className="font-semibold text-mhl-emerg-ink">
-              {critical.length > 0 ? critical.join(", ") : "None recorded"}
-            </dd>
-          </div>
-          {primaryContact && (
+          {emergency.showBloodType && (
+            <div>
+              <dt className="text-mhl-emerg-faint">Blood &amp; genotype</dt>
+              <dd className="text-mhl-lead font-bold text-mhl-emerg-ink">
+                {profile.bloodType ?? "—"} · {profile.genotype ?? "—"}
+              </dd>
+            </div>
+          )}
+          {emergency.showAllergies && (
+            <div>
+              <dt className="text-mhl-emerg-faint">Critical allergies</dt>
+              <dd className="font-semibold text-mhl-emerg-ink">
+                {critical.length > 0 ? critical.join(", ") : "None recorded"}
+              </dd>
+            </div>
+          )}
+          {emergency.showMedications && activeMeds.length > 0 && (
+            <div>
+              <dt className="text-mhl-emerg-faint">Current medicines</dt>
+              <dd className="font-semibold text-mhl-emerg-ink">{capList(activeMeds)}</dd>
+            </div>
+          )}
+          {emergency.showConditions && activeConditions.length > 0 && (
+            <div>
+              <dt className="text-mhl-emerg-faint">Ongoing conditions</dt>
+              <dd className="font-semibold text-mhl-emerg-ink">{capList(activeConditions)}</dd>
+            </div>
+          )}
+          {emergency.showContacts && primaryContact && (
             <div>
               <dt className="text-mhl-emerg-faint">Emergency contact</dt>
               <dd className="font-semibold text-mhl-emerg-ink">
@@ -97,6 +131,19 @@ export function EmergencyCard({ token, className }: EmergencyCardProps) {
           )}
         </dl>
       </div>
+
+      {emergency.showNote && note && (
+        <p className="mt-3 rounded-mhl-sm bg-mhl-emerg-ink/10 px-3 py-2 text-mhl-fine text-mhl-emerg-ink">
+          {note}
+        </p>
+      )}
+
+      {emergency.pinEnabled && (
+        <p className="mt-3 flex items-center gap-1.5 text-[0.75rem] text-mhl-emerg-amber">
+          <LockIcon size={14} />
+          Protected with a PIN — a responder enters it to open your card.
+        </p>
+      )}
 
       <div className="mt-4 flex gap-2">
         <button
@@ -118,7 +165,16 @@ export function EmergencyCard({ token, className }: EmergencyCardProps) {
       </div>
 
       <p aria-live="polite" className="mt-3 text-[0.75rem] text-mhl-emerg-faint">
-        Preview only. Your live code is issued from Emergency settings, where it can be revoked.
+        {hideManageLink ? (
+          "This is exactly what a responder sees."
+        ) : (
+          <>
+            You choose what shows here.{" "}
+            <Link to="/app/emergency" className="font-semibold text-mhl-emerg-amber hover:underline">
+              Manage emergency access
+            </Link>
+          </>
+        )}
       </p>
     </section>
   );

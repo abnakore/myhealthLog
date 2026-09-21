@@ -17,6 +17,7 @@ import {
   DocumentFields,
   ImmunizationFields,
   MedicationFields,
+  VitalFields,
 } from "./FieldSets";
 import {
   AllergyIcon,
@@ -26,10 +27,12 @@ import {
   PillIcon,
   ScanIcon,
   VaccineIcon,
+  VitalsIcon,
 } from "@/components/icons";
 
 export type RecordKind =
   | "medication"
+  | "vital"
   | "allergy"
   | "condition"
   | "visit"
@@ -91,6 +94,19 @@ export const RECORD_KINDS: KindConfig[] = [
     validate: M.validateMedication,
     fromDraft: (d) => M.medicationFromDraft(d),
     Fields: MedicationFields,
+  }),
+  defineKind({
+    kind: "vital",
+    label: "Measurement",
+    blurb: "A vital sign or reading",
+    icon: VitalsIcon,
+    collectionKey: "vitals",
+    listPath: "/app/measurements",
+    listLabel: "Measurements",
+    empty: () => M.emptyVitalDraft(),
+    validate: M.validateVital,
+    fromDraft: (d) => M.vitalFromDraft(d),
+    Fields: VitalFields,
   }),
   defineKind({
     kind: "allergy",

@@ -13,7 +13,12 @@ import Medications from "@/pages/Medications";
 import Conditions from "@/pages/Conditions";
 import Appointments from "@/pages/Appointments";
 import Documents from "@/pages/Documents";
+import Measurements from "@/pages/Measurements";
 import Timeline from "@/pages/Timeline";
+import CareProviders from "@/pages/CareProviders";
+import CircleOfTrust from "@/pages/CircleOfTrust";
+import EmergencyAccess from "@/pages/EmergencyAccess";
+import Connections from "@/pages/Connections";
 
 export default function App() {
   return (
@@ -50,7 +55,13 @@ export default function App() {
         <Route path="conditions" element={<Conditions />} />
         <Route path="appointments" element={<Appointments />} />
         <Route path="documents" element={<Documents />} />
+        <Route path="measurements" element={<Measurements />} />
         <Route path="timeline" element={<Timeline />} />
+        {/* Sharing & safety — reached from the Profile hub, not the tab bar. */}
+        <Route path="providers" element={<CareProviders />} />
+        <Route path="circle" element={<CircleOfTrust />} />
+        <Route path="emergency" element={<EmergencyAccess />} />
+        <Route path="connections" element={<Connections />} />
       </Route>
 
       {/* Everything else lands in the app; the gates route anonymous users to login. */}

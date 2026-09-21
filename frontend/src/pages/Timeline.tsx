@@ -2,7 +2,7 @@ import { useMemo, type ComponentType } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
-import { APPOINTMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, VITAL_LABELS } from "@/types/health";
+import { APPOINTMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, formatVitalValue, vitalName } from "@/types/health";
 import { formatDate, yearOf } from "@/lib/format";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
@@ -13,12 +13,12 @@ import {
   CalendarIcon,
   ConditionIcon,
   DocumentIcon,
-  InfoIcon,
   PillIcon,
   PlusIcon,
   ScanIcon,
   TimelineIcon,
   VaccineIcon,
+  VitalsIcon,
 } from "@/components/icons";
 
 type EventIcon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
@@ -124,9 +124,9 @@ export default function Timeline() {
       events.push({
         key: `vt-${v.id}`,
         date: v.measuredAt,
-        Icon: InfoIcon,
-        title: `${VITAL_LABELS[v.vitalType]} recorded`,
-        meta: `${v.value}${v.value2 != null ? `/${v.value2}` : ""} ${v.unit}`,
+        Icon: VitalsIcon,
+        title: `${vitalName(v)} recorded`,
+        meta: formatVitalValue(v),
       });
     }
 

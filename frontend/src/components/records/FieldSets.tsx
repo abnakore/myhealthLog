@@ -18,6 +18,8 @@ import {
   GENOTYPES,
   SEVERITY_LABELS,
   SEX_LABELS,
+  VITAL_LABELS,
+  VITAL_META,
   type AllergySeverity,
   type AllergyType,
   type AppointmentStatus,
@@ -27,6 +29,7 @@ import {
   type DocumentType,
   type Genotype,
   type Sex,
+  type VitalType,
 } from "@/types/health";
 import type {
   AllergyDraft,
@@ -38,6 +41,7 @@ import type {
   LocationDraft,
   MedicationDraft,
   ProfileBasicsDraft,
+  VitalReadingDraft,
 } from "./model";
 
 interface FieldSetProps<D> {
@@ -424,6 +428,97 @@ export function ImmunizationFields({ draft, onChange, errors }: FieldSetProps<Im
         label="Notes"
         value={draft.notes}
         onChange={(e) => onChange({ notes: e.target.value })}
+        optional
+      />
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- vitals -- */
+
+export function VitalFields({ draft, onChange, errors }: FieldSetProps<VitalReadingDraft>) {
+  const meta = VITAL_META[draft.vitalType];
+  const isCustom = draft.vitalType === "CUSTOM";
+  return (
+    <div className="space-y-4">
+      <SelectField
+        label="What did you measure?"
+        value={draft.vitalType}
+        onChange={(e) => {
+          // Switch type and reset the unit to the new type's default in one patch.
+          const vitalType = e.target.value as VitalType;
+          onChange({ vitalType, unit: VITAL_META[vitalType].unit });
+        }}
+      >
+        {optionsFrom(VITAL_LABELS)}
+      </SelectField>
+
+      {isCustom && (
+        <Row>
+          <TextField
+            label="Measurement name"
+            value={draft.label}
+            error={errors.label}
+            placeholder="e.g. Ketones"
+            onChange={(e) => onChange({ label: e.target.value })}
+          />
+          <TextField
+            label="Unit"
+            value={draft.unit}
+            error={errors.unit}
+            placeholder="e.g. mmol/L"
+            onChange={(e) => onChange({ unit: e.target.value })}
+          />
+        </Row>
+      )}
+
+      {meta.dual ? (
+        <Row>
+          <TextField
+            label={`${meta.valueLabel ?? "Value"} (${meta.unit})`}
+            type="number"
+            inputMode="decimal"
+            step={meta.step}
+            value={draft.value}
+            error={errors.value}
+            placeholder="120"
+            onChange={(e) => onChange({ value: e.target.value })}
+          />
+          <TextField
+            label={`${meta.value2Label ?? "Second value"} (${meta.unit})`}
+            type="number"
+            inputMode="decimal"
+            step={meta.step}
+            value={draft.value2}
+            error={errors.value2}
+            placeholder="80"
+            onChange={(e) => onChange({ value2: e.target.value })}
+          />
+        </Row>
+      ) : (
+        <TextField
+          label={isCustom || !draft.unit ? "Value" : `Value (${draft.unit})`}
+          type="number"
+          inputMode="decimal"
+          step={meta.step}
+          value={draft.value}
+          error={errors.value}
+          onChange={(e) => onChange({ value: e.target.value })}
+        />
+      )}
+
+      <TextField
+        label="When"
+        type="datetime-local"
+        value={draft.measuredAt}
+        error={errors.measuredAt}
+        onChange={(e) => onChange({ measuredAt: e.target.value })}
+      />
+      <TextField
+        label="Context"
+        value={draft.context}
+        placeholder="e.g. Fasting, sitting, after exercise"
+        onChange={(e) => onChange({ context: e.target.value })}
         optional
       />
     </div>

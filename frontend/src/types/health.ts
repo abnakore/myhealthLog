@@ -159,11 +159,17 @@ export interface Immunization {
 
 export type VitalType =
   | "BLOOD_PRESSURE"
+  | "PULSE"
+  | "RESPIRATORY_RATE"
+  | "TEMPERATURE"
+  | "SPO2"
   | "BLOOD_GLUCOSE"
   | "WEIGHT"
-  | "TEMPERATURE"
-  | "PULSE"
-  | "SPO2";
+  | "HEIGHT"
+  | "BMI"
+  | "PAIN"
+  | "PEAK_FLOW"
+  | "CUSTOM";
 
 export interface VitalReading {
   id: ID;
@@ -173,6 +179,7 @@ export interface VitalReading {
   unit: string;
   measuredAt: string;
   context?: string; // "fasting", "post-meal", "sitting, left arm"
+  label?: string; // display name for a CUSTOM reading, e.g. "Ketones"
 }
 
 /* ------------------------------------------------------- display metadata -- */
@@ -229,14 +236,97 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   OTHER: "Other",
 };
 
+// Ordered clinically — the vitals a clinician takes together lead, then body
+// metrics, then symptom/other. Selects and grouped lists follow this key order.
 export const VITAL_LABELS: Record<VitalType, string> = {
   BLOOD_PRESSURE: "Blood pressure",
+  PULSE: "Heart rate",
+  RESPIRATORY_RATE: "Respiratory rate",
+  TEMPERATURE: "Temperature",
+  SPO2: "Oxygen (SpO₂)",
   BLOOD_GLUCOSE: "Blood sugar",
   WEIGHT: "Weight",
-  TEMPERATURE: "Temperature",
-  PULSE: "Pulse",
-  SPO2: "Oxygen (SpO₂)",
+  HEIGHT: "Height",
+  BMI: "BMI",
+  PAIN: "Pain level",
+  PEAK_FLOW: "Peak flow",
+  CUSTOM: "Other measurement",
 };
+
+export interface VitalMeta {
+  /** Default unit; for CUSTOM it's empty and the user types their own. */
+  unit: string;
+  /** A paired reading (systolic/diastolic). */
+  dual?: boolean;
+  /** Labels for the two inputs when `dual`. */
+  valueLabel?: string;
+  value2Label?: string;
+  /** Input step; also hints decimals. */
+  step?: number;
+  /** Decimals to show. */
+  decimals?: number;
+  /** A typical healthy band for the primary value — drives a gentle in/out-of-range tag. */
+  range?: [number, number];
+}
+
+// Units and normal bands are general adult references for a friendly at-a-glance
+// cue, not clinical thresholds. The range tag always rides with the number and a
+// word — it never stands in for medical advice.
+export const VITAL_META: Record<VitalType, VitalMeta> = {
+  BLOOD_PRESSURE: { unit: "mmHg", dual: true, valueLabel: "Systolic", value2Label: "Diastolic", step: 1, range: [90, 130] },
+  PULSE: { unit: "bpm", step: 1, range: [60, 100] },
+  RESPIRATORY_RATE: { unit: "breaths/min", step: 1, range: [12, 20] },
+  TEMPERATURE: { unit: "°C", step: 0.1, decimals: 1, range: [36.1, 37.5] },
+  SPO2: { unit: "%", step: 1, range: [95, 100] },
+  BLOOD_GLUCOSE: { unit: "mmol/L", step: 0.1, decimals: 1, range: [4, 7.8] },
+  WEIGHT: { unit: "kg", step: 0.1, decimals: 1 },
+  HEIGHT: { unit: "cm", step: 0.1, decimals: 1 },
+  BMI: { unit: "kg/m²", step: 0.1, decimals: 1, range: [18.5, 24.9] },
+  PAIN: { unit: "/10", step: 1 },
+  PEAK_FLOW: { unit: "L/min", step: 1 },
+  CUSTOM: { unit: "" },
+};
+
+/** BMI from height (cm) and weight (kg), to one decimal; undefined if either is missing. */
+export function bmiFrom(heightCm?: number, weightKg?: number): number | undefined {
+  if (!heightCm || !weightKg) return undefined;
+  const m = heightCm / 100;
+  if (m <= 0) return undefined;
+  return Math.round((weightKg / (m * m)) * 10) / 10;
+}
+
+/** A reading's display name — the label for CUSTOM, otherwise the type's label. */
+export function vitalName(v: Pick<VitalReading, "vitalType" | "label">): string {
+  if (v.vitalType === "CUSTOM") return v.label?.trim() || "Measurement";
+  return VITAL_LABELS[v.vitalType];
+}
+
+// Trim to the type's precision without forcing trailing zeros: 72 → "72", 6.2 → "6.2".
+function trimNum(n: number, dp: number): string {
+  return dp > 0 ? String(Number(n.toFixed(dp))) : String(Math.round(n));
+}
+
+/** "128/84 mmHg", "6.2 mmol/L", "37 °C" — the value with its unit, ready to show. */
+export function formatVitalValue(
+  v: Pick<VitalReading, "vitalType" | "value" | "value2" | "unit">,
+): string {
+  const meta = VITAL_META[v.vitalType];
+  const dp = meta?.decimals ?? 0;
+  const main = v.value2 != null ? `${v.value}/${v.value2}` : trimNum(v.value, dp);
+  const unit = v.unit || meta?.unit || "";
+  return unit ? `${main} ${unit}` : main;
+}
+
+export type VitalStatus = "low" | "normal" | "high";
+
+/** Where the primary value sits against the type's normal band, or null if none. */
+export function vitalStatus(v: Pick<VitalReading, "vitalType" | "value">): VitalStatus | null {
+  const range = VITAL_META[v.vitalType]?.range;
+  if (!range) return null;
+  if (v.value < range[0]) return "low";
+  if (v.value > range[1]) return "high";
+  return "normal";
+}
 
 /** True for a severity that must surface on the emergency summary. */
 export function isCriticalAllergy(severity: AllergySeverity): boolean {

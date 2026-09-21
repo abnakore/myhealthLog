@@ -19,6 +19,7 @@ import type {
   Procedure,
   VitalReading,
 } from "@/types/health";
+import type { CareProvider, CareProxy, Connection, EmergencySettings } from "@/types/sharing";
 
 export const demoProfile: HealthProfile = {
   id: "p_amina",
@@ -231,9 +232,49 @@ export const demoProcedures: Procedure[] = [
   },
 ];
 
+// A few weeks of readings that trend the right way — elevated blood pressure and
+// blood sugar easing into range as weight comes down — so trends and sparklines are
+// alive on first load and the High → In range cue has something to show.
 export const demoVitals: VitalReading[] = [
+  // Blood pressure — home readings, morning, easing from high into range.
   {
-    id: "vt_bp",
+    id: "vt_bp1",
+    vitalType: "BLOOD_PRESSURE",
+    value: 142,
+    value2: 92,
+    unit: "mmHg",
+    measuredAt: "2026-08-01T07:35:00",
+    context: "Sitting, left arm",
+  },
+  {
+    id: "vt_bp2",
+    vitalType: "BLOOD_PRESSURE",
+    value: 138,
+    value2: 88,
+    unit: "mmHg",
+    measuredAt: "2026-08-15T07:50:00",
+    context: "Sitting, left arm",
+  },
+  {
+    id: "vt_bp3",
+    vitalType: "BLOOD_PRESSURE",
+    value: 134,
+    value2: 86,
+    unit: "mmHg",
+    measuredAt: "2026-08-29T07:20:00",
+    context: "Sitting, left arm",
+  },
+  {
+    id: "vt_bp4",
+    vitalType: "BLOOD_PRESSURE",
+    value: 130,
+    value2: 85,
+    unit: "mmHg",
+    measuredAt: "2026-09-05T07:45:00",
+    context: "Sitting, left arm",
+  },
+  {
+    id: "vt_bp5",
     vitalType: "BLOOD_PRESSURE",
     value: 128,
     value2: 84,
@@ -241,16 +282,63 @@ export const demoVitals: VitalReading[] = [
     measuredAt: "2026-09-10T07:40:00",
     context: "Sitting, left arm",
   },
+  // Blood sugar — fasting, coming down into range.
   {
-    id: "vt_glu",
+    id: "vt_glu1",
+    vitalType: "BLOOD_GLUCOSE",
+    value: 8.4,
+    unit: "mmol/L",
+    measuredAt: "2026-08-08T06:40:00",
+    context: "Fasting",
+  },
+  {
+    id: "vt_glu2",
+    vitalType: "BLOOD_GLUCOSE",
+    value: 7.6,
+    unit: "mmol/L",
+    measuredAt: "2026-08-22T06:50:00",
+    context: "Fasting",
+  },
+  {
+    id: "vt_glu3",
+    vitalType: "BLOOD_GLUCOSE",
+    value: 7.1,
+    unit: "mmol/L",
+    measuredAt: "2026-09-03T06:45:00",
+    context: "Fasting",
+  },
+  {
+    id: "vt_glu4",
     vitalType: "BLOOD_GLUCOSE",
     value: 6.2,
     unit: "mmol/L",
     measuredAt: "2026-09-10T06:55:00",
     context: "Fasting",
   },
+  // Weight — a gentle, steady decline.
   {
-    id: "vt_wt",
+    id: "vt_wt1",
+    vitalType: "WEIGHT",
+    value: 75.5,
+    unit: "kg",
+    measuredAt: "2026-07-15T07:00:00",
+  },
+  {
+    id: "vt_wt2",
+    vitalType: "WEIGHT",
+    value: 74.2,
+    unit: "kg",
+    measuredAt: "2026-08-01T07:00:00",
+  },
+  {
+    id: "vt_wt3",
+    vitalType: "WEIGHT",
+    value: 73.1,
+    unit: "kg",
+    measuredAt: "2026-08-18T07:00:00",
+  },
+  {
+    id: "vt_wt4",
     vitalType: "WEIGHT",
     value: 72,
     unit: "kg",
@@ -263,3 +351,70 @@ export const demoVitals: VitalReading[] = [
  * optionally PIN-gated). Here it just seeds the QR placeholder deterministically.
  */
 export const demoEmergencyToken = "eznk-7Q2M-amina-2f9c";
+
+/* ---------------------------------------------------------- sharing & safety -- */
+/* Seeds for the trust features so the sharing pages open with real-feeling state:
+   a doctor Amina already shares with, a lab she's just invited, her husband in her
+   circle of trust, and one connected app already feeding measurements in. */
+
+export const demoProviders: CareProvider[] = [
+  {
+    id: "prov_abdullahi",
+    name: "Dr. F. Abdullahi",
+    role: "Endocrinologist",
+    facility: "Murtala Muhammad Specialist Hospital",
+    scopes: ["profile", "conditions", "medications", "measurements"],
+    access: "CONTRIBUTE",
+    shareCode: "MHL-7QK2-9F4P",
+    status: "ACTIVE",
+    createdAt: "2026-07-22T10:00:00",
+    lastAccessedAt: "2026-09-08T14:30:00",
+  },
+  {
+    id: "prov_barewa",
+    name: "Barewa Diagnostics",
+    role: "Laboratory",
+    facility: "Barewa Diagnostics, Kano",
+    scopes: ["profile", "documents", "measurements"],
+    access: "CONTRIBUTE",
+    shareCode: "MHL-3F8T-KP2Q",
+    pin: "4821",
+    status: "PENDING",
+    createdAt: "2026-09-09T09:15:00",
+    expiresAt: "2026-09-23T09:15:00",
+  },
+];
+
+export const demoProxies: CareProxy[] = [
+  {
+    id: "proxy_ibrahim",
+    name: "Ibrahim Yusuf",
+    relationship: "Husband",
+    phone: "0803 555 7788",
+    scopes: ["profile", "allergies", "medications", "conditions", "measurements", "appointments", "documents"],
+    canManage: true,
+    emergencyAccess: true,
+    createdAt: "2026-05-02T08:00:00",
+  },
+];
+
+export const demoConnections: Connection[] = [
+  {
+    sourceId: "samsung-health",
+    connectedAt: "2026-06-15T18:00:00",
+    lastSync: "2026-09-10T06:30:00",
+  },
+];
+
+export const demoEmergencySettings: EmergencySettings = {
+  token: demoEmergencyToken,
+  pinEnabled: false,
+  showBloodType: true,
+  showAllergies: true,
+  showMedications: true,
+  showConditions: false,
+  showContacts: true,
+  showNote: false,
+  note: "Please contact my husband first. I wear a medical alert bracelet.",
+  updatedAt: "2026-09-01T12:00:00",
+};

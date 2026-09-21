@@ -115,6 +115,13 @@ export const VaccineIcon = (p: IconProps) => (
   </Base>
 );
 
+export const VitalsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="2.5" />
+    <path d="M6 12h2.5l1.5-3 2 6 1.5-3H18" />
+  </Base>
+);
+
 /* ---- actions ---- */
 
 export const PlusIcon = (p: IconProps) => (
@@ -187,6 +194,13 @@ export const PhoneIcon = (p: IconProps) => (
   </Base>
 );
 
+export const MapPinIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z" />
+    <circle cx="12" cy="10" r="2.5" />
+  </Base>
+);
+
 export const ShieldIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M12 3.5 5 6v6c0 4.5 3.2 7.3 7 8.5 3.8-1.2 7-4 7-8.5V6l-7-2.5Z" />
@@ -228,6 +242,111 @@ export const UploadIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M12 16V5M8 9l4-4 4 4" />
     <path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3" />
+  </Base>
+);
+
+export const SlidersIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M4 8h9M17 8h3" />
+    <circle cx="15" cy="8" r="2" />
+    <path d="M4 16h3M11 16h9" />
+    <circle cx="9" cy="16" r="2" />
+  </Base>
+);
+
+/* ---- sharing & safety ---- */
+
+export const StethoscopeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M5 4v6a4 4 0 0 0 8 0V4" />
+    <path d="M9 14a5 5 0 0 0 5 5h.5a3.5 3.5 0 0 0 3.5-3.5V15" />
+    <circle cx="18.5" cy="12.8" r="2.3" />
+  </Base>
+);
+
+export const UsersIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="9" cy="8" r="3.3" />
+    <path d="M3.5 20a5.5 5.5 0 0 1 11 0" />
+    <path d="M16.5 5.3a3.3 3.3 0 0 1 0 5.4" />
+    <path d="M15.8 14.7a5.5 5.5 0 0 1 4.7 5.3" />
+  </Base>
+);
+
+export const LinkIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M10 14a3.5 3.5 0 0 1 0-5l2-2a3.5 3.5 0 0 1 5 5l-1 1" />
+    <path d="M14 10a3.5 3.5 0 0 1 0 5l-2 2a3.5 3.5 0 0 1-5-5l1-1" />
+  </Base>
+);
+
+export const KeyIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="8" cy="15.5" r="3.5" />
+    <path d="M10.5 13 20 3.5" />
+    <path d="M15 8.5l2.5 2.5M17.5 6l2 2" />
+  </Base>
+);
+
+export const CopyIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="8.5" y="8.5" width="11.5" height="11.5" rx="2.2" />
+    <path d="M16 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2.5" />
+  </Base>
+);
+
+export const RefreshIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M20 11a8 8 0 0 0-14-5L4 8" />
+    <path d="M4 4v4h4" />
+    <path d="M4 13a8 8 0 0 0 14 5l2-2" />
+    <path d="M20 20v-4h-4" />
+  </Base>
+);
+
+export const LockIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="5" y="10.5" width="14" height="9.5" rx="2.3" />
+    <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
+  </Base>
+);
+
+export const MailIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
+    <path d="m4.5 7.5 7.5 5.5 7.5-5.5" />
+  </Base>
+);
+
+/* ---- condition-aware modes ---- */
+
+export const CompassIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2Z" />
+  </Base>
+);
+
+export const SproutIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 21v-9" />
+    <path d="M12 12c0-3.4 2.7-5.4 6.4-5.4 0 3.4-2.7 5.4-6.4 5.4Z" />
+    <path d="M12 14.5c0-2.7-2.2-4.4-5.2-4.4 0 2.7 2.2 4.4 5.2 4.4Z" />
+  </Base>
+);
+
+export const HeartPulseIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 20s-6.5-4.35-9-8.5C1.5 8.5 3 5 6.5 5 9 5 12 7.5 12 7.5S15 5 17.5 5C21 5 22.5 8.5 21 11.5 18.5 15.65 12 20 12 20Z" />
+    <path d="M6.5 12.3h2.4l1.4-2.6 2 4.6 1.3-2h3.9" />
+  </Base>
+);
+
+export const LifebuoyIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="3.6" />
+    <path d="m14.6 9.4 3.8-3.8M9.4 9.4 5.6 5.6M14.6 14.6l3.8 3.8M9.4 14.6l-3.8 3.8" />
   </Base>
 );
 

@@ -1,16 +1,16 @@
 /**
- * The in-memory record store. Seeded from the demo data so every screen renders
- * with real-feeling content; writes (add / edit / delete / profile patch) update
- * React state so the whole app stays consistent within a session. When the DRF
- * backend lands, these mutators become the fetch/mutation calls and the seed goes
- * away — the component API (useRecords) stays the same.
+ * The record store. Seeded from the demo data so every screen renders with
+ * real-feeling content; writes (add / edit / delete / profile patch) update React
+ * state so the whole app stays consistent. State is mirrored to localStorage, so
+ * edits survive a refresh (the mock stand-in for a backend). When the DRF backend
+ * lands, these mutators become the fetch/mutation calls and the seed goes away —
+ * the component API (useRecords) stays the same.
  */
 import {
   createContext,
   useCallback,
   useContext,
   useMemo,
-  useState,
   type ReactNode,
 } from "react";
 import type {
@@ -24,6 +24,7 @@ import type {
   Procedure,
   VitalReading,
 } from "@/types/health";
+import { usePersistentState } from "@/lib/storage";
 import {
   demoAllergies,
   demoAppointments,
@@ -63,8 +64,8 @@ interface RecordsContextValue extends Collections {
 const RecordsContext = createContext<RecordsContextValue | null>(null);
 
 export function RecordsProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<HealthProfile>(demoProfile);
-  const [collections, setCollections] = useState<Collections>({
+  const [profile, setProfile] = usePersistentState<HealthProfile>("profile", demoProfile);
+  const [collections, setCollections] = usePersistentState<Collections>("records", () => ({
     allergies: demoAllergies,
     medications: demoMedications,
     conditions: demoConditions,
@@ -73,7 +74,7 @@ export function RecordsProvider({ children }: { children: ReactNode }) {
     immunizations: demoImmunizations,
     procedures: demoProcedures,
     vitals: demoVitals,
-  });
+  }));
 
   // New items go to the front so a just-added record is visible without scrolling.
   const addItem = useCallback(<K extends CollectionKey>(key: K, item: ItemOf<K>) => {

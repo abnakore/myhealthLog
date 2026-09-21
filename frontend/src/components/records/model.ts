@@ -6,6 +6,7 @@
  * a field is defined once and never drifts between "add" and "edit".
  */
 import { genId } from "@/lib/id";
+import { VITAL_META } from "@/types/health";
 import type {
   Allergy,
   AllergySeverity,
@@ -23,6 +24,8 @@ import type {
   Immunization,
   Medication,
   Sex,
+  VitalReading,
+  VitalType,
 } from "@/types/health";
 
 export type FieldErrors = Record<string, string>;
@@ -352,6 +355,77 @@ export function immunizationFromDraft(d: ImmunizationDraft, base?: Immunization)
     administeredOn: d.administeredOn,
     nextDue: d.nextDue || undefined,
     notes: d.notes.trim() || undefined,
+  };
+}
+
+/* ----------------------------------------------------------------- vitals -- */
+
+export interface VitalReadingDraft {
+  vitalType: VitalType;
+  value: string;
+  value2: string; // second value for a paired reading (BP diastolic)
+  unit: string; // seeded from VITAL_META; editable only for CUSTOM
+  measuredAt: string; // datetime-local
+  context: string;
+  label: string; // name of a CUSTOM measurement
+}
+
+// A datetime-local string ("YYYY-MM-DDTHH:mm") for right now, in local time.
+function nowLocalDateTime(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+export const emptyVitalDraft = (vitalType: VitalType = "BLOOD_PRESSURE"): VitalReadingDraft => ({
+  vitalType,
+  value: "",
+  value2: "",
+  unit: VITAL_META[vitalType].unit,
+  measuredAt: nowLocalDateTime(),
+  context: "",
+  label: "",
+});
+
+export const vitalToDraft = (v: VitalReading): VitalReadingDraft => ({
+  vitalType: v.vitalType,
+  value: String(v.value),
+  value2: v.value2 != null ? String(v.value2) : "",
+  unit: v.unit,
+  // trim a seconds suffix so it fits <input type="datetime-local">
+  measuredAt: v.measuredAt.slice(0, 16),
+  context: v.context ?? "",
+  label: v.label ?? "",
+});
+
+export function validateVital(d: VitalReadingDraft): FieldErrors {
+  const e: FieldErrors = {};
+  const meta = VITAL_META[d.vitalType];
+  if (d.vitalType === "CUSTOM") {
+    if (!d.label.trim()) e.label = "Name this measurement.";
+    if (!d.unit.trim()) e.unit = "Add a unit.";
+  }
+  if (numOrUndef(d.value) === undefined) {
+    e.value = meta.dual ? "Enter the systolic value." : "Enter a value.";
+  }
+  if (meta.dual && numOrUndef(d.value2) === undefined) {
+    e.value2 = "Enter the diastolic value.";
+  }
+  if (!d.measuredAt) e.measuredAt = "When did you take it?";
+  return e;
+}
+
+export function vitalFromDraft(d: VitalReadingDraft, base?: VitalReading): VitalReading {
+  const meta = VITAL_META[d.vitalType];
+  return {
+    id: base?.id ?? genId("vt"),
+    vitalType: d.vitalType,
+    value: numOrUndef(d.value) ?? 0,
+    value2: meta.dual ? numOrUndef(d.value2) : undefined,
+    unit: d.unit.trim() || meta.unit,
+    measuredAt: d.measuredAt,
+    context: d.context.trim() || undefined,
+    label: d.vitalType === "CUSTOM" ? d.label.trim() || undefined : undefined,
   };
 }
 
