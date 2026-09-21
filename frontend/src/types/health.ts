@@ -182,6 +182,47 @@ export interface VitalReading {
   label?: string; // display name for a CUSTOM reading, e.g. "Ketones"
 }
 
+/* --------------------------------------------------------- per-person set -- */
+/* One person's whole record, grouped. The store keeps these side by side, keyed by
+   the account id they belong to, because a care proxy opens someone else's record in
+   the very same app (Phase 2) — the collections are per person, not per session. */
+
+export interface RecordCollections {
+  allergies: Allergy[];
+  medications: Medication[];
+  conditions: Condition[];
+  appointments: Appointment[];
+  documents: HealthDocument[];
+  immunizations: Immunization[];
+  procedures: Procedure[];
+  vitals: VitalReading[];
+}
+
+/** Everything on file for one person: the profile plus its collections. */
+export interface RecordBundle extends RecordCollections {
+  profile: HealthProfile;
+}
+
+/** Every collection, empty — the starting point for someone with nothing on file. */
+export function emptyCollections(): RecordCollections {
+  return {
+    allergies: [],
+    medications: [],
+    conditions: [],
+    appointments: [],
+    documents: [],
+    immunizations: [],
+    procedures: [],
+    vitals: [],
+  };
+}
+
+/** A blank record for an account with nothing on file yet — someone who has just
+    been given proxy access before they've entered anything, or a new sign-up. */
+export function emptyRecordBundle(ownerId: string, fullName = ""): RecordBundle {
+  return { profile: { id: ownerId, fullName, emergencyContacts: [] }, ...emptyCollections() };
+}
+
 /* ------------------------------------------------------- display metadata -- */
 /* Option lists (for selects) and human labels (for display), in one place so a
    form and a list never disagree on wording. */

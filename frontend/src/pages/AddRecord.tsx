@@ -2,11 +2,13 @@ import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { RECORD_KINDS, findKind, type KindConfig } from "@/components/records/registry";
 import type { FieldErrors } from "@/components/records/model";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Card } from "@/components/ui/Card";
 import { Button, buttonStyles } from "@/components/ui/Button";
+import { OwnerOnlyNotice } from "@/components/proxy/OwnerOnlyNotice";
 import { CheckIcon, PlusIcon } from "@/components/icons";
 
 /**
@@ -18,6 +20,7 @@ import { CheckIcon, PlusIcon } from "@/components/icons";
 export default function AddRecord() {
   const [params] = useSearchParams();
   const { addItem } = useRecords();
+  const { canEdit, activeOwnerName } = useCareProxy();
 
   const [selected, setSelected] = useState<KindConfig | null>(() => findKind(params.get("type")) ?? null);
   const [draft, setDraft] = useState<unknown>(() => {
@@ -26,6 +29,23 @@ export default function AddRecord() {
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saved, setSaved] = useState<KindConfig | null>(null);
+
+  // The only write path in the app is also the first thing a view-only proxy would
+  // reach for, so it says why instead of rendering a form that would be refused.
+  if (!canEdit) {
+    return (
+      <div>
+        <PageHeader
+          title="Add to the record"
+          subtitle="New medicines, readings, visits and documents all start here."
+        />
+        <OwnerOnlyNotice
+          title={`You can't add to ${activeOwnerName}'s record`}
+          description="Your access to this record is view only, so nothing here can be saved to it. If you need to log readings or visits for them, ask them to change your access to full."
+        />
+      </div>
+    );
+  }
 
   function pick(kind: KindConfig) {
     if (selected?.kind === kind.kind) return;
@@ -130,7 +150,7 @@ export default function AddRecord() {
             <FieldSet
               draft={draft}
               onChange={(patch: unknown) =>
-                setDraft((prev) => ({ ...(prev as object), ...(patch as object) }))
+                setDraft((prev: unknown) => ({ ...(prev as object), ...(patch as object) }))
               }
               errors={errors}
             />

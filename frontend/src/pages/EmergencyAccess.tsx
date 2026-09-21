@@ -6,6 +6,7 @@
  */
 import { useState } from "react";
 import { useSharing } from "@/store/SharingContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import {
   EMERGENCY_TOGGLES,
   newEmergencyToken,
@@ -23,11 +24,31 @@ import { TextArea } from "@/components/ui/fields";
 import { EmergencyCard } from "@/components/emergency/EmergencyCard";
 import { QrPlaceholder } from "@/components/emergency/QrPlaceholder";
 import { CopyButton } from "@/components/sharing/CopyButton";
+import { OwnerOnlyNotice } from "@/components/proxy/OwnerOnlyNotice";
 import { RefreshIcon } from "@/components/icons";
 
 export default function EmergencyAccess() {
   const { emergency, updateEmergency } = useSharing();
+  const { isProxyView, activeOwnerName } = useCareProxy();
   const [regenOpen, setRegenOpen] = useState(false);
+
+  // The emergency card carries its own code, PIN and toggles per person — and those
+  // belong to whoever the card is for. A proxy reading a record doesn't get to rewrite
+  // the code the owner has printed on a bracelet.
+  if (isProxyView) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Emergency access"
+          subtitle="Your card, your code, and exactly what it shows a responder."
+        />
+        <OwnerOnlyNotice
+          title={`Only ${activeOwnerName} can change their emergency card`}
+          description="You're viewing this record as a care proxy. The card, its code and what it reveals are the record owner's own settings — they can hand you the printed card, but the code is theirs to manage."
+        />
+      </div>
+    );
+  }
 
   function setToggle(key: EmergencyToggleKey, value: boolean) {
     const patch: Partial<EmergencySettings> = {};

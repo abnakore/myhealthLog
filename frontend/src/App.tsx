@@ -16,7 +16,7 @@ import Documents from "@/pages/Documents";
 import Measurements from "@/pages/Measurements";
 import Timeline from "@/pages/Timeline";
 import CareProviders from "@/pages/CareProviders";
-import CircleOfTrust from "@/pages/CircleOfTrust";
+import CareProxy from "@/pages/CareProxy";
 import EmergencyAccess from "@/pages/EmergencyAccess";
 import Connections from "@/pages/Connections";
 
@@ -59,7 +59,9 @@ export default function App() {
         <Route path="timeline" element={<Timeline />} />
         {/* Sharing & safety — reached from the Profile hub, not the tab bar. */}
         <Route path="providers" element={<CareProviders />} />
-        <Route path="circle" element={<CircleOfTrust />} />
+        <Route path="proxy" element={<CareProxy />} />
+        {/* The page's old name, kept so a bookmarked link still lands somewhere real. */}
+        <Route path="circle" element={<Navigate to="/app/proxy" replace />} />
         <Route path="emergency" element={<EmergencyAccess />} />
         <Route path="connections" element={<Connections />} />
       </Route>

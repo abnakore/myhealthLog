@@ -17,9 +17,11 @@ import type {
   Immunization,
   Medication,
   Procedure,
+  RecordBundle,
   VitalReading,
 } from "@/types/health";
-import type { CareProvider, CareProxy, Connection, EmergencySettings } from "@/types/sharing";
+import type { CareProvider, Connection, EmergencySettings } from "@/types/sharing";
+import type { CareProxyGrant } from "@/types/proxy";
 
 export const demoProfile: HealthProfile = {
   id: "p_amina",
@@ -385,16 +387,459 @@ export const demoProviders: CareProvider[] = [
   },
 ];
 
-export const demoProxies: CareProxy[] = [
+/* --------------------------------------------------- the rest of the family -- */
+/* Phase 2 is meaningless without a second record to open, so two more people are on
+   file: Amina's mother (she already has full access) and her father (he has invited
+   her, view only — accept it on the Care proxy page and his record opens read-only).
+   Same clinical register as the demo record, so every Phase 1 page has real content
+   to show in someone else's name. */
+
+export const demoMotherProfile: HealthProfile = {
+  id: "p_zainab",
+  fullName: "Zainab Yusuf",
+  dateOfBirth: "1963-06-05", // 63
+  sex: "FEMALE",
+  bloodType: "O+",
+  genotype: "AA",
+  heightCm: 160,
+  weightKg: 74,
+  phone: "0803 555 4455",
+  city: "Kano",
+  state: "Kano State",
+  emergencyContacts: [
+    {
+      id: "ec_z1",
+      name: "Musa Yusuf",
+      relationship: "Husband",
+      phone: "0803 555 1122",
+      priority: 1,
+    },
+    {
+      id: "ec_z2",
+      name: "Amina Yusuf",
+      relationship: "Daughter",
+      phone: "0803 000 1122",
+      priority: 2,
+    },
+  ],
+};
+
+export const demoMotherAllergies: Allergy[] = [
   {
-    id: "proxy_ibrahim",
-    name: "Ibrahim Yusuf",
-    relationship: "Husband",
-    phone: "0803 555 7788",
-    scopes: ["profile", "allergies", "medications", "conditions", "measurements", "appointments", "documents"],
-    canManage: true,
-    emergencyAccess: true,
-    createdAt: "2026-05-02T08:00:00",
+    id: "al_z1",
+    substance: "Pollen",
+    allergyType: "ENVIRONMENTAL",
+    severity: "MILD",
+    reactions: ["Sneezing", "Itchy eyes"],
+    firstReactionDate: "2014-03-01",
+    isVerified: false,
+    notes: "Worse in the harmattan. Antihistamine when it flares.",
+    source: "SELF_REPORTED",
+  },
+];
+
+export const demoMotherMedications: Medication[] = [
+  {
+    id: "md_z1",
+    name: "Metformin",
+    dosage: "1 g",
+    form: "Tablet",
+    route: "Oral",
+    frequency: "Twice daily, with meals",
+    startDate: "2018-09-03",
+    prescriber: "Dr. F. Abdullahi",
+    reason: "Type 2 diabetes",
+    active: true,
+    source: "CLINICIAN",
+  },
+  {
+    id: "md_z2",
+    name: "Simvastatin",
+    dosage: "20 mg",
+    form: "Tablet",
+    route: "Oral",
+    frequency: "Once daily, at night",
+    startDate: "2020-02-11",
+    prescriber: "Dr. F. Abdullahi",
+    reason: "High cholesterol",
+    active: true,
+    source: "CLINICIAN",
+  },
+  {
+    id: "md_z3",
+    name: "Vitamin D3",
+    dosage: "1000 IU",
+    form: "Capsule",
+    route: "Oral",
+    frequency: "Once daily",
+    startDate: "2022-01-05",
+    active: true,
+    source: "SELF_REPORTED",
+  },
+];
+
+export const demoMotherConditions: Condition[] = [
+  {
+    id: "cn_z1",
+    name: "Type 2 diabetes",
+    status: "ACTIVE",
+    severity: "MODERATE",
+    onsetDate: "2018-08-01",
+    notes: "Controlled on metformin; HbA1c checked twice a year.",
+    source: "CLINICIAN",
+  },
+  {
+    id: "cn_z2",
+    name: "High cholesterol",
+    status: "ACTIVE",
+    severity: "MILD",
+    onsetDate: "2020-01-01",
+    source: "CLINICIAN",
+  },
+];
+
+export const demoMotherAppointments: Appointment[] = [
+  {
+    id: "ap_z1",
+    title: "Diabetic eye screening",
+    clinician: "Dr. N. Adamu",
+    facility: "Aminu Kano Teaching Hospital",
+    scheduledFor: "2026-10-08T09:30:00",
+    status: "SCHEDULED",
+    reason: "Annual retinal check",
+  },
+  {
+    id: "ap_z2",
+    title: "Diabetes review",
+    clinician: "Dr. F. Abdullahi",
+    facility: "Murtala Muhammad Specialist Hospital",
+    scheduledFor: "2026-07-02T11:00:00",
+    status: "ATTENDED",
+    notes: "HbA1c 7.2%. Continue metformin, keep walking daily.",
+  },
+];
+
+export const demoMotherDocuments: HealthDocument[] = [
+  {
+    id: "doc_z1",
+    title: "HbA1c result",
+    docType: "LAB_RESULT",
+    fileName: "hba1c-jul-2026.pdf",
+    fileSize: 142_336,
+    mimeType: "application/pdf",
+    documentDate: "2026-07-02",
+    uploadedAt: "2026-07-02T12:30:00",
+  },
+];
+
+export const demoMotherImmunizations: Immunization[] = [
+  { id: "im_z1", vaccine: "Influenza (seasonal)", administeredOn: "2025-10-20" },
+];
+
+// Deliberately nothing on file — so the empty states are reachable in a proxy's view.
+export const demoMotherProcedures: Procedure[] = [];
+
+export const demoMotherVitals: VitalReading[] = [
+  {
+    id: "vt_z1",
+    vitalType: "BLOOD_GLUCOSE",
+    value: 8.1,
+    unit: "mmol/L",
+    measuredAt: "2026-08-14T06:35:00",
+    context: "Fasting",
+  },
+  {
+    id: "vt_z2",
+    vitalType: "BLOOD_GLUCOSE",
+    value: 7.4,
+    unit: "mmol/L",
+    measuredAt: "2026-09-04T06:45:00",
+    context: "Fasting",
+  },
+  {
+    id: "vt_z3",
+    vitalType: "WEIGHT",
+    value: 75.2,
+    unit: "kg",
+    measuredAt: "2026-08-14T07:10:00",
+  },
+  {
+    id: "vt_z4",
+    vitalType: "WEIGHT",
+    value: 74,
+    unit: "kg",
+    measuredAt: "2026-09-04T07:05:00",
+  },
+  {
+    id: "vt_z5",
+    vitalType: "BLOOD_PRESSURE",
+    value: 136,
+    value2: 84,
+    unit: "mmHg",
+    measuredAt: "2026-09-04T07:15:00",
+    context: "Sitting, left arm",
+  },
+];
+
+export const demoFatherProfile: HealthProfile = {
+  id: "p_musa",
+  fullName: "Musa Yusuf",
+  dateOfBirth: "1958-01-12", // 68
+  sex: "MALE",
+  bloodType: "B+",
+  genotype: "AA",
+  heightCm: 172,
+  weightKg: 81,
+  phone: "0803 555 1122",
+  city: "Kano",
+  state: "Kano State",
+  emergencyContacts: [
+    {
+      id: "ec_m1",
+      name: "Zainab Yusuf",
+      relationship: "Wife",
+      phone: "0803 555 4455",
+      priority: 1,
+    },
+    {
+      id: "ec_m2",
+      name: "Amina Yusuf",
+      relationship: "Daughter",
+      phone: "0803 000 1122",
+      priority: 2,
+    },
+  ],
+};
+
+export const demoFatherAllergies: Allergy[] = [
+  {
+    id: "al_m1",
+    substance: "Aspirin",
+    allergyType: "DRUG",
+    severity: "MODERATE",
+    reactions: ["Stomach bleeding", "Rash"],
+    firstReactionDate: "2021-07-15",
+    isVerified: true,
+    notes: "Admitted overnight in 2021. Paracetamol instead.",
+    source: "CLINICIAN",
+  },
+  {
+    id: "al_m2",
+    substance: "Dust",
+    allergyType: "ENVIRONMENTAL",
+    severity: "MILD",
+    reactions: ["Cough"],
+    source: "SELF_REPORTED",
+  },
+];
+
+export const demoFatherMedications: Medication[] = [
+  {
+    id: "md_m1",
+    name: "Amlodipine",
+    dosage: "10 mg",
+    form: "Tablet",
+    route: "Oral",
+    frequency: "Once daily, morning",
+    startDate: "2012-04-18",
+    prescriber: "Dr. A. Bello",
+    reason: "High blood pressure",
+    active: true,
+    source: "CLINICIAN",
+  },
+  {
+    id: "md_m2",
+    name: "Metformin",
+    dosage: "1 g",
+    form: "Tablet",
+    route: "Oral",
+    frequency: "Twice daily, with meals",
+    startDate: "2016-06-02",
+    prescriber: "Dr. F. Abdullahi",
+    reason: "Type 2 diabetes",
+    active: true,
+    source: "CLINICIAN",
+  },
+  {
+    id: "md_m3",
+    name: "Atorvastatin",
+    dosage: "20 mg",
+    form: "Tablet",
+    route: "Oral",
+    frequency: "Once daily, at night",
+    startDate: "2019-11-25",
+    prescriber: "Dr. A. Bello",
+    reason: "High cholesterol",
+    active: true,
+    source: "CLINICIAN",
+  },
+  {
+    id: "md_m4",
+    name: "Ibuprofen",
+    dosage: "400 mg",
+    form: "Tablet",
+    route: "Oral",
+    frequency: "As needed",
+    startDate: "2021-01-10",
+    endDate: "2021-07-15",
+    reason: "Knee pain",
+    active: false,
+    notes: "Stopped after the stomach bleed. Do not restart.",
+    source: "CLINICIAN",
+  },
+];
+
+export const demoFatherConditions: Condition[] = [
+  {
+    id: "cn_m1",
+    name: "High blood pressure",
+    status: "ACTIVE",
+    severity: "MODERATE",
+    onsetDate: "2012-03-01",
+    source: "CLINICIAN",
+  },
+  {
+    id: "cn_m2",
+    name: "Type 2 diabetes",
+    status: "ACTIVE",
+    severity: "MODERATE",
+    onsetDate: "2016-05-01",
+    source: "CLINICIAN",
+  },
+  {
+    id: "cn_m3",
+    name: "Osteoarthritis of the knee",
+    status: "ACTIVE",
+    severity: "MILD",
+    onsetDate: "2019-09-01",
+    notes: "Worse on stairs. The physiotherapy exercises help.",
+    source: "CLINICIAN",
+  },
+];
+
+export const demoFatherAppointments: Appointment[] = [
+  {
+    id: "ap_m1",
+    title: "Cardiology follow-up",
+    clinician: "Dr. A. Bello",
+    facility: "Aminu Kano Teaching Hospital",
+    scheduledFor: "2026-09-29T10:00:00",
+    status: "SCHEDULED",
+    reason: "Review blood pressure control",
+  },
+  {
+    id: "ap_m2",
+    title: "Eye screening",
+    facility: "Aminu Kano Teaching Hospital",
+    scheduledFor: "2026-11-12T09:15:00",
+    status: "SCHEDULED",
+  },
+  {
+    id: "ap_m3",
+    title: "Diabetes review",
+    clinician: "Dr. F. Abdullahi",
+    facility: "Murtala Muhammad Specialist Hospital",
+    scheduledFor: "2026-08-14T09:45:00",
+    status: "ATTENDED",
+    notes: "Fasting sugars 7–8. Continue metformin; review in three months.",
+  },
+];
+
+export const demoFatherDocuments: HealthDocument[] = [
+  {
+    id: "doc_m1",
+    title: "Kidney function panel",
+    docType: "LAB_RESULT",
+    fileName: "renal-panel-aug-2026.pdf",
+    fileSize: 198_656,
+    mimeType: "application/pdf",
+    documentDate: "2026-08-20",
+    uploadedAt: "2026-08-20T15:05:00",
+  },
+  {
+    id: "doc_m2",
+    title: "ECG report",
+    docType: "SCAN",
+    fileName: "ecg-jun-2026.pdf",
+    fileSize: 96_256,
+    mimeType: "application/pdf",
+    documentDate: "2026-06-30",
+    uploadedAt: "2026-06-30T11:20:00",
+  },
+];
+
+export const demoFatherImmunizations: Immunization[] = [
+  { id: "im_m1", vaccine: "Influenza (seasonal)", administeredOn: "2025-11-02" },
+  { id: "im_m2", vaccine: "Pneumococcal (PCV)", administeredOn: "2023-05-18" },
+];
+
+export const demoFatherProcedures: Procedure[] = [
+  {
+    id: "pr_m1",
+    name: "Cataract surgery (left eye)",
+    performedOn: "2022-02-10",
+    facility: "Aminu Kano Teaching Hospital",
+    outcome: "Vision restored; no complications.",
+  },
+];
+
+export const demoFatherVitals: VitalReading[] = [
+  {
+    id: "vt_m_bp1",
+    vitalType: "BLOOD_PRESSURE",
+    value: 148,
+    value2: 94,
+    unit: "mmHg",
+    measuredAt: "2026-08-06T07:30:00",
+    context: "Sitting, left arm",
+  },
+  {
+    id: "vt_m_bp2",
+    vitalType: "BLOOD_PRESSURE",
+    value: 144,
+    value2: 90,
+    unit: "mmHg",
+    measuredAt: "2026-08-20T07:25:00",
+    context: "Sitting, left arm",
+  },
+  {
+    id: "vt_m_bp3",
+    vitalType: "BLOOD_PRESSURE",
+    value: 139,
+    value2: 88,
+    unit: "mmHg",
+    measuredAt: "2026-09-03T07:40:00",
+    context: "Sitting, left arm",
+  },
+  {
+    id: "vt_m_glu1",
+    vitalType: "BLOOD_GLUCOSE",
+    value: 8.6,
+    unit: "mmol/L",
+    measuredAt: "2026-08-14T06:30:00",
+    context: "Fasting",
+  },
+  {
+    id: "vt_m_glu2",
+    vitalType: "BLOOD_GLUCOSE",
+    value: 7.8,
+    unit: "mmol/L",
+    measuredAt: "2026-09-03T06:35:00",
+    context: "Fasting",
+  },
+  {
+    id: "vt_m_wt1",
+    vitalType: "WEIGHT",
+    value: 82,
+    unit: "kg",
+    measuredAt: "2026-08-06T07:00:00",
+  },
+  {
+    id: "vt_m_wt2",
+    vitalType: "WEIGHT",
+    value: 81,
+    unit: "kg",
+    measuredAt: "2026-09-03T07:00:00",
   },
 ];
 
@@ -418,3 +863,105 @@ export const demoEmergencySettings: EmergencySettings = {
   note: "Please contact my husband first. I wear a medical alert bracelet.",
   updatedAt: "2026-09-01T12:00:00",
 };
+
+/* --------------------------------------------------------------- care proxy -- */
+/* The state Phase 2 opens on: Amina's own record (her husband, full access; her
+   sister, invited and not yet answered), an invitation waiting in her account from
+   her father (view only — accept it and his record opens read-only), and access she
+   already holds to her mother's record. Between them they cover every branch the
+   access layer has: active view, active write, pending, and unopened. */
+
+/**
+ * Every record in the demo, keyed by the account it belongs to. The store keeps
+ * these side by side and hands the active one to the pages, which is how a proxy
+ * ends up reading someone else's record through the very same screens.
+ */
+export const demoRecordBundles: Record<string, RecordBundle> = {
+  p_amina: {
+    profile: demoProfile,
+    allergies: demoAllergies,
+    medications: demoMedications,
+    conditions: demoConditions,
+    appointments: demoAppointments,
+    documents: demoDocuments,
+    immunizations: demoImmunizations,
+    procedures: demoProcedures,
+    vitals: demoVitals,
+  },
+  p_zainab: {
+    profile: demoMotherProfile,
+    allergies: demoMotherAllergies,
+    medications: demoMotherMedications,
+    conditions: demoMotherConditions,
+    appointments: demoMotherAppointments,
+    documents: demoMotherDocuments,
+    immunizations: demoMotherImmunizations,
+    procedures: demoMotherProcedures,
+    vitals: demoMotherVitals,
+  },
+  p_musa: {
+    profile: demoFatherProfile,
+    allergies: demoFatherAllergies,
+    medications: demoFatherMedications,
+    conditions: demoFatherConditions,
+    appointments: demoFatherAppointments,
+    documents: demoFatherDocuments,
+    immunizations: demoFatherImmunizations,
+    procedures: demoFatherProcedures,
+    vitals: demoFatherVitals,
+  },
+};
+
+export const demoProxyGrants: CareProxyGrant[] = [
+  // Her own record: her husband manages it with her; her sister has been invited.
+  {
+    id: "proxy_ibrahim",
+    ownerUserId: "p_amina",
+    ownerName: "Amina Yusuf",
+    proxyUserId: "p_ibrahim",
+    proxyName: "Ibrahim Yusuf",
+    proxyEmail: "ibrahim.yusuf@example.com",
+    permission: "FULL",
+    status: "ACTIVE",
+    invitedAt: "2026-04-28T09:00:00",
+    acceptedAt: "2026-05-02T08:00:00",
+  },
+  {
+    id: "proxy_hauwa",
+    ownerUserId: "p_amina",
+    ownerName: "Amina Yusuf",
+    proxyUserId: null,
+    proxyName: "",
+    proxyEmail: "hauwa.bello@example.com",
+    permission: "VIEW",
+    status: "INVITED",
+    message: "For the weeks I'm travelling — so you can check my medicines and appointments.",
+    invitedAt: "2026-09-08T19:40:00",
+  },
+  // Waiting in her account: her father's invitation, view only.
+  {
+    id: "proxy_musa",
+    ownerUserId: "p_musa",
+    ownerName: "Musa Yusuf",
+    proxyUserId: "p_amina",
+    proxyName: "Amina Yusuf",
+    proxyEmail: "amina.yusuf@example.com",
+    permission: "VIEW",
+    status: "INVITED",
+    message: "Keep an eye on my medicines and the cardiology appointment for me.",
+    invitedAt: "2026-09-18T08:15:00",
+  },
+  // Already accepted: her mother's record, which she may also add to.
+  {
+    id: "proxy_zainab",
+    ownerUserId: "p_zainab",
+    ownerName: "Zainab Yusuf",
+    proxyUserId: "p_amina",
+    proxyName: "Amina Yusuf",
+    proxyEmail: "amina.yusuf@example.com",
+    permission: "FULL",
+    status: "ACTIVE",
+    invitedAt: "2026-03-08T10:00:00",
+    acceptedAt: "2026-03-14T18:20:00",
+  },
+];

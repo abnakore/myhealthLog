@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { DOCUMENT_TYPE_LABELS, type HealthDocument } from "@/types/health";
 import { formatDate, formatFileSize } from "@/lib/format";
 import {
@@ -27,6 +28,7 @@ function docDate(d: HealthDocument): string {
 }
 
 export default function Documents() {
+  const { canEdit } = useCareProxy();
   const { documents, updateItem, removeItem } = useRecords();
   const [edit, setEdit] = useState<{ record: HealthDocument; draft: DocumentDraft } | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -56,10 +58,12 @@ export default function Documents() {
             : `${documents.length} ${documents.length === 1 ? "file" : "files"} on file`
         }
         action={
-          <Link to="/app/add?type=lab" className={buttonStyles("primary", "md")}>
-            <PlusIcon size={18} strokeWidth={2.25} />
-            Add document
-          </Link>
+          canEdit ? (
+            <Link to="/app/add?type=lab" className={buttonStyles("primary", "md")}>
+              <PlusIcon size={18} strokeWidth={2.25} />
+              Add document
+            </Link>
+          ) : undefined
         }
       />
 
@@ -69,10 +73,12 @@ export default function Documents() {
           title="No documents yet"
           description="Upload a lab result or scan so it's with you at your next appointment."
           action={
-            <Link to="/app/add?type=lab" className={buttonStyles("primary", "md")}>
-              <PlusIcon size={18} strokeWidth={2.25} />
-              Add a document
-            </Link>
+            canEdit ? (
+              <Link to="/app/add?type=lab" className={buttonStyles("primary", "md")}>
+                <PlusIcon size={18} strokeWidth={2.25} />
+                Add a document
+              </Link>
+            ) : undefined
           }
         />
       ) : (
@@ -93,20 +99,22 @@ export default function Documents() {
                     </div>
                     <p className="truncate text-mhl-fine text-mhl-muted">{meta.join("  ·  ")}</p>
                   </div>
-                  <div className="flex flex-none items-center">
-                    <IconButton
-                      label={`Edit ${d.title}`}
-                      onClick={() => {
-                        setEdit({ record: d, draft: documentToDraft(d) });
-                        setErrors({});
-                      }}
-                    >
-                      <EditIcon size={18} />
-                    </IconButton>
-                    <IconButton label={`Delete ${d.title}`} tone="danger" onClick={() => setDel(d)}>
-                      <TrashIcon size={18} />
-                    </IconButton>
-                  </div>
+                  {canEdit && (
+                    <div className="flex flex-none items-center">
+                      <IconButton
+                        label={`Edit ${d.title}`}
+                        onClick={() => {
+                          setEdit({ record: d, draft: documentToDraft(d) });
+                          setErrors({});
+                        }}
+                      >
+                        <EditIcon size={18} />
+                      </IconButton>
+                      <IconButton label={`Delete ${d.title}`} tone="danger" onClick={() => setDel(d)}>
+                        <TrashIcon size={18} />
+                      </IconButton>
+                    </div>
+                  )}
                 </li>
               );
             })}

@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import {
   VITAL_LABELS,
   formatVitalValue,
@@ -22,7 +23,6 @@ import {
 import { VitalFields } from "@/components/records/FieldSets";
 import { RecordEditModal } from "@/components/records/RecordEditModal";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Card } from "@/components/ui/Card";
 import { Section } from "@/components/ui/Section";
 import { buttonStyles } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -54,6 +54,7 @@ function StatusTag({ reading }: { reading: VitalReading }) {
 }
 
 export default function Measurements() {
+  const { canEdit } = useCareProxy();
   const { vitals, updateItem, removeItem } = useRecords();
   const [edit, setEdit] = useState<{ record: VitalReading; draft: VitalReadingDraft } | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -119,10 +120,12 @@ export default function Measurements() {
             : `${vitals.length} reading${vitals.length === 1 ? "" : "s"} across ${snapshot.length} measure${snapshot.length === 1 ? "" : "s"}`
         }
         action={
-          <Link to={addLink} className={buttonStyles("primary", "md")}>
-            <PlusIcon size={18} strokeWidth={2.25} />
-            Add measurement
-          </Link>
+          canEdit ? (
+            <Link to={addLink} className={buttonStyles("primary", "md")}>
+              <PlusIcon size={18} strokeWidth={2.25} />
+              Add measurement
+            </Link>
+          ) : undefined
         }
       />
 
@@ -132,10 +135,12 @@ export default function Measurements() {
           title="No measurements yet"
           description="Log a reading and it'll build into a trend you can watch — and share with a clinician."
           action={
-            <Link to={addLink} className={buttonStyles("primary", "md")}>
-              <PlusIcon size={18} strokeWidth={2.25} />
-              Add a measurement
-            </Link>
+            canEdit ? (
+              <Link to={addLink} className={buttonStyles("primary", "md")}>
+                <PlusIcon size={18} strokeWidth={2.25} />
+                Add a measurement
+              </Link>
+            ) : undefined
           }
         />
       ) : (
@@ -202,24 +207,26 @@ export default function Measurements() {
                       {v.context ? ` · ${v.context}` : ""}
                     </p>
                   </div>
-                  <div className="flex flex-none items-center">
-                    <IconButton
-                      label={`Edit ${vitalName(v)} reading`}
-                      onClick={() => {
-                        setEdit({ record: v, draft: vitalToDraft(v) });
-                        setErrors({});
-                      }}
-                    >
-                      <EditIcon size={18} />
-                    </IconButton>
-                    <IconButton
-                      label={`Delete ${vitalName(v)} reading`}
-                      tone="danger"
-                      onClick={() => setDel(v)}
-                    >
-                      <TrashIcon size={18} />
-                    </IconButton>
-                  </div>
+                  {canEdit && (
+                    <div className="flex flex-none items-center">
+                      <IconButton
+                        label={`Edit ${vitalName(v)} reading`}
+                        onClick={() => {
+                          setEdit({ record: v, draft: vitalToDraft(v) });
+                          setErrors({});
+                        }}
+                      >
+                        <EditIcon size={18} />
+                      </IconButton>
+                      <IconButton
+                        label={`Delete ${vitalName(v)} reading`}
+                        tone="danger"
+                        onClick={() => setDel(v)}
+                      >
+                        <TrashIcon size={18} />
+                      </IconButton>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

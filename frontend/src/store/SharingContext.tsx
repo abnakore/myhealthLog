@@ -1,10 +1,13 @@
 /**
- * The sharing & safety store — care providers, circle of trust, connected apps,
- * and emergency-card settings. Seeded from the demo data and mirrored to
- * localStorage so grants, connections and toggles survive a refresh (the mock
- * stand-in for the backend's Share / Consent tables). When the DRF backend lands,
- * these mutators become the API calls and the seed goes away; the component API
- * (useSharing) stays the same.
+ * The sharing & safety store — care providers, connected apps, and emergency-card
+ * settings. Seeded from the demo data and mirrored to localStorage so grants,
+ * connections and toggles survive a refresh (the mock stand-in for the backend's
+ * Share / Consent tables). When the DRF backend lands, these mutators become the API
+ * calls and the seed goes away; the component API (useSharing) stays the same.
+ *
+ * Care proxy access lives in its own store (store/CareProxyContext.tsx) rather than
+ * here: it links two accounts and decides which record the app is showing, which is a
+ * different job from the grants and integrations on this account's own record.
  */
 import {
   createContext,
@@ -13,23 +16,18 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import type { CareProvider, CareProxy, Connection, EmergencySettings } from "@/types/sharing";
+import type { CareProvider, Connection, EmergencySettings } from "@/types/sharing";
 import { usePersistentState } from "@/lib/storage";
-import { demoConnections, demoEmergencySettings, demoProviders, demoProxies } from "@/data/mock";
+import { demoConnections, demoEmergencySettings, demoProviders } from "@/data/mock";
 
 interface SharingContextValue {
   providers: CareProvider[];
-  proxies: CareProxy[];
   connections: Connection[];
   emergency: EmergencySettings;
 
   addProvider: (provider: CareProvider) => void;
   updateProvider: (id: string, patch: Partial<CareProvider>) => void;
   removeProvider: (id: string) => void;
-
-  addProxy: (proxy: CareProxy) => void;
-  updateProxy: (id: string, patch: Partial<CareProxy>) => void;
-  removeProxy: (id: string) => void;
 
   isConnected: (sourceId: string) => boolean;
   connect: (sourceId: string) => void;
@@ -51,7 +49,6 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     "sharing.providers",
     () => demoProviders,
   );
-  const [proxies, setProxies] = usePersistentState<CareProxy[]>("sharing.proxies", () => demoProxies);
   const [connections, setConnections] = usePersistentState<Connection[]>(
     "sharing.connections",
     () => demoConnections,
@@ -72,18 +69,6 @@ export function SharingProvider({ children }: { children: ReactNode }) {
 
   const removeProvider = useCallback((id: string) => {
     setProviders((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  const addProxy = useCallback((proxy: CareProxy) => {
-    setProxies((prev) => [proxy, ...prev]);
-  }, []);
-
-  const updateProxy = useCallback((id: string, patch: Partial<CareProxy>) => {
-    setProxies((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-  }, []);
-
-  const removeProxy = useCallback((id: string) => {
-    setProxies((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
   const isConnected = useCallback(
@@ -116,15 +101,11 @@ export function SharingProvider({ children }: { children: ReactNode }) {
   const value = useMemo<SharingContextValue>(
     () => ({
       providers,
-      proxies,
       connections,
       emergency,
       addProvider,
       updateProvider,
       removeProvider,
-      addProxy,
-      updateProxy,
-      removeProxy,
       isConnected,
       connect,
       disconnect,
@@ -133,15 +114,11 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     }),
     [
       providers,
-      proxies,
       connections,
       emergency,
       addProvider,
       updateProvider,
       removeProvider,
-      addProxy,
-      updateProxy,
-      removeProxy,
       isConnected,
       connect,
       disconnect,

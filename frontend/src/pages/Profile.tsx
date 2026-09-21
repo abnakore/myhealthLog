@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { useAppMode } from "@/store/AppModeContext";
 import { resetDemoData } from "@/lib/storage";
 import { calcAge, formatDate } from "@/lib/format";
@@ -154,7 +155,10 @@ export default function Profile() {
   const { user, updateUser } = useAuth();
   const { profile, updateProfile } = useRecords();
   const { meta: modeMeta } = useAppMode();
-  const { providers, proxies, connections } = useSharing();
+  const { providers, connections } = useSharing();
+  // Everything on this page is the record's own details, so each control checks the
+  // same permission: the owner's record, or a full-access proxy's.
+  const { canEdit, isProxyView, activeOwnerName, invitedByMe } = useCareProxy();
   const ModeIcon = modeMeta.Icon;
 
   const [basicsDraft, setBasicsDraft] = useState<ProfileBasicsDraft | null>(null);
@@ -233,29 +237,33 @@ export default function Profile() {
         <div className="flex items-center gap-4">
           <div className="relative flex-none">
             <Avatar name={profile.fullName} photoUrl={profile.photoUrl} size={64} />
-            <button
-              type="button"
-              onClick={() => setPhotoOpen(true)}
-              aria-label="Change photo"
-              className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-mhl-surface bg-mhl-accent text-white transition-colors hover:bg-mhl-accent-strong"
-            >
-              <CameraIcon size={14} />
-            </button>
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => setPhotoOpen(true)}
+                aria-label="Change photo"
+                className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-mhl-surface bg-mhl-accent text-white transition-colors hover:bg-mhl-accent-strong"
+              >
+                <CameraIcon size={14} />
+              </button>
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <h2 className="truncate text-mhl-title font-bold text-mhl-ink">{profile.fullName}</h2>
             {metaLine && <p className="mt-0.5 text-mhl-fine text-mhl-muted">{metaLine}</p>}
           </div>
-          <Button
-            variant="secondary"
-            icon={<EditIcon size={18} />}
-            onClick={() => {
-              setBasicsDraft(profileToBasicsDraft(profile));
-              setBasicsErrors({});
-            }}
-          >
-            Edit
-          </Button>
+          {canEdit && (
+            <Button
+              variant="secondary"
+              icon={<EditIcon size={18} />}
+              onClick={() => {
+                setBasicsDraft(profileToBasicsDraft(profile));
+                setBasicsErrors({});
+              }}
+            >
+              Edit
+            </Button>
+          )}
         </div>
 
         <dl className="mt-6 grid grid-cols-2 gap-x-4 gap-y-5 border-t border-mhl-rule pt-5 sm:grid-cols-3">
@@ -266,7 +274,8 @@ export default function Profile() {
           <Detail label="Height" value={profile.heightCm ? `${profile.heightCm} cm` : ""} />
           <Detail label="Weight" value={profile.weightKg ? `${profile.weightKg} kg` : ""} />
           <Detail label="BMI" value={bmi != null ? `${bmi} kg/m²` : ""} />
-          <Detail label="Sign-in email" value={user?.email} />
+          {/* Their sign-in address is not a proxy's to see — it isn't part of the record. */}
+          {!isProxyView && <Detail label="Sign-in email" value={user?.email} />}
         </dl>
       </Card>
 
@@ -275,13 +284,15 @@ export default function Profile() {
         question="Where can we reach you?"
         lead="Your contact number and address."
         action={
-          <Button
-            variant="secondary"
-            icon={hasLocation ? <EditIcon size={18} /> : <PlusIcon size={18} strokeWidth={2.25} />}
-            onClick={openLocation}
-          >
-            {hasLocation ? "Edit" : "Add"}
-          </Button>
+          canEdit ? (
+            <Button
+              variant="secondary"
+              icon={hasLocation ? <EditIcon size={18} /> : <PlusIcon size={18} strokeWidth={2.25} />}
+              onClick={openLocation}
+            >
+              {hasLocation ? "Edit" : "Add"}
+            </Button>
+          ) : undefined
         }
       >
         {hasLocation ? (
@@ -299,9 +310,11 @@ export default function Profile() {
             title="No contact details yet"
             description="Add a phone number and address so your record can reach you — and a responder can too."
             action={
-              <Button icon={<PlusIcon size={18} strokeWidth={2.25} />} onClick={openLocation}>
-                Add contact details
-              </Button>
+              canEdit ? (
+                <Button icon={<PlusIcon size={18} strokeWidth={2.25} />} onClick={openLocation}>
+                  Add contact details
+                </Button>
+              ) : undefined
             }
           />
         )}
@@ -312,16 +325,18 @@ export default function Profile() {
         question="Who should we call in an emergency?"
         lead="The first person on this list shows on your emergency card."
         action={
-          <Button
-            variant="secondary"
-            icon={<PlusIcon size={18} strokeWidth={2.25} />}
-            onClick={() => {
-              setContactState({ id: null, draft: emptyContactDraft() });
-              setContactErrors({});
-            }}
-          >
-            Add
-          </Button>
+          canEdit ? (
+            <Button
+              variant="secondary"
+              icon={<PlusIcon size={18} strokeWidth={2.25} />}
+              onClick={() => {
+                setContactState({ id: null, draft: emptyContactDraft() });
+                setContactErrors({});
+              }}
+            >
+              Add
+            </Button>
+          ) : undefined
         }
       >
         {contacts.length > 0 ? (
@@ -340,18 +355,22 @@ export default function Profile() {
                     {[c.relationship, c.phone, c.altPhone].filter(Boolean).join("  ·  ")}
                   </p>
                 </div>
-                <IconButton
-                  label={`Edit ${c.name}`}
-                  onClick={() => {
-                    setContactState({ id: c.id, draft: contactToDraft(c) });
-                    setContactErrors({});
-                  }}
-                >
-                  <EditIcon size={18} />
-                </IconButton>
-                <IconButton label={`Remove ${c.name}`} tone="danger" onClick={() => setContactToDelete(c)}>
-                  <TrashIcon size={18} />
-                </IconButton>
+                {canEdit && (
+                  <>
+                    <IconButton
+                      label={`Edit ${c.name}`}
+                      onClick={() => {
+                        setContactState({ id: c.id, draft: contactToDraft(c) });
+                        setContactErrors({});
+                      }}
+                    >
+                      <EditIcon size={18} />
+                    </IconButton>
+                    <IconButton label={`Remove ${c.name}`} tone="danger" onClick={() => setContactToDelete(c)}>
+                      <TrashIcon size={18} />
+                    </IconButton>
+                  </>
+                )}
               </li>
             ))}
           </ul>
@@ -362,54 +381,64 @@ export default function Profile() {
             title="No emergency contact yet"
             description="Add someone a first responder can reach if you can't speak for yourself."
             action={
-              <Button
-                icon={<PlusIcon size={18} strokeWidth={2.25} />}
-                onClick={() => {
-                  setContactState({ id: null, draft: emptyContactDraft() });
-                  setContactErrors({});
-                }}
-              >
-                Add a contact
-              </Button>
+              canEdit ? (
+                <Button
+                  icon={<PlusIcon size={18} strokeWidth={2.25} />}
+                  onClick={() => {
+                    setContactState({ id: null, draft: emptyContactDraft() });
+                    setContactErrors({});
+                  }}
+                >
+                  Add a contact
+                </Button>
+              ) : undefined
             }
           />
         )}
       </Section>
 
-      {/* Sharing & safety */}
+      {/* Sharing & safety — the owner's own controls. A proxy sees who has access
+          named in words, without a single control that would change it. */}
       <Section
         question="Who else needs in?"
-        lead="Scoped access for doctors and labs, your circle of trust, and the emergency card a responder can open."
+        lead="Scoped access for doctors and labs, your care proxy, and the emergency card a responder can open."
       >
-        <div className="mt-2 space-y-1">
-          <ActionRow
-            icon={<StethoscopeIcon size={20} />}
-            title="Care providers"
-            subtitle="Give a doctor or lab a code to read or fill in"
-            to="/app/providers"
-            trailing={providers.length > 0 ? <Tag tone="ok">{providers.length}</Tag> : undefined}
-          />
-          <ActionRow
-            icon={<UsersIcon size={20} />}
-            title="Circle of trust"
-            subtitle="Family who can see your record and act for you"
-            to="/app/circle"
-            trailing={proxies.length > 0 ? <Tag tone="ok">{proxies.length}</Tag> : undefined}
-          />
-          <ActionRow
-            icon={<ShieldIcon size={20} />}
-            title="Emergency access"
-            subtitle="The code, the optional PIN, and exactly what it reveals"
-            to="/app/emergency"
-          />
-          <ActionRow
-            icon={<LinkIcon size={20} />}
-            title="Connected apps & devices"
-            subtitle="Samsung Health and more, feeding readings in"
-            to="/app/connections"
-            trailing={connections.length > 0 ? <Tag tone="neutral">{connections.length}</Tag> : undefined}
-          />
-        </div>
+        {isProxyView ? (
+          <p className="mt-3 rounded-mhl-sm bg-mhl-sunk px-3.5 py-3 text-mhl-fine text-mhl-muted">
+            Only {activeOwnerName} can decide who sees this record. A care proxy can read it — handing
+            it on to anyone else isn't theirs to do.
+          </p>
+        ) : (
+          <div className="mt-2 space-y-1">
+            <ActionRow
+              icon={<StethoscopeIcon size={20} />}
+              title="Care providers"
+              subtitle="Give a doctor or lab a code to read or fill in"
+              to="/app/providers"
+              trailing={providers.length > 0 ? <Tag tone="ok">{providers.length}</Tag> : undefined}
+            />
+            <ActionRow
+              icon={<UsersIcon size={20} />}
+              title="Care proxy"
+              subtitle="Family who can open your record and act for you"
+              to="/app/proxy"
+              trailing={invitedByMe.length > 0 ? <Tag tone="ok">{invitedByMe.length}</Tag> : undefined}
+            />
+            <ActionRow
+              icon={<ShieldIcon size={20} />}
+              title="Emergency access"
+              subtitle="The code, the optional PIN, and exactly what it reveals"
+              to="/app/emergency"
+            />
+            <ActionRow
+              icon={<LinkIcon size={20} />}
+              title="Connected apps & devices"
+              subtitle="Samsung Health and more, feeding readings in"
+              to="/app/connections"
+              trailing={connections.length > 0 ? <Tag tone="neutral">{connections.length}</Tag> : undefined}
+            />
+          </div>
+        )}
       </Section>
 
       {/* Condition-aware mode */}
@@ -443,26 +472,35 @@ export default function Profile() {
         </div>
       </Section>
 
-      {/* Data */}
-      <Section question="Your data" lead="Your record is yours to take anywhere.">
-        <div className="mt-2 space-y-1">
-          <ActionRow
-            icon={<DownloadIcon size={20} />}
-            title="Export your record"
-            subtitle="Download as FHIR, or a one-page clinical summary"
-            onClick={() => setExportOpen(true)}
-          />
-        </div>
-        <div className="mt-4 border-t border-mhl-rule pt-3.5">
-          <button
-            type="button"
-            onClick={() => setResetOpen(true)}
-            className="text-mhl-fine font-medium text-mhl-muted transition-colors hover:text-mhl-danger"
-          >
-            Reset to sample data
-          </button>
-        </div>
-      </Section>
+      {/* Data. Export stays with whoever may hold the record (the owner, or a
+          full-access proxy taking a copy to an appointment); the demo reset is the
+          signed-in user's own housekeeping, so it never shows in someone else's. */}
+      {canEdit ? (
+        <Section
+          question="Your data"
+          lead={isProxyView ? `A copy of ${activeOwnerName}'s record — for a doctor, or another app.` : "Your record is yours to take anywhere."}
+        >
+          <div className="mt-2 space-y-1">
+            <ActionRow
+              icon={<DownloadIcon size={20} />}
+              title="Export this record"
+              subtitle="Download as FHIR, or a one-page clinical summary"
+              onClick={() => setExportOpen(true)}
+            />
+          </div>
+          {!isProxyView && (
+            <div className="mt-4 border-t border-mhl-rule pt-3.5">
+              <button
+                type="button"
+                onClick={() => setResetOpen(true)}
+                className="text-mhl-fine font-medium text-mhl-muted transition-colors hover:text-mhl-danger"
+              >
+                Reset to sample data
+              </button>
+            </div>
+          )}
+        </Section>
+      ) : null}
 
       <RecordEditModal<ProfileBasicsDraft>
         open={basicsDraft !== null}

@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { useAppMode } from "@/store/AppModeContext";
 import {
   isCriticalAllergy,
@@ -57,6 +58,7 @@ function NumberStatus({ reading }: { reading: VitalReading }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const { mode, meta: modeMeta } = useAppMode();
+  const { canEdit, isProxyView, activeOwnerName } = useCareProxy();
   const ModeIcon = modeMeta.Icon;
   const { profile, allergies, medications, appointments, documents, vitals } = useRecords();
 
@@ -139,7 +141,11 @@ export default function Dashboard() {
             </Link>
           )}
         </div>
-        <p className="mt-1 text-mhl-body text-mhl-muted">Here's where your health record stands today.</p>
+        <p className="mt-1 text-mhl-body text-mhl-muted">
+          {isProxyView
+            ? `Here's where ${activeOwnerName}'s record stands today.`
+            : "Here's where your health record stands today."}
+        </p>
       </header>
 
       {/* Most urgent thing first, when there is one. */}
@@ -159,7 +165,7 @@ export default function Dashboard() {
             ))}
           </div>
           <p className="mt-2.5 text-mhl-fine text-mhl-ink">
-            These show on your emergency card.{" "}
+            {isProxyView ? "These show on their emergency card." : "These show on your emergency card."}{" "}
             <Link to="/app/allergies" className="font-semibold text-mhl-danger hover:underline">
               Review allergies
             </Link>
@@ -241,13 +247,18 @@ export default function Dashboard() {
         </Section>
       )}
 
-      <EmergencyCard />
+      {/* The card is the owner's own artifact — built from their emergency settings,
+          with their code and PIN. A proxy gets the record, not a card that would
+          read as theirs. */}
+      {!isProxyView && <EmergencyCard />}
 
       <div className="flex flex-wrap gap-2">
-        <Link to="/app/add" className={buttonStyles("primary", "md")}>
-          <PlusIcon size={18} strokeWidth={2.25} />
-          Add a record
-        </Link>
+        {canEdit && (
+          <Link to="/app/add" className={buttonStyles("primary", "md")}>
+            <PlusIcon size={18} strokeWidth={2.25} />
+            Add a record
+          </Link>
+        )}
         <Link to="/app/timeline" className={buttonStyles("secondary", "md")}>
           View timeline
         </Link>
@@ -314,17 +325,19 @@ export default function Dashboard() {
             title="Nothing here yet"
             description="Records you add will show up here as recent activity."
             action={
-              <Link to="/app/add" className={buttonStyles("primary", "md")}>
-                <PlusIcon size={18} strokeWidth={2.25} />
-                Add a record
-              </Link>
+              canEdit ? (
+                <Link to="/app/add" className={buttonStyles("primary", "md")}>
+                  <PlusIcon size={18} strokeWidth={2.25} />
+                  Add a record
+                </Link>
+              ) : undefined
             }
           />
         )}
       </Section>
 
       <p className="flex items-center justify-center gap-1 pt-1 text-mhl-fine text-mhl-faint">
-        Your records are private to you
+        {isProxyView ? `${activeOwnerName}'s record, kept private` : "Your records are private to you"}
         <ChevronRightIcon size={14} />
       </p>
     </div>

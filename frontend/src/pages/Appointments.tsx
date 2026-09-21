@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { APPOINTMENT_STATUS_LABELS, type Appointment } from "@/types/health";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -22,6 +23,7 @@ import { ConfirmDialog } from "@/components/ui/Modal";
 import { CalendarIcon, EditIcon, PlusIcon, TrashIcon } from "@/components/icons";
 
 export default function Appointments() {
+  const { canEdit } = useCareProxy();
   const { appointments, updateItem, removeItem } = useRecords();
   const [edit, setEdit] = useState<{ record: Appointment; draft: AppointmentDraft } | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -65,18 +67,22 @@ export default function Appointments() {
           {meta.length > 0 && <p className="text-mhl-fine text-mhl-faint">{meta.join("  ·  ")}</p>}
         </div>
         <div className="flex flex-none items-center">
-          <IconButton
-            label={`Edit ${a.title}`}
-            onClick={() => {
-              setEdit({ record: a, draft: appointmentToDraft(a) });
-              setErrors({});
-            }}
-          >
-            <EditIcon size={18} />
-          </IconButton>
-          <IconButton label={`Delete ${a.title}`} tone="danger" onClick={() => setDel(a)}>
-            <TrashIcon size={18} />
-          </IconButton>
+          {canEdit && (
+            <>
+              <IconButton
+                label={`Edit ${a.title}`}
+                onClick={() => {
+                  setEdit({ record: a, draft: appointmentToDraft(a) });
+                  setErrors({});
+                }}
+              >
+                <EditIcon size={18} />
+              </IconButton>
+              <IconButton label={`Delete ${a.title}`} tone="danger" onClick={() => setDel(a)}>
+                <TrashIcon size={18} />
+              </IconButton>
+            </>
+          )}
         </div>
       </li>
     );
@@ -88,10 +94,12 @@ export default function Appointments() {
         title="Appointments"
         subtitle="Visits ahead and the ones already behind you."
         action={
-          <Link to="/app/add?type=visit" className={buttonStyles("primary", "md")}>
-            <PlusIcon size={18} strokeWidth={2.25} />
-            Add visit
-          </Link>
+          canEdit ? (
+            <Link to="/app/add?type=visit" className={buttonStyles("primary", "md")}>
+              <PlusIcon size={18} strokeWidth={2.25} />
+              Add visit
+            </Link>
+          ) : undefined
         }
       />
 
@@ -101,10 +109,12 @@ export default function Appointments() {
           title="No appointments yet"
           description="Add an upcoming visit so it's easy to keep track of, or log one that's already happened."
           action={
-            <Link to="/app/add?type=visit" className={buttonStyles("primary", "md")}>
-              <PlusIcon size={18} strokeWidth={2.25} />
-              Add a visit
-            </Link>
+            canEdit ? (
+              <Link to="/app/add?type=visit" className={buttonStyles("primary", "md")}>
+                <PlusIcon size={18} strokeWidth={2.25} />
+                Add a visit
+              </Link>
+            ) : undefined
           }
         />
       ) : (

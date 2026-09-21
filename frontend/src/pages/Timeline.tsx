@@ -2,6 +2,7 @@ import { useMemo, type ComponentType } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { APPOINTMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, formatVitalValue, vitalName } from "@/types/health";
 import { formatDate, yearOf } from "@/lib/format";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -32,6 +33,7 @@ interface TimelineEvent {
 }
 
 export default function Timeline() {
+  const { canEdit } = useCareProxy();
   const { allergies, medications, conditions, appointments, documents, immunizations, procedures, vitals } =
     useRecords();
 
@@ -148,10 +150,12 @@ export default function Timeline() {
         title="Timeline"
         subtitle="Everything on your record, newest first."
         action={
-          <Link to="/app/add" className={buttonStyles("secondary", "md")}>
-            <PlusIcon size={18} strokeWidth={2.25} />
-            Add
-          </Link>
+          canEdit ? (
+            <Link to="/app/add" className={buttonStyles("secondary", "md")}>
+              <PlusIcon size={18} strokeWidth={2.25} />
+              Add
+            </Link>
+          ) : undefined
         }
       />
 
@@ -161,10 +165,12 @@ export default function Timeline() {
           title="Your timeline is empty"
           description="As you add records with dates, they'll line up here as a history you can scroll through."
           action={
-            <Link to="/app/add" className={buttonStyles("primary", "md")}>
-              <PlusIcon size={18} strokeWidth={2.25} />
-              Add a record
-            </Link>
+            canEdit ? (
+              <Link to="/app/add" className={buttonStyles("primary", "md")}>
+                <PlusIcon size={18} strokeWidth={2.25} />
+                Add a record
+              </Link>
+            ) : undefined
           }
         />
       ) : (

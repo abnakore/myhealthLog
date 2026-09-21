@@ -100,22 +100,6 @@ export interface CareProvider {
   lastAccessedAt?: string; // ISO — set when they first open it (mocked)
 }
 
-/* -------------------------------------------------------- circle of trust -- */
-
-export interface CareProxy {
-  id: string;
-  name: string;
-  relationship: string;
-  phone?: string;
-  email?: string;
-  scopes: ShareScope[];
-  /** May add and edit records on the person's behalf, not just read. */
-  canManage: boolean;
-  /** May unlock the emergency card and speak for the person in an emergency. */
-  emergencyAccess: boolean;
-  createdAt: string;
-}
-
 /* ----------------------------------------------------------- connections -- */
 
 export type ConnectionKind = "APP" | "DEVICE";

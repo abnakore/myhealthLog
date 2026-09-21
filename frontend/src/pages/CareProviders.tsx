@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/cn";
 import { useSharing } from "@/store/SharingContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { genId } from "@/lib/id";
 import { formatDate, formatRelative } from "@/lib/format";
 import {
@@ -30,6 +31,7 @@ import { SelectField, TextField } from "@/components/ui/fields";
 import { Switch } from "@/components/ui/Switch";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag, type TagTone } from "@/components/ui/Tag";
+import { OwnerOnlyNotice } from "@/components/proxy/OwnerOnlyNotice";
 import { ScopeChecklist } from "@/components/sharing/ScopeChecklist";
 import { ShareCodePanel } from "@/components/sharing/ShareCodePanel";
 import { KeyIcon, PlusIcon, StethoscopeIcon, TrashIcon } from "@/components/icons";
@@ -99,11 +101,29 @@ function AccessPicker({ value, onChange }: { value: ProviderAccess; onChange: (n
 
 export default function CareProviders() {
   const { providers, addProvider, removeProvider } = useSharing();
+  const { isProxyView, activeOwnerName } = useCareProxy();
   const [grantOpen, setGrantOpen] = useState(false);
   const [draft, setDraft] = useState<GrantDraft>(emptyGrant);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [codeFor, setCodeFor] = useState<CareProvider | null>(null);
   const [revoke, setRevoke] = useState<CareProvider | null>(null);
+
+  // Share codes are the record owner's to create and to revoke — a proxy reading
+  // someone else's record has no business minting one for it.
+  if (isProxyView) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Care providers"
+          subtitle="Give a doctor or lab a code to read — or fill in — part of your record."
+        />
+        <OwnerOnlyNotice
+          title={`Only ${activeOwnerName} can share this record`}
+          description="You're viewing this record as a care proxy. Codes for doctors and labs belong to the record owner — they create them, and they revoke them."
+        />
+      </div>
+    );
+  }
 
   function openGrant() {
     setDraft(emptyGrant());

@@ -22,3 +22,8 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# tsc -b build info + the compiled vite config it emits
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts

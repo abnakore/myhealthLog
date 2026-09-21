@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import {
   ALLERGY_TYPE_LABELS,
   ALLERGY_SEVERITY_LABELS,
@@ -37,6 +38,7 @@ const SEVERITY_RANK: Record<AllergySeverity, number> = {
 };
 
 export default function Allergies() {
+  const { canEdit } = useCareProxy();
   const { allergies, updateItem, removeItem } = useRecords();
   const [edit, setEdit] = useState<{ record: Allergy; draft: AllergyDraft } | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -66,10 +68,12 @@ export default function Allergies() {
               : `${allergies.length} on file`
         }
         action={
-          <Link to="/app/add?type=allergy" className={buttonStyles("primary", "md")}>
-            <PlusIcon size={18} strokeWidth={2.25} />
-            Add allergy
-          </Link>
+          canEdit ? (
+            <Link to="/app/add?type=allergy" className={buttonStyles("primary", "md")}>
+              <PlusIcon size={18} strokeWidth={2.25} />
+              Add allergy
+            </Link>
+          ) : undefined
         }
       />
 
@@ -79,10 +83,12 @@ export default function Allergies() {
           title="No allergies recorded"
           description="Add anything you react to — a drug, a food, or something in the environment."
           action={
-            <Link to="/app/add?type=allergy" className={buttonStyles("primary", "md")}>
-              <PlusIcon size={18} strokeWidth={2.25} />
-              Add an allergy
-            </Link>
+            canEdit ? (
+              <Link to="/app/add?type=allergy" className={buttonStyles("primary", "md")}>
+                <PlusIcon size={18} strokeWidth={2.25} />
+                Add an allergy
+              </Link>
+            ) : undefined
           }
         />
       ) : (
@@ -121,20 +127,28 @@ export default function Allergies() {
                     )}
                     {a.notes && <p className="mt-1 line-clamp-2 text-mhl-fine text-mhl-faint">{a.notes}</p>}
                   </div>
-                  <div className="flex flex-none items-center">
-                    <IconButton
-                      label={`Edit ${a.substance}`}
-                      onClick={() => {
-                        setEdit({ record: a, draft: allergyToDraft(a) });
-                        setErrors({});
-                      }}
-                    >
-                      <EditIcon size={18} />
-                    </IconButton>
-                    <IconButton label={`Delete ${a.substance}`} tone="danger" onClick={() => setDel(a)}>
-                      <TrashIcon size={18} />
-                    </IconButton>
-                  </div>
+                  {/* The row's write controls. A view-only proxy reads the list and
+                      never sees these — the permission is the page's, not the row's. */}
+                  {canEdit && (
+                    <div className="flex flex-none items-center">
+                      <IconButton
+                        label={`Edit ${a.substance}`}
+                        onClick={() => {
+                          setEdit({ record: a, draft: allergyToDraft(a) });
+                          setErrors({});
+                        }}
+                      >
+                        <EditIcon size={18} />
+                      </IconButton>
+                      <IconButton
+                        label={`Delete ${a.substance}`}
+                        tone="danger"
+                        onClick={() => setDel(a)}
+                      >
+                        <TrashIcon size={18} />
+                      </IconButton>
+                    </div>
+                  )}
                 </li>
               );
             })}

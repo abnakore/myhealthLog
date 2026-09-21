@@ -1,10 +1,14 @@
 /**
- * The record store. Seeded from the demo data so every screen renders with
- * real-feeling content; writes (add / edit / delete / profile patch) update React
- * state so the whole app stays consistent. State is mirrored to localStorage, so
- * edits survive a refresh (the mock stand-in for a backend). When the DRF backend
- * lands, these mutators become the fetch/mutation calls and the seed goes away —
- * the component API (useRecords) stays the same.
+ * The record store. One bundle per person, keyed by the account it belongs to, with
+ * the *active* one handed to the pages — so a care proxy reads and (if they have full
+ * access) writes someone else's record through the very same screens. Which bundle is
+ * active comes from the care-proxy layer, never from the page.
+ *
+ * Seeded from the demo data so every screen renders with real-feeling content; writes
+ * (add / edit / delete / profile patch) update React state so the whole app stays
+ * consistent. State is mirrored to localStorage, so edits survive a refresh (the mock
+ * stand-in for a backend). When the DRF backend lands, these mutators become the
+ * fetch/mutation calls and the seed goes away — the component API (useRecords) stays.
  */
 import {
   createContext,
@@ -13,42 +17,19 @@ import {
   useMemo,
   type ReactNode,
 } from "react";
-import type {
-  Allergy,
-  Appointment,
-  Condition,
-  HealthDocument,
-  HealthProfile,
-  Immunization,
-  Medication,
-  Procedure,
-  VitalReading,
+import {
+  emptyRecordBundle,
+  type HealthProfile,
+  type RecordBundle,
+  type RecordCollections,
 } from "@/types/health";
 import { usePersistentState } from "@/lib/storage";
-import {
-  demoAllergies,
-  demoAppointments,
-  demoConditions,
-  demoDocuments,
-  demoImmunizations,
-  demoMedications,
-  demoProcedures,
-  demoProfile,
-  demoVitals,
-} from "@/data/mock";
+import { demoRecordBundles } from "@/data/mock";
+import { useCareProxy } from "@/store/CareProxyContext";
 
-/** Every list the app keeps. `profile` is separate — a single record, patched not
+/** The lists the app keeps. `profile` is separate — a single record, patched not
     listed. Each list item carries a string `id`. */
-interface Collections {
-  allergies: Allergy[];
-  medications: Medication[];
-  conditions: Condition[];
-  appointments: Appointment[];
-  documents: HealthDocument[];
-  immunizations: Immunization[];
-  procedures: Procedure[];
-  vitals: VitalReading[];
-}
+export type Collections = RecordCollections;
 
 export type CollectionKey = keyof Collections;
 type ItemOf<K extends CollectionKey> = Collections[K][number];
@@ -64,58 +45,86 @@ interface RecordsContextValue extends Collections {
 const RecordsContext = createContext<RecordsContextValue | null>(null);
 
 export function RecordsProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = usePersistentState<HealthProfile>("profile", demoProfile);
-  const [collections, setCollections] = usePersistentState<Collections>("records", () => ({
-    allergies: demoAllergies,
-    medications: demoMedications,
-    conditions: demoConditions,
-    appointments: demoAppointments,
-    documents: demoDocuments,
-    immunizations: demoImmunizations,
-    procedures: demoProcedures,
-    vitals: demoVitals,
-  }));
+  // Every person's record, keyed by the account it belongs to.
+  const [bundles, setBundles] = usePersistentState<Record<string, RecordBundle>>(
+    "records",
+    () => demoRecordBundles,
+  );
+  const { activeOwnerId, activeOwnerName } = useCareProxy();
+
+  // Someone with nothing on file (a brand-new sign-up, or a record opened through a
+  // proxy grant before it holds anything) still gets a record to render: empty.
+  const bundle = useMemo(
+    () => bundles[activeOwnerId] ?? emptyRecordBundle(activeOwnerId, activeOwnerName),
+    [bundles, activeOwnerId, activeOwnerName],
+  );
+
+  /** Every write lands on the active record — the person's own, or the one they're viewing. */
+  const patchBundle = useCallback(
+    (mutate: (prev: RecordBundle) => RecordBundle) => {
+      setBundles((prev) => {
+        const current = prev[activeOwnerId] ?? emptyRecordBundle(activeOwnerId, activeOwnerName);
+        return { ...prev, [activeOwnerId]: mutate(current) };
+      });
+    },
+    [activeOwnerId, activeOwnerName, setBundles],
+  );
 
   // New items go to the front so a just-added record is visible without scrolling.
-  const addItem = useCallback(<K extends CollectionKey>(key: K, item: ItemOf<K>) => {
-    setCollections((prev) => {
-      const list = prev[key] as Array<ItemOf<K>>;
-      return { ...prev, [key]: [item, ...list] } as Collections;
-    });
-  }, []);
+  const addItem = useCallback(
+    <K extends CollectionKey>(key: K, item: ItemOf<K>) => {
+      patchBundle(
+        (prev) => ({ ...prev, [key]: [item, ...(prev[key] as ItemOf<K>[])] }) as RecordBundle,
+      );
+    },
+    [patchBundle],
+  );
 
   const updateItem = useCallback(
     <K extends CollectionKey>(key: K, id: string, patch: Partial<ItemOf<K>>) => {
-      setCollections((prev) => {
+      patchBundle((prev) => {
         const list = prev[key] as Array<{ id: string }>;
         const next = list.map((it) => (it.id === id ? { ...it, ...(patch as object) } : it));
-        return { ...prev, [key]: next } as Collections;
+        return { ...prev, [key]: next } as RecordBundle;
       });
     },
-    [],
+    [patchBundle],
   );
 
-  const removeItem = useCallback(<K extends CollectionKey>(key: K, id: string) => {
-    setCollections((prev) => {
-      const list = prev[key] as Array<{ id: string }>;
-      return { ...prev, [key]: list.filter((it) => it.id !== id) } as Collections;
-    });
-  }, []);
+  const removeItem = useCallback(
+    <K extends CollectionKey>(key: K, id: string) => {
+      patchBundle((prev) => {
+        const list = prev[key] as Array<{ id: string }>;
+        return { ...prev, [key]: list.filter((it) => it.id !== id) } as RecordBundle;
+      });
+    },
+    [patchBundle],
+  );
 
-  const updateProfile = useCallback((patch: Partial<HealthProfile>) => {
-    setProfile((prev) => ({ ...prev, ...patch }));
-  }, []);
+  const updateProfile = useCallback(
+    (patch: Partial<HealthProfile>) => {
+      patchBundle((prev) => ({ ...prev, profile: { ...prev.profile, ...patch } }));
+    },
+    [patchBundle],
+  );
 
   const value = useMemo<RecordsContextValue>(
     () => ({
-      profile,
-      ...collections,
+      profile: bundle.profile,
+      allergies: bundle.allergies,
+      medications: bundle.medications,
+      conditions: bundle.conditions,
+      appointments: bundle.appointments,
+      documents: bundle.documents,
+      immunizations: bundle.immunizations,
+      procedures: bundle.procedures,
+      vitals: bundle.vitals,
       addItem,
       updateItem,
       removeItem,
       updateProfile,
     }),
-    [profile, collections, addItem, updateItem, removeItem, updateProfile],
+    [bundle, addItem, updateItem, removeItem, updateProfile],
   );
 
   return <RecordsContext.Provider value={value}>{children}</RecordsContext.Provider>;

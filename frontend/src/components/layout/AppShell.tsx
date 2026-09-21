@@ -1,8 +1,11 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/auth/AuthContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { buttonStyles } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
+import { ProxyBanner } from "@/components/proxy/ProxyBanner";
+import { RecordSwitcher } from "@/components/proxy/RecordSwitcher";
 import { LogoutIcon, PlusIcon } from "@/components/icons";
 import { primaryNav, recordNav, type NavItem } from "./nav";
 
@@ -80,9 +83,14 @@ function TabLink({ item, accent = false }: { item: NavItem; accent?: boolean }) 
 const ADD_ITEM: NavItem = { to: "/app/add", label: "Add", icon: PlusIcon };
 
 /** The app frame: a left rail from `lg` up, a top bar + docked tab bar on smaller
-    screens. Content renders through <Outlet /> inside a single reading column. */
+    screens. Content renders through <Outlet /> inside a single reading column.
+
+    Two things from the care-proxy layer live here rather than on any page, because
+    they have to be true of *every* page: the switcher (whose record am I in) and the
+    banner that says so out loud once you've left your own. */
 export function AppShell() {
   const { user, logout } = useAuth();
+  const { canEdit } = useCareProxy();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -98,10 +106,14 @@ export function AppShell() {
           <Wordmark />
         </div>
 
-        <Link to="/app/add" className={cn(buttonStyles("primary", "md", true), "mt-6")}>
-          <PlusIcon size={18} strokeWidth={2.25} />
-          Add record
-        </Link>
+        <RecordSwitcher />
+
+        {canEdit && (
+          <Link to="/app/add" className={cn(buttonStyles("primary", "md", true), "mt-6")}>
+            <PlusIcon size={18} strokeWidth={2.25} />
+            Add record
+          </Link>
+        )}
 
         <nav className="mt-6 flex flex-col gap-1">
           {primaryNav.map((item) => (
@@ -135,25 +147,33 @@ export function AppShell() {
 
       {/* Main column */}
       <div className="lg:pl-[16.5rem]">
-        {/* Mobile top bar */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-mhl-rule bg-mhl-bg/90 px-4 py-3 backdrop-blur lg:hidden">
-          <Wordmark />
-          <button
-            type="button"
-            onClick={handleLogout}
-            aria-label="Log out"
-            className="grid h-9 w-9 place-items-center rounded-full text-mhl-muted hover:bg-mhl-sunk hover:text-mhl-ink"
-          >
-            <LogoutIcon size={20} />
-          </button>
+        {/* Mobile top bar — the switcher rides with it when there's another record
+            to step into, so the context is changeable on a phone too. */}
+        <header className="sticky top-0 z-30 border-b border-mhl-rule bg-mhl-bg/90 backdrop-blur lg:hidden">
+          <div className="flex items-center justify-between px-4 py-3">
+            <Wordmark />
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label="Log out"
+              className="grid h-9 w-9 place-items-center rounded-full text-mhl-muted hover:bg-mhl-sunk hover:text-mhl-ink"
+            >
+              <LogoutIcon size={20} />
+            </button>
+          </div>
+          <RecordSwitcher variant="bar" />
         </header>
+
+        <ProxyBanner />
 
         <main className="mx-auto w-full max-w-[42rem] px-4 pb-28 pt-6 lg:px-8 lg:pb-14">
           <Outlet />
         </main>
       </div>
 
-      {/* Mobile docked tab bar */}
+      {/* Mobile docked tab bar. The Add tab stays even in a view-only context: it
+          lands on the Add page, which explains the access rather than pretending the
+          flow doesn't exist. */}
       <nav
         className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-mhl-rule bg-mhl-surface/95 backdrop-blur lg:hidden"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import {
   CONDITION_STATUS_LABELS,
   SEVERITY_LABELS,
@@ -35,6 +36,7 @@ const STATUS_RANK: Record<ConditionStatus, number> = {
 };
 
 export default function Conditions() {
+  const { canEdit } = useCareProxy();
   const { conditions, updateItem, removeItem } = useRecords();
   const [edit, setEdit] = useState<{ record: Condition; draft: ConditionDraft } | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -62,10 +64,12 @@ export default function Conditions() {
             : `${conditions.length} on file · ${activeCount} being treated`
         }
         action={
-          <Link to="/app/add?type=condition" className={buttonStyles("primary", "md")}>
-            <PlusIcon size={18} strokeWidth={2.25} />
-            Add condition
-          </Link>
+          canEdit ? (
+            <Link to="/app/add?type=condition" className={buttonStyles("primary", "md")}>
+              <PlusIcon size={18} strokeWidth={2.25} />
+              Add condition
+            </Link>
+          ) : undefined
         }
       />
 
@@ -75,10 +79,12 @@ export default function Conditions() {
           title="No conditions recorded"
           description="Add anything a clinician is treating or keeping an eye on."
           action={
-            <Link to="/app/add?type=condition" className={buttonStyles("primary", "md")}>
-              <PlusIcon size={18} strokeWidth={2.25} />
-              Add a condition
-            </Link>
+            canEdit ? (
+              <Link to="/app/add?type=condition" className={buttonStyles("primary", "md")}>
+                <PlusIcon size={18} strokeWidth={2.25} />
+                Add a condition
+              </Link>
+            ) : undefined
           }
         />
       ) : (
@@ -115,20 +121,23 @@ export default function Conditions() {
                     </p>
                     {c.notes && <p className="mt-1 line-clamp-2 text-mhl-fine text-mhl-faint">{c.notes}</p>}
                   </div>
-                  <div className="flex flex-none items-center">
-                    <IconButton
-                      label={`Edit ${c.name}`}
-                      onClick={() => {
-                        setEdit({ record: c, draft: conditionToDraft(c) });
-                        setErrors({});
-                      }}
-                    >
-                      <EditIcon size={18} />
-                    </IconButton>
-                    <IconButton label={`Delete ${c.name}`} tone="danger" onClick={() => setDel(c)}>
-                      <TrashIcon size={18} />
-                    </IconButton>
-                  </div>
+                  {/* Write controls are the page's permission, not the row's. */}
+                  {canEdit && (
+                    <div className="flex flex-none items-center">
+                      <IconButton
+                        label={`Edit ${c.name}`}
+                        onClick={() => {
+                          setEdit({ record: c, draft: conditionToDraft(c) });
+                          setErrors({});
+                        }}
+                      >
+                        <EditIcon size={18} />
+                      </IconButton>
+                      <IconButton label={`Delete ${c.name}`} tone="danger" onClick={() => setDel(c)}>
+                        <TrashIcon size={18} />
+                      </IconButton>
+                    </div>
+                  )}
                 </li>
               );
             })}

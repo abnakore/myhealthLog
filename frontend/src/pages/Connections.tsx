@@ -6,6 +6,7 @@
  */
 import { useState } from "react";
 import { useSharing } from "@/store/SharingContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import {
   CONNECTION_CATALOG,
   CONNECTION_KIND_LABELS,
@@ -20,13 +21,33 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Modal, ConfirmDialog } from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
+import { OwnerOnlyNotice } from "@/components/proxy/OwnerOnlyNotice";
 import { LinkIcon, RefreshIcon, TrashIcon } from "@/components/icons";
 
 export default function Connections() {
   const { connections, isConnected, connect, disconnect, syncConnection } = useSharing();
+  const { isProxyView, activeOwnerName } = useCareProxy();
   const [connecting, setConnecting] = useState<ConnectionSource | null>(null);
   const [busy, setBusy] = useState(false);
   const [toRemove, setToRemove] = useState<{ id: string; name: string } | null>(null);
+
+  // Integrations feed the signed-in account's own record. Nothing here would land in
+  // the record being viewed, so a proxy gets the explanation instead of a page whose
+  // "Connect" button would quietly do the wrong thing.
+  if (isProxyView) {
+    return (
+      <div className="space-y-5">
+        <PageHeader
+          title="Connected apps & devices"
+          subtitle="Pull readings in automatically instead of typing them."
+        />
+        <OwnerOnlyNotice
+          title={`Only ${activeOwnerName} can connect their apps`}
+          description="You're viewing this record as a care proxy. Apps and devices are linked to their own account, and readings they send land in their record — so the links are theirs to make."
+        />
+      </div>
+    );
+  }
 
   const available = CONNECTION_CATALOG.filter((s) => !isConnected(s.id));
 
