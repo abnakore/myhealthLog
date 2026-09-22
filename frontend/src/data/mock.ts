@@ -851,17 +851,52 @@ export const demoConnections: Connection[] = [
   },
 ];
 
-export const demoEmergencySettings: EmergencySettings = {
-  token: demoEmergencyToken,
-  pinEnabled: false,
-  showBloodType: true,
-  showAllergies: true,
-  showMedications: true,
-  showConditions: false,
-  showContacts: true,
-  showNote: false,
-  note: "Please contact my husband first. I wear a medical alert bracelet.",
-  updatedAt: "2026-09-01T12:00:00",
+/**
+ * Emergency-card settings, one per person.
+ *
+ * The code is tied to the *person*, not to the app: each record carries its own
+ * token, its own toggles and its own note, and the public view compiles whatever it
+ * finds behind the token it was given. That is also why a proxy can see the card of
+ * the record they're looking at — it is that person's card, with that person's
+ * choices — while only the owner can change it.
+ */
+export const demoEmergencySettingsByOwner: Record<string, EmergencySettings> = {
+  p_amina: {
+    token: demoEmergencyToken,
+    pinEnabled: false,
+    showBloodType: true,
+    showAllergies: true,
+    showMedications: true,
+    showConditions: false,
+    showContacts: true,
+    showNote: false,
+    note: "Please contact my husband first. I wear a medical alert bracelet.",
+    updatedAt: "2026-09-01T12:00:00",
+  },
+  p_zainab: {
+    token: "eznk-4j7p-w2mn",
+    pinEnabled: false,
+    showBloodType: true,
+    showAllergies: true,
+    showMedications: true,
+    showConditions: true,
+    showContacts: true,
+    showNote: true,
+    note: "I am diabetic. My daughter Amina can answer anything about my medicines.",
+    updatedAt: "2026-09-12T09:30:00",
+  },
+  p_musa: {
+    token: "eznk-8h3t-q6vd",
+    pinEnabled: false,
+    showBloodType: true,
+    showAllergies: true,
+    showMedications: true,
+    showConditions: true,
+    showContacts: true,
+    showNote: true,
+    note: "I take a blood thinner — please check before giving me anything for pain.",
+    updatedAt: "2026-09-14T17:05:00",
+  },
 };
 
 /* --------------------------------------------------------------- care proxy -- */

@@ -18,6 +18,7 @@ import Timeline from "@/pages/Timeline";
 import CareProviders from "@/pages/CareProviders";
 import CareProxy from "@/pages/CareProxy";
 import EmergencyAccess from "@/pages/EmergencyAccess";
+import EmergencyView from "@/pages/EmergencyView";
 import Connections from "@/pages/Connections";
 
 export default function App() {
@@ -27,6 +28,11 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/auth/google/callback" element={<GoogleCallback />} />
+      {/* The emergency view a responder reaches by scanning the card's code: no
+          account, no shell, and nothing reachable beyond this one page. It sits above
+          the catch-all so an unknown code lands in it (and shows its own state)
+          rather than bouncing into the signed-in app. */}
+      <Route path="/emergency/:code" element={<EmergencyView />} />
 
       {/* Signed in, onboarding not yet complete */}
       <Route

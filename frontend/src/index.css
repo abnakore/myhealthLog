@@ -120,3 +120,18 @@ p {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* The emergency view is meant to be printed as it reads — a card for a wallet, an
+   armband sleeve, a fridge. Keep its dark surface and contrast on paper (printers
+   drop background colours by default), and take the print button itself off the
+   page it produces. */
+@media print {
+  .mhl-emerg-page {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .mhl-emerg-page .print-hide {
+    display: none;
+  }
+}
+

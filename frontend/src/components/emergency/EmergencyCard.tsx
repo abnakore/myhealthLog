@@ -3,9 +3,11 @@ import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
 import { useSharing } from "@/store/SharingContext";
+import { emergencyUrl } from "@/lib/emergency";
+import { qrSvgMarkup } from "@/lib/qrcode";
 import { isCriticalAllergy } from "@/types/health";
 import { ShieldIcon, DownloadIcon, ShareIcon, CheckIcon, LockIcon } from "@/components/icons";
-import { QrPlaceholder, qrSvgMarkup } from "./QrPlaceholder";
+import { QrCode } from "./QrCode";
 
 interface EmergencyCardProps {
   className?: string;
@@ -32,6 +34,9 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   const [copied, setCopied] = useState(false);
 
   const token = emergency.token;
+  // The code carries the full public URL, never the bare token: scanning it must
+  // open the emergency view directly, with nothing to type and nowhere to guess.
+  const url = emergencyUrl(token);
   const critical = allergies.filter((a) => isCriticalAllergy(a.severity)).map((a) => a.substance);
   const activeMeds = medications.filter((m) => m.active).map((m) => m.name);
   const activeConditions = conditions.filter((c) => c.status === "ACTIVE").map((c) => c.name);
@@ -39,23 +44,22 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   const note = emergency.note.trim();
 
   function handleDownload() {
-    const blob = new Blob([qrSvgMarkup(token)], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([qrSvgMarkup(url)], { type: "image/svg+xml" });
+    const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = objectUrl;
     a.download = "myhealthlog-emergency-code.svg";
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(objectUrl);
   }
 
   async function handleShare() {
-    const shareUrl = window.location.origin;
     const data = {
       title: "myHealthLog emergency card",
       text: `${profile.fullName} — critical health details`,
-      url: shareUrl,
+      url,
     };
     try {
       if (typeof navigator.share === "function") {
@@ -63,7 +67,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
         return;
       }
       if (navigator.clipboard) {
-        await navigator.clipboard.writeText(shareUrl);
+        await navigator.clipboard.writeText(url);
         setCopied(true);
         window.setTimeout(() => setCopied(false), 2200);
       }
@@ -90,7 +94,12 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
 
       <div className="mt-4 flex items-center gap-4">
         <div className="flex-none rounded-mhl-sm bg-white p-2.5">
-          <QrPlaceholder token={token} size={104} className="block text-mhl-emerg" />
+          <QrCode
+            value={url}
+            size={104}
+            className="block text-mhl-emerg"
+            label="Emergency QR code — scan to open the emergency view"
+          />
         </div>
         <dl className="min-w-0 space-y-2 text-mhl-fine">
           {emergency.showBloodType && (

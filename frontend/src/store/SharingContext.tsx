@@ -5,24 +5,29 @@
  * Share / Consent tables). When the DRF backend lands, these mutators become the API
  * calls and the seed goes away; the component API (useSharing) stays the same.
  *
- * Care proxy access lives in its own store (store/CareProxyContext.tsx) rather than
- * here: it links two accounts and decides which record the app is showing, which is a
- * different job from the grants and integrations on this account's own record.
+ * Emergency settings are keyed by person, not held once: the code belongs to the
+ * record it opens, so `emergency` is the card of whoever the app is showing — which
+ * is what lets a proxy see their relative's real card while only the owner can change
+ * it. Care proxy access itself lives in its own store (store/CareProxyContext.tsx).
  */
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   type ReactNode,
 } from "react";
 import type { CareProvider, Connection, EmergencySettings } from "@/types/sharing";
+import { defaultEmergencySettings, emergencySettingsFor } from "@/lib/emergency";
 import { usePersistentState } from "@/lib/storage";
-import { demoConnections, demoEmergencySettings, demoProviders } from "@/data/mock";
+import { useCareProxy } from "@/store/CareProxyContext";
+import { demoConnections, demoEmergencySettingsByOwner, demoProviders } from "@/data/mock";
 
 interface SharingContextValue {
   providers: CareProvider[];
   connections: Connection[];
+  /** The emergency card of the record currently on screen. */
   emergency: EmergencySettings;
 
   addProvider: (provider: CareProvider) => void;
@@ -34,6 +39,7 @@ interface SharingContextValue {
   disconnect: (sourceId: string) => void;
   syncConnection: (sourceId: string) => void;
 
+  /** Writes to the signed-in user's own card — the only one they may change. */
   updateEmergency: (patch: Partial<EmergencySettings>) => void;
 }
 
@@ -45,6 +51,7 @@ function withStamp(patch: Partial<EmergencySettings>): Partial<EmergencySettings
 }
 
 export function SharingProvider({ children }: { children: ReactNode }) {
+  const { activeOwnerId, selfId } = useCareProxy();
   const [providers, setProviders] = usePersistentState<CareProvider[]>(
     "sharing.providers",
     () => demoProviders,
@@ -53,9 +60,24 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     "sharing.connections",
     () => demoConnections,
   );
-  const [emergency, setEmergency] = usePersistentState<EmergencySettings>(
-    "sharing.emergency",
-    () => demoEmergencySettings,
+  const [emergencyByOwner, setEmergencyByOwner] = usePersistentState<
+    Record<string, EmergencySettings>
+  >("sharing.emergency", () => demoEmergencySettingsByOwner);
+
+  // A record that has never had a card gets one the moment it's opened, and it is
+  // written straight away: the token shown must be the token the public view will
+  // validate, or the QR on screen would lead nowhere.
+  useEffect(() => {
+    setEmergencyByOwner((prev) =>
+      prev[activeOwnerId] ? prev : { ...prev, [activeOwnerId]: defaultEmergencySettings() },
+    );
+  }, [activeOwnerId, setEmergencyByOwner]);
+
+  // Until that write lands, a stable stand-in — recomputed only when the owner (or
+  // the persisted map) changes, so the code on screen doesn't churn between renders.
+  const emergency = useMemo(
+    () => emergencyByOwner[activeOwnerId] ?? defaultEmergencySettings(),
+    [emergencyByOwner, activeOwnerId],
   );
 
   // New grants go to the front so a just-created share is visible without scrolling.
@@ -94,9 +116,15 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     setConnections((prev) => prev.map((c) => (c.sourceId === sourceId ? { ...c, lastSync: now } : c)));
   }, []);
 
-  const updateEmergency = useCallback((patch: Partial<EmergencySettings>) => {
-    setEmergency((prev) => ({ ...prev, ...withStamp(patch) }));
-  }, []);
+  const updateEmergency = useCallback(
+    (patch: Partial<EmergencySettings>) => {
+      setEmergencyByOwner((prev) => ({
+        ...prev,
+        [selfId]: { ...emergencySettingsFor(prev, selfId), ...withStamp(patch) },
+      }));
+    },
+    [selfId, setEmergencyByOwner],
+  );
 
   const value = useMemo<SharingContextValue>(
     () => ({

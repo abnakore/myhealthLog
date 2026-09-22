@@ -1,5 +1,6 @@
 import { cn } from "@/lib/cn";
-import { QrPlaceholder, qrSvgMarkup } from "@/components/emergency/QrPlaceholder";
+import { QrCode } from "@/components/emergency/QrCode";
+import { qrSvgMarkup } from "@/lib/qrcode";
 import { Button } from "@/components/ui/Button";
 import { DownloadIcon, ShareIcon } from "@/components/icons";
 import { formatDate } from "@/lib/format";
@@ -15,10 +16,10 @@ interface ShareCodePanelProps {
   className?: string;
 }
 
-/** The thing you actually hand to a provider: a QR + human-readable code, an
-    optional PIN, and a plain summary of what it unlocks. Shown on creating a grant
-    and whenever you reopen "Show code". Download saves the code as an SVG; Share
-    opens the device sheet (or copies a ready message where sharing isn't available). */
+/** The thing you actually hand to a provider: a scannable QR + human-readable code,
+    an optional PIN, and a plain summary of what it unlocks. Shown on creating a grant
+    and whenever you reopen "Show code". Download saves the QR as an SVG; Share opens
+    the device sheet (or copies a ready message where sharing isn't available). */
 export function ShareCodePanel({ code, pin, expiresAt, access, scopes, className }: ShareCodePanelProps) {
   function download() {
     const blob = new Blob([qrSvgMarkup(code)], { type: "image/svg+xml" });
@@ -51,7 +52,14 @@ export function ShareCodePanel({ code, pin, expiresAt, access, scopes, className
     <div className={cn("rounded-mhl-sm bg-mhl-sunk p-4", className)}>
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
         <div className="flex-none rounded-mhl-sm bg-white p-3 shadow-sm">
-          <QrPlaceholder token={code} size={128} className="block text-mhl-ink" />
+          {/* The provider enters the code at the unlock screen, so the QR carries the
+              code itself with the one word it needs to make sense on its own. */}
+          <QrCode
+            value={`myHealthLog provider code: ${code}`}
+            size={128}
+            className="block text-mhl-ink"
+            label="QR code carrying the provider share code"
+          />
         </div>
         <div className="min-w-0 flex-1 text-center sm:text-left">
           <p className="text-mhl-fine text-mhl-muted">Share code</p>

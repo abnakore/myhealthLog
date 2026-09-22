@@ -247,10 +247,9 @@ export default function Dashboard() {
         </Section>
       )}
 
-      {/* The card is the owner's own artifact — built from their emergency settings,
-          with their code and PIN. A proxy gets the record, not a card that would
-          read as theirs. */}
-      {!isProxyView && <EmergencyCard />}
+      {/* The card of the record on screen — the owner's own settings, so a proxy sees
+          their relative's real card here, minus the link to manage it. */}
+      <EmergencyCard hideManageLink={isProxyView} />
 
       <div className="flex flex-wrap gap-2">
         {canEdit && (

@@ -11,7 +11,7 @@
  */
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
-const SCHEMA_VERSION = "v2";
+const SCHEMA_VERSION = "v3";
 
 /** Namespaced, versioned key for a stored slice, e.g. storageKey("profile") → "mhl.profile.v1". */
 export function storageKey(name: string): string {

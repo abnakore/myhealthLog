@@ -14,23 +14,40 @@ import {
   type EmergencySettings,
   type EmergencyToggleKey,
 } from "@/types/sharing";
+import { emergencyUrl } from "@/lib/emergency";
 import { formatRelative } from "@/lib/format";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Section } from "@/components/ui/Section";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonStyles } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { Switch } from "@/components/ui/Switch";
 import { TextArea } from "@/components/ui/fields";
 import { EmergencyCard } from "@/components/emergency/EmergencyCard";
-import { QrPlaceholder } from "@/components/emergency/QrPlaceholder";
+import { QrCode } from "@/components/emergency/QrCode";
+import { qrSvgMarkup } from "@/lib/qrcode";
 import { CopyButton } from "@/components/sharing/CopyButton";
 import { OwnerOnlyNotice } from "@/components/proxy/OwnerOnlyNotice";
-import { RefreshIcon } from "@/components/icons";
+import { DownloadIcon, RefreshIcon } from "@/components/icons";
 
 export default function EmergencyAccess() {
   const { emergency, updateEmergency } = useSharing();
   const { isProxyView, activeOwnerName } = useCareProxy();
   const [regenOpen, setRegenOpen] = useState(false);
+
+  // The link the QR carries — the same one the emergency view validates.
+  const url = emergencyUrl(emergency.token);
+
+  function handleDownloadCode() {
+    const blob = new Blob([qrSvgMarkup(url)], { type: "image/svg+xml" });
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = "myhealthlog-emergency-code.svg";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
 
   // The emergency card carries its own code, PIN and toggles per person — and those
   // belong to whoever the card is for. A proxy reading a record doesn't get to rewrite
@@ -69,29 +86,35 @@ export default function EmergencyAccess() {
       />
 
       <Section
-        question="What does a responder see?"
-        lead="The exact card a stranger opens with your code — nothing more."
+        question="Your emergency code"
+        lead="Scan it or open the link — no app, no account, and nothing else to find."
       >
-        <EmergencyCard hideManageLink className="mt-4" />
-      </Section>
-
-      <Section
-        question="Who can open your card?"
-        lead="No app, no login — a responder enters this code at myHealthLog's emergency screen."
-      >
-        <div className="mt-4 flex flex-col items-center gap-4 rounded-mhl-sm bg-mhl-sunk p-4 sm:flex-row sm:items-start">
-          <div className="flex-none rounded-mhl-sm bg-white p-2.5 shadow-sm">
-            <QrPlaceholder token={emergency.token} size={96} className="block text-mhl-ink" />
+        <div className="mt-4 flex flex-col items-center gap-5 rounded-mhl-sm bg-mhl-sunk p-4 sm:flex-row sm:items-start">
+          <div className="flex-none rounded-mhl-sm bg-white p-3 shadow-sm">
+            <QrCode
+              value={url}
+              size={188}
+              className="block text-mhl-ink"
+              label="Emergency QR code — scan to open the emergency view"
+            />
           </div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
-            <p className="text-mhl-fine text-mhl-muted">Emergency code</p>
-            <div className="mt-1 flex items-center justify-center gap-3 sm:justify-start">
-              <span className="select-all text-mhl-body font-bold tracking-[0.1em] text-mhl-ink">
-                {emergency.token}
-              </span>
-              <CopyButton value={emergency.token} />
+            <p className="text-mhl-fine text-mhl-muted">The link the code opens</p>
+            <p className="mt-1 select-all break-all text-mhl-fine font-medium text-mhl-ink">
+              {url}
+            </p>
+            <div className="mt-1.5">
+              <CopyButton value={url} label="Copy link" />
             </div>
-            <div className="mt-2.5">
+            <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+              <a
+                href={url}
+                target="_blank"
+                rel="noreferrer"
+                className={buttonStyles("primary", "md")}
+              >
+                Preview emergency view
+              </a>
               <Button
                 variant="secondary"
                 icon={<RefreshIcon size={16} />}
@@ -99,9 +122,17 @@ export default function EmergencyAccess() {
               >
                 Regenerate
               </Button>
+              <Button
+                variant="secondary"
+                icon={<DownloadIcon size={16} />}
+                onClick={handleDownloadCode}
+              >
+                Save code
+              </Button>
             </div>
-            <p className="mt-2 text-mhl-fine text-mhl-faint">
-              A new code invalidates every card already printed with the old one.
+            <p className="mt-3 text-mhl-fine text-mhl-faint">
+              Print it, or keep it on a phone's lock screen. A new code invalidates every
+              card already printed with the old one.
             </p>
           </div>
         </div>
@@ -133,6 +164,13 @@ export default function EmergencyAccess() {
             </div>
           </div>
         )}
+      </Section>
+
+      <Section
+        question="What does a responder see?"
+        lead="The exact card your code opens — every toggle below changes it live."
+      >
+        <EmergencyCard hideManageLink className="mt-4" />
       </Section>
 
       <Section
