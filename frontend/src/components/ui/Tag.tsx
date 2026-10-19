@@ -2,7 +2,15 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import type { AllergySeverity, ConditionStatus, AppointmentStatus } from "@/types/health";
 
-export type TagTone = "neutral" | "ok" | "watch" | "due" | "severe" | "anaphylaxis" | "info";
+export type TagTone =
+  | "neutral"
+  | "ok"
+  | "watch"
+  | "due"
+  | "severe"
+  | "anaphylaxis"
+  | "info"
+  | "stable";
 
 const TONES: Record<TagTone, string> = {
   neutral: "bg-mhl-sunk text-mhl-muted",
@@ -10,6 +18,8 @@ const TONES: Record<TagTone, string> = {
   watch: "bg-mhl-accent-lo text-mhl-accent",
   due: "bg-mhl-accent text-white",
   info: "bg-mhl-sunk text-mhl-ink",
+  /* "Stable" — a tracked trend with nothing to flag: blue, not green, not a caution. */
+  stable: "bg-mhl-info-lo text-mhl-info",
   severe: "bg-mhl-danger-lo text-mhl-danger font-bold",
   anaphylaxis: "bg-mhl-danger text-white font-bold",
 };

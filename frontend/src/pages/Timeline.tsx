@@ -6,6 +6,8 @@ import { useCareProxy } from "@/store/CareProxyContext";
 import { APPOINTMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, formatVitalValue, vitalName } from "@/types/health";
 import { formatDate, yearOf } from "@/lib/format";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { useAppMode } from "@/store/AppModeContext";
+import { ModeHint } from "@/components/modes/ModeHint";
 import { Card } from "@/components/ui/Card";
 import { buttonStyles } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -34,8 +36,10 @@ interface TimelineEvent {
 
 export default function Timeline() {
   const { canEdit } = useCareProxy();
+  const { mode, criticalConditionId } = useAppMode();
   const { allergies, medications, conditions, appointments, documents, immunizations, procedures, vitals } =
     useRecords();
+  const focusName = conditions.find((c) => c.id === criticalConditionId)?.name;
 
   const groups = useMemo<[string, TimelineEvent[]][]>(() => {
     const events: TimelineEvent[] = [];
@@ -147,8 +151,14 @@ export default function Timeline() {
   return (
     <div>
       <PageHeader
-        title="Timeline"
-        subtitle="Everything on your record, newest first."
+        title={mode === "elderly" ? "My Records" : "Timeline"}
+        subtitle={
+          mode === "critical" && focusName
+            ? `${focusName} first, then everything else — newest first.`
+            : mode === "pregnancy"
+              ? "Your pregnancy journey, newest first — the full record is here."
+              : "Everything on your record, newest first."
+        }
         action={
           canEdit ? (
             <Link to="/app/add" className={buttonStyles("secondary", "md")}>
@@ -158,6 +168,7 @@ export default function Timeline() {
           ) : undefined
         }
       />
+      <ModeHint page="timeline" />
 
       {groups.length === 0 ? (
         <EmptyState

@@ -29,6 +29,10 @@
   --color-mhl-good-lo: oklch(0.945 0.045 152);
   --color-mhl-danger: oklch(0.525 0.18 25); /* severe / anaphylaxis */
   --color-mhl-danger-lo: oklch(0.955 0.035 25);
+  /* A muted steel-blue reading cue for the dashboard's "Stable" tag: neither an
+     in-range green nor a caution colour. Same lightness/chroma discipline. */
+  --color-mhl-info: oklch(0.5 0.075 252);
+  --color-mhl-info-lo: oklch(0.95 0.022 252);
 
   /* ---- emergency register (inverts to near-black, AAA contrast) ---- */
   --color-mhl-emerg: oklch(0.185 0.02 48);
@@ -107,6 +111,181 @@ p {
   color: var(--color-mhl-ink);
 }
 
+/* The dashboard grid, wide-screen (matching the normal-mode composition):
+   every block full-width below xl; from xl, the same 12-col asymmetric 7/5
+   pairs, broken by full-width bands (head, context, alert, strip, footer). */
+.mhl-dash {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@media (min-width: 80rem) {
+  .mhl-dash {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 1.75rem;
+    align-items: start;
+  }
+
+  .mhl-dash > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .mhl-dash > .mhl-dash__meas,
+  .mhl-dash > .mhl-dash__act {
+    grid-column: span 7;
+  }
+
+  .mhl-dash > .mhl-dash__emerg,
+  .mhl-dash > .mhl-dash__stack {
+    grid-column: span 5;
+  }
+}
+
+/* Mode-aware first-fold: the same blocks, reordered so each mode's focus
+   leads on wide screens too. DOM order never changes (screen readers and
+   keyboard keep the stable order); only the visual order moves. */
+@media (min-width: 80rem) {
+  /* The mode hero always leads; in elderly mode the medication schedule
+     follows it straight away, before everything else. */
+  .mhl-dash[data-focus] > .mhl-mode-hero {
+    order: -3;
+  }
+  .mhl-dash[data-focus="elderly"] > .mhl-dash__meds {
+    grid-column: 1 / -1;
+    order: -2;
+  }
+  .mhl-dash[data-focus="pregnancy"] > .mhl-dash__meas,
+  .mhl-dash[data-focus="critical"] > .mhl-dash__meas {
+    order: -1;
+  }
+}
+
+/* Mode heroes rise in like the rest of the grid — content is visible by
+   default; the animation only settles it. */
+.mhl-mode-hero {
+  animation: mhl-rise 620ms var(--ease-mhl) both;
+}
+
+@media (min-width: 80rem) {
+  .mhl-dash > .mhl-mode-hero {
+    animation-delay: 60ms;
+  }
+}
+
+/* Elderly mode: larger, calmer, more touchable. Type scales up a step,
+   tap targets hit 48px+, corners soften, and nothing floats or blurs —
+   legibility is the product here. */
+[data-mode="elderly"] .mhl-dash {
+  gap: 1.75rem;
+  font-size: 1.04rem;
+}
+
+[data-mode="elderly"] .mhl-mode-hero,
+[data-mode="elderly"] .mhl-dash section {
+  border-radius: 1.5rem;
+}
+
+[data-mode="elderly"] a,
+[data-mode="elderly"] button {
+  min-height: 44px;
+}
+
+/* Mode banner entrance — settles in rather than snapping. */
+@keyframes mhl-banner-in {
+  from {
+    opacity: 0.001;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mhl-mode-banner {
+  animation: mhl-banner-in 300ms var(--ease-mhl) both;
+}
+
+@keyframes mhl-rise {
+  from {
+    opacity: 0.001;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Staggered rise-in on desktop — blocks settle one after another so the page
+   feels composed rather than painted. Purely opacity+transform (compositor),
+   disabled below xl and for reduced-motion users. */
+@media (min-width: 80rem) {
+  .mhl-dash > * {
+    animation: mhl-rise 620ms var(--ease-mhl) both;
+  }
+  .mhl-dash > *:nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .mhl-dash > *:nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .mhl-dash > *:nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .mhl-dash > *:nth-child(5) {
+    animation-delay: 240ms;
+  }
+  .mhl-dash > *:nth-child(6) {
+    animation-delay: 300ms;
+  }
+  .mhl-dash > *:nth-child(7) {
+    animation-delay: 360ms;
+  }
+  .mhl-dash > *:nth-child(8) {
+    animation-delay: 420ms;
+  }
+}
+
+/* Nice interactive feedback everywhere, on devices that can hover it. Attach
+   `.mhl-interactive` for press feedback, `.mhl-lift` to cards, `.mhl-row` to
+   tap-target rows, `.mhl-cardlink` to quiet card links, `.mhl-chip` to pills. */
+@media (hover: hover) {
+  .mhl-dash .mhl-interactive {
+    transition:
+      background-color 180ms var(--ease-mhl),
+      color 180ms var(--ease-mhl),
+      border-color 180ms var(--ease-mhl),
+      transform 180ms var(--ease-mhl),
+      box-shadow 220ms var(--ease-mhl);
+  }
+
+  .mhl-dash .mhl-lift:hover {
+    transform: translateY(-2px);
+  }
+
+  .mhl-dash .mhl-row:hover {
+    background: var(--color-mhl-sunk);
+  }
+
+  .mhl-dash .mhl-cardlink:hover {
+    border-color: var(--color-mhl-faint);
+    box-shadow: 0 8px 22px -14px oklch(0.45 0.05 60);
+  }
+
+  .mhl-dash .mhl-chip:hover {
+    border-color: var(--color-mhl-accent);
+    color: var(--color-mhl-accent-strong);
+  }
+}
+
+.mhl-dash .mhl-interactive:active {
+  transform: scale(0.975);
+}
+
 /* Respect users who ask for less motion. */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -119,6 +298,62 @@ p {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---- per-mode theme: same tokens, retinted accent + background ---- */
+/* Normal / pregnancy / critical share the warm coral system; elderly goes sage. */
+[data-mode="elderly"] {
+  --color-mhl-bg: oklch(0.95 0.018 140);
+  --color-mhl-surface: oklch(0.995 0.006 140);
+  --color-mhl-sunk: oklch(0.955 0.02 140);
+  --color-mhl-rule: oklch(0.885 0.02 140);
+  --color-mhl-accent: oklch(0.445 0.1 155);
+  --color-mhl-accent-strong: oklch(0.375 0.095 155);
+  --color-mhl-accent-lo: oklch(0.94 0.045 155);
+}
+[data-mode="pregnancy"] {
+  --color-mhl-bg: oklch(0.947 0.022 60);
+  --color-mhl-accent: oklch(0.55 0.145 28);
+  --color-mhl-accent-strong: oklch(0.48 0.14 28);
+  --color-mhl-accent-lo: oklch(0.955 0.032 30);
+}
+[data-mode="critical"] {
+  --color-mhl-bg: oklch(0.945 0.023 60);
+  --color-mhl-accent: oklch(0.52 0.165 25);
+  --color-mhl-accent-strong: oklch(0.45 0.155 25);
+}
+
+/* Emergency card surfaces per mode */
+[data-mode="elderly"] .mhl-emerg-card {
+  background: oklch(0.235 0.05 155);
+}
+.mhl-emerg-card {
+  background: oklch(0.195 0.025 40);
+}
+
+/* Sidebar illustration wash */
+.mhl-rail-art {
+  pointer-events: none;
+  user-select: none;
+}
+
+
+/* The mode menu settles in rather than snapping — the same rise the dashboard
+   uses, shortened for a small surface. Purely opacity+transform (compositor).
+   Respects reduced-motion via the rule just above. */
+@keyframes mhl-menu-in {
+  from {
+    opacity: 0.001;
+    transform: translateY(-4px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.mhl-mode-item {
+  animation: mhl-menu-in 240ms var(--ease-mhl) both;
 }
 
 /* The emergency view is meant to be printed as it reads — a card for a wallet, an

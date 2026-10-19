@@ -5,29 +5,52 @@ import { Button } from "@/components/ui/Button";
 import { CheckIcon } from "@/components/icons";
 import { APP_MODES, type AppMode } from "@/lib/appModes";
 import { useAppMode } from "@/store/AppModeContext";
+import { useRecords } from "@/store/RecordsContext";
+import { useContexts } from "@/store/ContextsContext";
+import { CriticalConditionModal } from "@/components/modes/CriticalConditionModal";
 
 /** Pick the condition-aware mode. Selection is staged locally so the switch is
-    deliberate — nothing changes until "Switch mode". */
+    deliberate — nothing changes until "Switch mode". Modes that need a
+    subject (critical → a condition, pregnancy → dates on first entry) route
+    through the focus picker after confirm, so the mode never lands blind. */
 export function ModeSwitchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { mode, setMode } = useAppMode();
+  const { mode, setMode, setCriticalConditionId } = useAppMode();
+  const { conditions } = useRecords();
+  const { contexts } = useContexts();
   const [pending, setPending] = useState<AppMode>(mode);
+  const [focusOpen, setFocusOpen] = useState(false);
 
   // Re-sync to the live mode each time it opens, so a cancelled change doesn't stick.
   useEffect(() => {
-    if (open) setPending(mode);
+    if (open) {
+      setPending(mode);
+      setFocusOpen(false);
+    }
   }, [open, mode]);
 
   const selected = APP_MODES.find((m) => m.id === pending) ?? APP_MODES[0];
   const unchanged = pending === mode;
+  const hasPreg = contexts.some((c) => c.kind === "LIFE_STAGE");
+  const needsFocus =
+    (pending === "critical" && conditions.length !== 1) ||
+    (pending === "pregnancy" && !hasPreg);
 
   function apply() {
+    if (needsFocus) {
+      setFocusOpen(true);
+      return;
+    }
+    if (pending === "critical" && conditions.length === 1) {
+      setCriticalConditionId(conditions[0].id);
+    }
     setMode(pending);
     onClose();
   }
 
   return (
+    <>
     <Modal
-      open={open}
+      open={open && !focusOpen}
       onClose={onClose}
       title="How should the app work for you?"
       description="Pick the focus that fits your life right now. You can change this any time."
@@ -96,5 +119,15 @@ export function ModeSwitchModal({ open, onClose }: { open: boolean; onClose: () 
         </ul>
       </div>
     </Modal>
+    <CriticalConditionModal
+      open={focusOpen}
+      mode={pending}
+      onClose={() => setFocusOpen(false)}
+      onDone={() => {
+        setFocusOpen(false);
+        onClose();
+      }}
+    />
+    </>
   );
 }

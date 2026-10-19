@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
+import { useAppMode } from "@/store/AppModeContext";
+import { useCareProxy } from "@/store/CareProxyContext";
 import { useSharing } from "@/store/SharingContext";
 import { emergencyUrl } from "@/lib/emergency";
 import { qrSvgMarkup } from "@/lib/qrcode";
@@ -30,8 +32,12 @@ function capList(items: string[], max = 3): string {
     the code; Share opens the device sheet. */
 export function EmergencyCard({ className, hideManageLink = false }: EmergencyCardProps) {
   const { profile, allergies, medications, conditions } = useRecords();
+  const { isProxyView, activeOwnerName } = useCareProxy();
   const { emergency } = useSharing();
+  const { mode, criticalConditionId } = useAppMode();
+  const focusName = conditions.find((c) => c.id === criticalConditionId)?.name;
   const [copied, setCopied] = useState(false);
+  const ownerName = activeOwnerName || profile.fullName;
 
   const token = emergency.token;
   // The code carries the full public URL, never the bare token: scanning it must
@@ -81,19 +87,32 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
 
   return (
     <section
-      className={cn("rounded-mhl bg-mhl-emerg p-5 text-mhl-emerg-ink", className)}
+      className={cn(
+        "mhl-dash__emerg min-w-0 rounded-mhl-sm bg-mhl-emerg p-[1.1rem] text-mhl-emerg-ink sm:p-5",
+        className,
+      )}
       aria-label="Emergency card"
     >
+      {/* The PIN promise is a property of the card — it lives in the head, not as
+          a footnote, but appears only when the pin is actually enabled. */}
       <div className="flex items-center gap-2 text-mhl-emerg-amber">
         <ShieldIcon size={20} />
-        <h2 className="text-mhl-lead font-bold text-mhl-emerg-ink">Emergency card</h2>
+        <h2 className="min-w-0 flex-1 text-mhl-lead font-bold text-mhl-emerg-ink">Emergency card</h2>
+        {emergency.pinEnabled && (
+          <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-white/20 px-2 py-0.5 text-[0.75rem] font-semibold text-mhl-emerg-ink">
+            <LockIcon size={13} />
+            PIN protected
+          </span>
+        )}
       </div>
-      <p className="mt-1 max-w-[34ch] text-mhl-fine text-mhl-emerg-muted">
-        Show this to a first responder. It opens your critical details without unlocking your phone.
+      <p className="mt-1 max-w-[46ch] text-mhl-fine text-mhl-emerg-muted">
+        {isProxyView
+          ? `Show this to a first responder. It opens ${ownerName}'s selected critical details.`
+          : "Show this to a first responder. It opens your selected critical details."}
       </p>
 
-      <div className="mt-4 flex items-center gap-4">
-        <div className="flex-none rounded-mhl-sm bg-white p-2.5">
+      <div className="mt-4 grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
+        <div className="w-fit flex-none self-start rounded-mhl-sm bg-white p-2.5">
           <QrCode
             value={url}
             size={104}
@@ -101,11 +120,11 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
             label="Emergency QR code — scan to open the emergency view"
           />
         </div>
-        <dl className="min-w-0 space-y-2 text-mhl-fine">
+        <dl className="min-w-0 space-y-2.5 text-mhl-fine">
           {emergency.showBloodType && (
             <div>
               <dt className="text-mhl-emerg-faint">Blood &amp; genotype</dt>
-              <dd className="text-mhl-lead font-bold text-mhl-emerg-ink">
+              <dd className="font-semibold text-mhl-emerg-ink [font-variant-numeric:tabular-nums]">
                 {profile.bloodType ?? "—"} · {profile.genotype ?? "—"}
               </dd>
             </div>
@@ -120,7 +139,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
           )}
           {emergency.showMedications && activeMeds.length > 0 && (
             <div>
-              <dt className="text-mhl-emerg-faint">Current medicines</dt>
+              <dt className="text-mhl-emerg-faint">Current medications</dt>
               <dd className="font-semibold text-mhl-emerg-ink">{capList(activeMeds)}</dd>
             </div>
           )}
@@ -128,12 +147,17 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
             <div>
               <dt className="text-mhl-emerg-faint">Ongoing conditions</dt>
               <dd className="font-semibold text-mhl-emerg-ink">{capList(activeConditions)}</dd>
+              {mode === "critical" && focusName && (
+                <dd className="mt-1 text-mhl-fine text-mhl-emerg-amber">
+                  {focusName} leads — it is the Critical-mode focus.
+                </dd>
+              )}
             </div>
           )}
           {emergency.showContacts && primaryContact && (
             <div>
               <dt className="text-mhl-emerg-faint">Emergency contact</dt>
-              <dd className="font-semibold text-mhl-emerg-ink">
+              <dd className="font-semibold text-mhl-emerg-ink [font-variant-numeric:tabular-nums]">
                 {primaryContact.name} · {primaryContact.phone}
               </dd>
             </div>
@@ -147,31 +171,38 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
         </p>
       )}
 
-      {emergency.pinEnabled && (
-        <p className="mt-3 flex items-center gap-1.5 text-[0.75rem] text-mhl-emerg-amber">
-          <LockIcon size={14} />
-          Protected with a PIN — a responder enters it to open your card.
-        </p>
-      )}
-
       <div className="mt-4 flex gap-2">
         <button
           type="button"
           onClick={handleDownload}
-          className={cn(btn, "bg-mhl-emerg-amber text-mhl-emerg hover:brightness-95")}
+          className={cn(
+            btn,
+            "mhl-interactive bg-mhl-emerg-amber text-mhl-emerg hover:brightness-95 active:brightness-90",
+          )}
         >
           <DownloadIcon size={18} />
-          Save code
+          Download
         </button>
         <button
           type="button"
           onClick={handleShare}
-          className={cn(btn, "border border-mhl-emerg-ink/25 text-mhl-emerg-ink hover:bg-mhl-emerg-ink/10")}
+          className={cn(
+            btn,
+            "mhl-interactive border border-mhl-emerg-ink/25 text-mhl-emerg-ink hover:bg-mhl-emerg-ink/10",
+          )}
         >
           {copied ? <CheckIcon size={18} /> : <ShareIcon size={18} />}
           {copied ? "Link copied" : "Share"}
         </button>
       </div>
+
+      {emergency.pinEnabled && (
+        <p className="mt-3 flex items-center gap-1.5 text-[0.75rem] text-mhl-emerg-amber">
+          <LockIcon size={14} />
+          Protected with a PIN — a responder enters it to open{" "}
+          {isProxyView ? `${ownerName}'s` : "your"} card.
+        </p>
+      )}
 
       <p aria-live="polite" className="mt-3 text-[0.75rem] text-mhl-emerg-faint">
         {hideManageLink ? (

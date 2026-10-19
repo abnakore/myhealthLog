@@ -181,6 +181,12 @@ export const CloseIcon = (p: IconProps) => (
   </Base>
 );
 
+export const ChevronDownIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="m6 9.5 6 6 6-6" />
+  </Base>
+);
+
 export const SearchIcon = (p: IconProps) => (
   <Base {...p}>
     <circle cx="11" cy="11" r="7" />
@@ -315,6 +321,68 @@ export const MailIcon = (p: IconProps) => (
   <Base {...p}>
     <rect x="3" y="5.5" width="18" height="13" rx="2.5" />
     <path d="m4.5 7.5 7.5 5.5 7.5-5.5" />
+  </Base>
+);
+
+export const SunIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5 5l1.8 1.8M17.2 17.2 19 19M19 5l-1.8 1.8M6.8 17.2 5 19" />
+  </Base>
+);
+
+export const MoonIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" />
+  </Base>
+);
+
+/* ---- dashboard — small UI + measure marks (stroke, currentColor) ---- */
+
+export const BellIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3.5A5.5 5.5 0 0 0 6.5 9v3.2L5 15.5h14L17.5 12.2V9A5.5 5.5 0 0 0 12 3.5Z" />
+    <path d="M9.9 18.5a2.2 2.2 0 0 0 4.2 0" />
+  </Base>
+);
+
+export const ClockIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="8.2" />
+    <path d="M12 7.4V12l3.1 2" />
+  </Base>
+);
+
+export const DropIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3.5c3 3.4 5.5 6.2 5.5 9.2a5.5 5.5 0 0 1-11 0c0-3 2.5-5.8 5.5-9.2Z" />
+  </Base>
+);
+
+export const LeafIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M19.5 4.3c0 8.2-4.4 12.8-11.2 12.8a8.4 8.4 0 0 1-3.8-.8c.1-7.7 5.4-12 15-12Z" />
+    <path d="M4.8 19.5c2.4-5.4 6.3-8.9 11.2-10.9" />
+  </Base>
+);
+
+export const HeartIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 19.5C12 19.5 4.5 15 4.5 9.9A3.9 3.9 0 0 1 12 7.7a3.9 3.9 0 0 1 7.5 2.2c0 5.1-7.5 9.6-7.5 9.6Z" />
+  </Base>
+);
+
+export const WeightIcon = (p: IconProps) => (
+  <Base {...p}>
+    <rect x="4" y="4.5" width="16" height="15" rx="2.5" />
+    <path d="m8 14.2 2.6-2.7 2.1 2.1 3.3-3.4" />
+  </Base>
+);
+
+export const FlowerIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="12" cy="12" r="2.4" />
+    <path d="M12 3.2v3.4M12 17.4v3.4M4.5 7.6l3 1.7M16.5 14.7l3 1.7M4.5 16.4l3-1.7M16.5 9.3l3-1.7" />
   </Base>
 );
 

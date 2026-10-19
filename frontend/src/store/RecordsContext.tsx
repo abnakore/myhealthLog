@@ -18,6 +18,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  emptyCollections,
   emptyRecordBundle,
   type HealthProfile,
   type RecordBundle,
@@ -37,7 +38,11 @@ type ItemOf<K extends CollectionKey> = Collections[K][number];
 interface RecordsContextValue extends Collections {
   profile: HealthProfile;
   addItem: <K extends CollectionKey>(key: K, item: ItemOf<K>) => void;
-  updateItem: <K extends CollectionKey>(key: K, id: string, patch: Partial<ItemOf<K>>) => void;
+  updateItem: <K extends CollectionKey>(
+    key: K,
+    id: string,
+    patch: Partial<ItemOf<K>>,
+  ) => void;
   removeItem: <K extends CollectionKey>(key: K, id: string) => void;
   updateProfile: (patch: Partial<HealthProfile>) => void;
 }
@@ -46,49 +51,83 @@ const RecordsContext = createContext<RecordsContextValue | null>(null);
 
 export function RecordsProvider({ children }: { children: ReactNode }) {
   // Every person's record, keyed by the account it belongs to.
-  const [bundles, setBundles] = usePersistentState<Record<string, RecordBundle>>(
-    "records",
-    () => demoRecordBundles,
-  );
+  const [bundles, setBundles] = usePersistentState<
+    Record<string, RecordBundle>
+  >("records", () => demoRecordBundles);
   const { activeOwnerId, activeOwnerName } = useCareProxy();
 
   // Someone with nothing on file (a brand-new sign-up, or a record opened through a
   // proxy grant before it holds anything) still gets a record to render: empty.
   //
   // The second half of that is migration safety for existing data: a record saved
-  // before condition-aware profiles existed has no `contexts` key. A missing list is
-  // an empty list — it is never a reason to drop, migrate or rewrite the record.
+  // before condition-aware profiles existed has no `contexts` key, and a record
+  // touched by an older build may be missing any list outright. A missing list is
+  // an empty list — it is never a reason to drop, migrate or rewrite the record,
+  // and (critically) a write must never spread `undefined` back into storage.
+  const BLANK_LISTS = useMemo(() => emptyCollections(), []);
   const bundle = useMemo(() => {
-    const stored = bundles[activeOwnerId] ?? emptyRecordBundle(activeOwnerId, activeOwnerName);
-    return Array.isArray(stored.contexts) ? stored : { ...stored, contexts: [] };
-  }, [bundles, activeOwnerId, activeOwnerName]);
+    const stored =
+      bundles[activeOwnerId] ??
+      emptyRecordBundle(activeOwnerId, activeOwnerName);
+    return {
+      ...BLANK_LISTS,
+      ...stored,
+      contexts: Array.isArray(stored.contexts) ? stored.contexts : [],
+    };
+  }, [bundles, activeOwnerId, activeOwnerName, BLANK_LISTS]);
 
   /** Every write lands on the active record — the person's own, or the one they're viewing. */
   const patchBundle = useCallback(
     (mutate: (prev: RecordBundle) => RecordBundle) => {
       setBundles((prev) => {
-        const current = prev[activeOwnerId] ?? emptyRecordBundle(activeOwnerId, activeOwnerName);
-        return { ...prev, [activeOwnerId]: mutate(current) };
+        if (!prev || typeof prev !== "object") return prev;
+        const current =
+          (prev[activeOwnerId] as RecordBundle | undefined) ??
+          emptyRecordBundle(activeOwnerId, activeOwnerName);
+        // Merge over blanks so a record missing any list (older saved data) gets a
+        // complete shape back — the store it came from just handed us this guarantee.
+        return {
+          ...prev,
+          [activeOwnerId]: mutate({ ...BLANK_LISTS, ...current }),
+        };
       });
     },
-    [activeOwnerId, activeOwnerName, setBundles],
+    [activeOwnerId, activeOwnerName, setBundles, BLANK_LISTS],
   );
 
   // New items go to the front so a just-added record is visible without scrolling.
   const addItem = useCallback(
     <K extends CollectionKey>(key: K, item: ItemOf<K>) => {
       patchBundle(
-        (prev) => ({ ...prev, [key]: [item, ...(prev[key] as ItemOf<K>[])] }) as RecordBundle,
+        (prev) =>
+          ({
+            ...prev,
+            [key]: [item, ...((prev[key] as ItemOf<K>[] | undefined) ?? [])],
+          }) as RecordBundle,
       );
     },
     [patchBundle],
   );
 
   const updateItem = useCallback(
-    <K extends CollectionKey>(key: K, id: string, patch: Partial<ItemOf<K>>) => {
+    <K extends CollectionKey>(
+      key: K,
+      itemOrId: ItemOf<K> | string,
+      patch?: Partial<ItemOf<K>>,
+    ) => {
       patchBundle((prev) => {
-        const list = prev[key] as Array<{ id: string }>;
-        const next = list.map((it) => (it.id === id ? { ...it, ...(patch as object) } : it));
+        const id = typeof itemOrId === "string" ? itemOrId : itemOrId.id;
+        const list = (prev[key] as Array<{ id: string }> | undefined) ?? [];
+        const next = list.map((it) =>
+          it.id === id
+            ? {
+                ...it,
+                ...((typeof itemOrId === "string"
+                  ? patch
+                  : itemOrId) as object),
+              }
+            : it,
+        );
         return { ...prev, [key]: next } as RecordBundle;
       });
     },
@@ -98,8 +137,11 @@ export function RecordsProvider({ children }: { children: ReactNode }) {
   const removeItem = useCallback(
     <K extends CollectionKey>(key: K, id: string) => {
       patchBundle((prev) => {
-        const list = prev[key] as Array<{ id: string }>;
-        return { ...prev, [key]: list.filter((it) => it.id !== id) } as RecordBundle;
+        const list = (prev[key] as Array<{ id: string }> | undefined) ?? [];
+        return {
+          ...prev,
+          [key]: list.filter((it) => it.id !== id),
+        } as RecordBundle;
       });
     },
     [patchBundle],
@@ -107,7 +149,10 @@ export function RecordsProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = useCallback(
     (patch: Partial<HealthProfile>) => {
-      patchBundle((prev) => ({ ...prev, profile: { ...prev.profile, ...patch } }));
+      patchBundle((prev) => ({
+        ...prev,
+        profile: { ...prev.profile, ...patch },
+      }));
     },
     [patchBundle],
   );
@@ -132,7 +177,9 @@ export function RecordsProvider({ children }: { children: ReactNode }) {
     [bundle, addItem, updateItem, removeItem, updateProfile],
   );
 
-  return <RecordsContext.Provider value={value}>{children}</RecordsContext.Provider>;
+  return (
+    <RecordsContext.Provider value={value}>{children}</RecordsContext.Provider>
+  );
 }
 
 export function useRecords(): RecordsContextValue {

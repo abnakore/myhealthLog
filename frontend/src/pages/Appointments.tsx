@@ -14,6 +14,7 @@ import {
 import { AppointmentFields } from "@/components/records/FieldSets";
 import { RecordEditModal } from "@/components/records/RecordEditModal";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ModeHint } from "@/components/modes/ModeHint";
 import { Section } from "@/components/ui/Section";
 import { buttonStyles } from "@/components/ui/Button";
 import { Tag, appointmentTone } from "@/components/ui/Tag";
@@ -97,6 +98,7 @@ export default function Appointments() {
           canEdit ? (
             <Link to="/app/add?type=visit" className={buttonStyles("primary", "md")}>
               <PlusIcon size={18} strokeWidth={2.25} />
+      <ModeHint page="appointments" />
               Add visit
             </Link>
           ) : undefined

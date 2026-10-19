@@ -23,6 +23,7 @@ import {
 import { VitalFields } from "@/components/records/FieldSets";
 import { RecordEditModal } from "@/components/records/RecordEditModal";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { ModeHint } from "@/components/modes/ModeHint";
 import { Section } from "@/components/ui/Section";
 import { buttonStyles } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
@@ -123,6 +124,7 @@ export default function Measurements() {
           canEdit ? (
             <Link to={addLink} className={buttonStyles("primary", "md")}>
               <PlusIcon size={18} strokeWidth={2.25} />
+      <ModeHint page="measurements" />
               Add measurement
             </Link>
           ) : undefined

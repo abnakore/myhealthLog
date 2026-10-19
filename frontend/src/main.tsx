@@ -10,16 +10,17 @@ import { RecordsProvider } from "@/store/RecordsContext";
 import { SharingProvider } from "@/store/SharingContext";
 import "./index.css";
 
-// Order matters in one place: the care-proxy layer decides whose record the app is
-// showing, so it has to mount above the record store that reads that decision. The
+// Order matters in two places: the care-proxy layer decides whose record the app is
+// showing, so it has to mount above the record store that reads that decision —
+// and above the mode store, because the mode is remembered per person. The
 // context store sits inside the record store because a profile is a *reading* of the
 // record — it borrows the record's own contexts and never keeps its own copy.
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <AppModeProvider>
-          <CareProxyProvider>
+        <CareProxyProvider>
+          <AppModeProvider>
             <RecordsProvider>
               <ContextsProvider>
                 <SharingProvider>
@@ -27,8 +28,8 @@ createRoot(document.getElementById("root")!).render(
                 </SharingProvider>
               </ContextsProvider>
             </RecordsProvider>
-          </CareProxyProvider>
-        </AppModeProvider>
+          </AppModeProvider>
+        </CareProxyProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
