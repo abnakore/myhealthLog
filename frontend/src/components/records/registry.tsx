@@ -15,7 +15,6 @@ import {
   AppointmentFields,
   ConditionFields,
   DocumentFields,
-  ImmunizationFields,
   MedicationFields,
   VitalFields,
 } from "./FieldSets";
@@ -26,7 +25,6 @@ import {
   DocumentIcon,
   PillIcon,
   ScanIcon,
-  VaccineIcon,
   VitalsIcon,
 } from "@/components/icons";
 
@@ -38,7 +36,7 @@ export type RecordKind =
   | "visit"
   | "lab"
   | "imaging"
-  | "vaccination";
+  | "document";
 
 type TileIcon = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 
@@ -174,17 +172,18 @@ export const RECORD_KINDS: KindConfig[] = [
     Fields: DocumentFields,
   }),
   defineKind({
-    kind: "vaccination",
-    label: "Vaccination",
-    blurb: "A jab or immunisation",
-    icon: VaccineIcon,
-    collectionKey: "immunizations",
-    listPath: "/app/timeline",
-    listLabel: "Timeline",
-    empty: M.emptyImmunizationDraft,
-    validate: M.validateImmunization,
-    fromDraft: (d) => M.immunizationFromDraft(d),
-    Fields: ImmunizationFields,
+    kind: "document",
+    label: "Document",
+    blurb: "Any other health document",
+    icon: DocumentIcon,
+    collectionKey: "documents",
+    listPath: "/app/documents",
+    listLabel: "Documents",
+    // The general "anything else" upload — letters, referrals, insurance papers.
+    empty: () => M.emptyDocumentDraft("OTHER"),
+    validate: M.validateDocument,
+    fromDraft: (d) => M.documentFromDraft(d),
+    Fields: DocumentFields,
   }),
 ];
 

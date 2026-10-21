@@ -76,7 +76,15 @@ export interface Condition {
   severity?: ClinicalSeverity;
   onsetDate?: string;
   resolvedDate?: string;
+  /** ICD-10 coding, e.g. "E11.9" — optional, typed in by the person. */
+  icd10Code?: string;
+  /** Who made the diagnosis, e.g. "Dr. F. Abdullahi". */
+  diagnosedBy?: string;
   notes?: string;
+  /** A document that confirms the condition — a letter or report. */
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
   source?: RecordSource;
 }
 
@@ -104,14 +112,19 @@ export interface Medication extends ConditionLinked {
   id: ID;
   name: string;
   dosage: string; // "500 mg"
-  form?: string; // tablet, syrup, injection
+  form?: string; // tablet, syrup, injection — a MEDICATION_FORMS entry or typed in
   route?: string; // oral, IV
   frequency: string; // "Twice daily"
+  duration?: string; // how long the course runs, e.g. "7 days"
   startDate: string;
   endDate?: string; // undefined => ongoing
   prescriber?: string;
   reason?: string;
   notes?: string;
+  /** An attached document — the prescriber's written note, a pack photo, etc. */
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
   active: boolean; // brief: mark active/inactive (defaults from endDate)
   source?: RecordSource;
 }
@@ -149,6 +162,14 @@ export interface HealthDocument extends ConditionLinked {
   mimeType?: string;
   documentDate?: string;
   uploadedAt: string;
+  notes?: string;
+  /** The laboratory that produced a lab result, e.g. "Lancet Kano". */
+  labName?: string;
+  /** Imaging specifics — set when this document is a scan. */
+  imagingType?: string; // "X-ray", "MRI", … or typed in
+  bodyArea?: string; // "Chest", "Left wrist"
+  findings?: string; // the report / radiologist's findings
+  provider?: string; // who produced the imaging, e.g. "Aminu Kano Teaching Hospital"
 }
 
 /* --------------------------------------------- procedures & immunizations -- */
@@ -197,6 +218,11 @@ export interface VitalReading extends ConditionLinked {
   measuredAt: string;
   context?: string; // "fasting", "post-meal", "sitting, left arm"
   label?: string; // display name for a CUSTOM reading, e.g. "Ketones"
+  notes?: string;
+  /** An attached document — a photo of the monitor reading, a clinic printout. */
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
 }
 
 /* --------------------------------------------------------- per-person set -- */
@@ -301,6 +327,35 @@ export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   DISCHARGE_SUMMARY: "Discharge summary",
   OTHER: "Other",
 };
+
+/** Common medication forms for the picker; "Other" lets a person type their own. */
+export const MEDICATION_FORMS: string[] = [
+  "Tablet",
+  "Capsule",
+  "Injection",
+  "Syrup",
+  "Cream",
+  "Ointment",
+  "Drops",
+  "Inhaler",
+  "Patch",
+  "Suppository",
+];
+
+/** The form option that reveals a free-text input for anything not on the list. */
+export const MEDICATION_FORM_OTHER = "Other";
+
+/** Common imaging kinds for the picker; "Other imaging" lets a person type their own. */
+export const IMAGING_TYPES: string[] = [
+  "X-ray",
+  "CT",
+  "MRI",
+  "Ultrasound",
+  "Mammogram",
+];
+
+/** The imaging option that reveals a free-text input for anything not on the list. */
+export const IMAGING_TYPE_OTHER = "Other imaging";
 
 // Ordered clinically — the vitals a clinician takes together lead, then body
 // metrics, then symptom/other. Selects and grouped lists follow this key order.

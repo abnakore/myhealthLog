@@ -6,7 +6,13 @@
  * a field is defined once and never drifts between "add" and "edit".
  */
 import { genId } from "@/lib/id";
-import { VITAL_META } from "@/types/health";
+import {
+  IMAGING_TYPE_OTHER,
+  IMAGING_TYPES,
+  MEDICATION_FORM_OTHER,
+  MEDICATION_FORMS,
+  VITAL_META,
+} from "@/types/health";
 import type {
   Allergy,
   AllergySeverity,
@@ -103,13 +109,20 @@ export function allergyFromDraft(d: AllergyDraft, base?: Allergy): Allergy {
 export interface MedicationDraft {
   name: string;
   dosage: string;
-  form: string;
+  form: string; // a MEDICATION_FORMS entry, or MEDICATION_FORM_OTHER
+  formOther: string; // the typed-in form, when form is Other
   frequency: string;
+  duration: string; // how long the course runs, e.g. "7 days"
   startDate: string;
   endDate: string;
   prescriber: string;
   reason: string;
   notes: string;
+  /** An optional attachment — the prescriber's written note, a pack photo. */
+  file: File | null;
+  existingFileName?: string;
+  existingFileSize?: number;
+  existingMimeType?: string;
   active: boolean;
   /** Conditions this medication is for — none, one, or several. */
   conditionIds: string[];
@@ -119,33 +132,50 @@ export const emptyMedicationDraft = (): MedicationDraft => ({
   name: "",
   dosage: "",
   form: "",
+  formOther: "",
   frequency: "",
+  duration: "",
   startDate: "",
   endDate: "",
   prescriber: "",
   reason: "",
   notes: "",
+  file: null,
   active: true,
   conditionIds: [],
 });
 
-export const medicationToDraft = (m: Medication): MedicationDraft => ({
-  name: m.name,
-  dosage: m.dosage,
-  form: m.form ?? "",
-  frequency: m.frequency,
-  startDate: m.startDate,
-  endDate: m.endDate ?? "",
-  prescriber: m.prescriber ?? "",
-  reason: m.reason ?? "",
-  notes: m.notes ?? "",
-  active: m.active,
-  conditionIds: m.conditionIds ?? [],
-});
+export const medicationToDraft = (m: Medication): MedicationDraft => {
+  // A form typed in by hand (or from an older record) isn't on the picker list —
+  // select "Other" and put the stored value in the free-text input.
+  const knownForm = !!m.form && MEDICATION_FORMS.includes(m.form);
+  return {
+    name: m.name,
+    dosage: m.dosage,
+    form: m.form ? (knownForm ? m.form : MEDICATION_FORM_OTHER) : "",
+    formOther: m.form && !knownForm ? m.form : "",
+    frequency: m.frequency,
+    duration: m.duration ?? "",
+    startDate: m.startDate,
+    endDate: m.endDate ?? "",
+    prescriber: m.prescriber ?? "",
+    reason: m.reason ?? "",
+    notes: m.notes ?? "",
+    file: null,
+    existingFileName: m.fileName,
+    existingFileSize: m.fileSize,
+    existingMimeType: m.mimeType,
+    active: m.active,
+    conditionIds: m.conditionIds ?? [],
+  };
+};
 
 export function validateMedication(d: MedicationDraft): FieldErrors {
   const e: FieldErrors = {};
   if (!d.name.trim()) e.name = "Enter the medication name.";
+  if (d.form === MEDICATION_FORM_OTHER && !d.formOther.trim()) {
+    e.formOther = "Type the form, or pick one from the list.";
+  }
   if (!d.startDate) e.startDate = "When did you start it?";
   if (d.endDate && d.startDate && d.endDate < d.startDate) {
     e.endDate = "The end date can't be before the start.";
@@ -158,13 +188,18 @@ export function medicationFromDraft(d: MedicationDraft, base?: Medication): Medi
     id: base?.id ?? genId("md"),
     name: d.name.trim(),
     dosage: d.dosage.trim(),
-    form: d.form.trim() || undefined,
+    form:
+      (d.form === MEDICATION_FORM_OTHER ? d.formOther.trim() : d.form.trim()) || undefined,
     frequency: d.frequency.trim(),
+    duration: d.duration.trim() || undefined,
     startDate: d.startDate,
     endDate: d.endDate || undefined,
     prescriber: d.prescriber.trim() || undefined,
     reason: d.reason.trim() || undefined,
     notes: d.notes.trim() || undefined,
+    fileName: d.file?.name ?? d.existingFileName,
+    fileSize: d.file?.size ?? d.existingFileSize,
+    mimeType: d.file?.type || d.existingMimeType,
     active: d.active,
     source: base?.source ?? "SELF_REPORTED",
     conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
@@ -179,7 +214,14 @@ export interface ConditionDraft {
   severity: ClinicalSeverity | "";
   onsetDate: string;
   resolvedDate: string;
+  icd10Code: string;
+  diagnosedBy: string;
   notes: string;
+  /** An optional document that confirms the condition — a letter or report. */
+  file: File | null;
+  existingFileName?: string;
+  existingFileSize?: number;
+  existingMimeType?: string;
 }
 
 export const emptyConditionDraft = (): ConditionDraft => ({
@@ -188,7 +230,10 @@ export const emptyConditionDraft = (): ConditionDraft => ({
   severity: "",
   onsetDate: "",
   resolvedDate: "",
+  icd10Code: "",
+  diagnosedBy: "",
   notes: "",
+  file: null,
 });
 
 export const conditionToDraft = (c: Condition): ConditionDraft => ({
@@ -197,7 +242,13 @@ export const conditionToDraft = (c: Condition): ConditionDraft => ({
   severity: c.severity ?? "",
   onsetDate: c.onsetDate ?? "",
   resolvedDate: c.resolvedDate ?? "",
+  icd10Code: c.icd10Code ?? "",
+  diagnosedBy: c.diagnosedBy ?? "",
   notes: c.notes ?? "",
+  file: null,
+  existingFileName: c.fileName,
+  existingFileSize: c.fileSize,
+  existingMimeType: c.mimeType,
 });
 
 export function validateCondition(d: ConditionDraft): FieldErrors {
@@ -214,7 +265,12 @@ export function conditionFromDraft(d: ConditionDraft, base?: Condition): Conditi
     severity: d.severity || undefined,
     onsetDate: d.onsetDate || undefined,
     resolvedDate: d.status === "RESOLVED" ? d.resolvedDate || undefined : undefined,
+    icd10Code: d.icd10Code.trim() || undefined,
+    diagnosedBy: d.diagnosedBy.trim() || undefined,
     notes: d.notes.trim() || undefined,
+    fileName: d.file?.name ?? d.existingFileName,
+    fileSize: d.file?.size ?? d.existingFileSize,
+    mimeType: d.file?.type || d.existingMimeType,
     source: base?.source ?? "SELF_REPORTED",
   };
 }
@@ -286,6 +342,15 @@ export interface DocumentDraft {
   existingFileName?: string;
   existingFileSize?: number;
   existingMimeType?: string;
+  notes: string;
+  /** The lab that produced a result — shown when the kind is a lab result. */
+  labName: string;
+  /** Imaging specifics — shown when the kind is a scan. */
+  imagingType: string; // an IMAGING_TYPES entry, or IMAGING_TYPE_OTHER
+  imagingTypeOther: string; // the typed-in kind, when imagingType is Other
+  bodyArea: string;
+  findings: string;
+  provider: string;
   conditionIds: string[];
 }
 
@@ -294,24 +359,50 @@ export const emptyDocumentDraft = (docType: DocumentType = "LAB_RESULT"): Docume
   docType,
   documentDate: "",
   file: null,
+  notes: "",
+  labName: "",
+  imagingType: "",
+  imagingTypeOther: "",
+  bodyArea: "",
+  findings: "",
+  provider: "",
   conditionIds: [],
 });
 
-export const documentToDraft = (doc: HealthDocument): DocumentDraft => ({
-  title: doc.title,
-  docType: doc.docType,
-  documentDate: doc.documentDate ?? "",
-  file: null,
-  existingFileName: doc.fileName,
-  existingFileSize: doc.fileSize,
-  existingMimeType: doc.mimeType,
-  conditionIds: doc.conditionIds ?? [],
-});
+export const documentToDraft = (doc: HealthDocument): DocumentDraft => {
+  // A typed-in imaging kind isn't on the picker list — select "Other imaging"
+  // and put the stored value in the free-text input.
+  const knownImaging = !!doc.imagingType && IMAGING_TYPES.includes(doc.imagingType);
+  return {
+    title: doc.title,
+    docType: doc.docType,
+    documentDate: doc.documentDate ?? "",
+    file: null,
+    existingFileName: doc.fileName,
+    existingFileSize: doc.fileSize,
+    existingMimeType: doc.mimeType,
+    notes: doc.notes ?? "",
+    labName: doc.labName ?? "",
+    imagingType: doc.imagingType
+      ? knownImaging
+        ? doc.imagingType
+        : IMAGING_TYPE_OTHER
+      : "",
+    imagingTypeOther: doc.imagingType && !knownImaging ? doc.imagingType : "",
+    bodyArea: doc.bodyArea ?? "",
+    findings: doc.findings ?? "",
+    provider: doc.provider ?? "",
+    conditionIds: doc.conditionIds ?? [],
+  };
+};
 
 export function validateDocument(d: DocumentDraft): FieldErrors {
   const e: FieldErrors = {};
   if (!d.title.trim()) e.title = "Give the document a title.";
   if (!d.file && !d.existingFileName) e.file = "Attach the file.";
+  if (d.docType === "SCAN" && d.imagingType === IMAGING_TYPE_OTHER && !d.imagingTypeOther.trim()) {
+    e.imagingTypeOther = "Type the imaging kind, or pick one from the list.";
+  }
   return e;
 }
 
@@ -319,6 +410,7 @@ export function documentFromDraft(d: DocumentDraft, base?: HealthDocument): Heal
   const fileName = d.file?.name ?? d.existingFileName ?? "attachment";
   const fileSize = d.file?.size ?? d.existingFileSize ?? 0;
   const mimeType = d.file?.type || d.existingMimeType;
+  const isScan = d.docType === "SCAN";
   return {
     id: base?.id ?? genId("doc"),
     title: d.title.trim(),
@@ -328,6 +420,16 @@ export function documentFromDraft(d: DocumentDraft, base?: HealthDocument): Heal
     mimeType: mimeType || undefined,
     documentDate: d.documentDate || undefined,
     uploadedAt: base?.uploadedAt ?? new Date().toISOString(),
+    notes: d.notes.trim() || undefined,
+    labName: d.docType === "LAB_RESULT" ? d.labName.trim() || undefined : undefined,
+    imagingType: isScan
+      ? (d.imagingType === IMAGING_TYPE_OTHER
+          ? d.imagingTypeOther.trim()
+          : d.imagingType.trim()) || undefined
+      : undefined,
+    bodyArea: isScan ? d.bodyArea.trim() || undefined : undefined,
+    findings: isScan ? d.findings.trim() || undefined : undefined,
+    provider: isScan ? d.provider.trim() || undefined : undefined,
     conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }
@@ -390,6 +492,12 @@ export interface VitalReadingDraft {
   measuredAt: string; // datetime-local
   context: string;
   label: string; // name of a CUSTOM measurement
+  notes: string;
+  /** An optional attachment — a photo of the monitor reading, a clinic printout. */
+  file: File | null;
+  existingFileName?: string;
+  existingFileSize?: number;
+  existingMimeType?: string;
   conditionIds: string[];
 }
 
@@ -408,6 +516,8 @@ export const emptyVitalDraft = (vitalType: VitalType = "BLOOD_PRESSURE"): VitalR
   measuredAt: nowLocalDateTime(),
   context: "",
   label: "",
+  notes: "",
+  file: null,
   conditionIds: [],
 });
 
@@ -420,6 +530,11 @@ export const vitalToDraft = (v: VitalReading): VitalReadingDraft => ({
   measuredAt: v.measuredAt.slice(0, 16),
   context: v.context ?? "",
   label: v.label ?? "",
+  notes: v.notes ?? "",
+  file: null,
+  existingFileName: v.fileName,
+  existingFileSize: v.fileSize,
+  existingMimeType: v.mimeType,
   conditionIds: v.conditionIds ?? [],
 });
 
@@ -451,6 +566,10 @@ export function vitalFromDraft(d: VitalReadingDraft, base?: VitalReading): Vital
     measuredAt: d.measuredAt,
     context: d.context.trim() || undefined,
     label: d.vitalType === "CUSTOM" ? d.label.trim() || undefined : undefined,
+    notes: d.notes.trim() || undefined,
+    fileName: d.file?.name ?? d.existingFileName,
+    fileSize: d.file?.size ?? d.existingFileSize,
+    mimeType: d.file?.type || d.existingMimeType,
     conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }

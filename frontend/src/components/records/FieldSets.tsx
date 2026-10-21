@@ -17,6 +17,10 @@ import {
   CONDITION_STATUS_LABELS,
   DOCUMENT_TYPE_LABELS,
   GENOTYPES,
+  IMAGING_TYPE_OTHER,
+  IMAGING_TYPES,
+  MEDICATION_FORM_OTHER,
+  MEDICATION_FORMS,
   SEVERITY_LABELS,
   SEX_LABELS,
   VITAL_LABELS,
@@ -180,21 +184,46 @@ export function MedicationFields({ draft, onChange, errors }: FieldSetProps<Medi
           onChange={(e) => onChange({ dosage: e.target.value })}
           optional
         />
-        <TextField
+        <SelectField
           label="Form"
           value={draft.form}
-          placeholder="Tablet, syrup…"
+          placeholder="Not sure"
           onChange={(e) => onChange({ form: e.target.value })}
+          optional
+        >
+          {MEDICATION_FORMS.map((form) => (
+            <option key={form} value={form}>
+              {form}
+            </option>
+          ))}
+          <option value={MEDICATION_FORM_OTHER}>{MEDICATION_FORM_OTHER}</option>
+        </SelectField>
+      </Row>
+      {draft.form === MEDICATION_FORM_OTHER && (
+        <TextField
+          label="Form"
+          value={draft.formOther}
+          error={errors.formOther}
+          placeholder="e.g. Lozenge"
+          onChange={(e) => onChange({ formOther: e.target.value })}
+        />
+      )}
+      <Row>
+        <TextField
+          label="How often?"
+          value={draft.frequency}
+          placeholder="e.g. Twice daily"
+          onChange={(e) => onChange({ frequency: e.target.value })}
+          optional
+        />
+        <TextField
+          label="Duration"
+          value={draft.duration}
+          placeholder="e.g. 7 days"
+          onChange={(e) => onChange({ duration: e.target.value })}
           optional
         />
       </Row>
-      <TextField
-        label="How often?"
-        value={draft.frequency}
-        placeholder="e.g. Twice daily"
-        onChange={(e) => onChange({ frequency: e.target.value })}
-        optional
-      />
       <Row>
         <TextField
           label="Started"
@@ -224,6 +253,17 @@ export function MedicationFields({ draft, onChange, errors }: FieldSetProps<Medi
         value={draft.reason}
         placeholder="e.g. Type 2 diabetes"
         onChange={(e) => onChange({ reason: e.target.value })}
+        optional
+      />
+      <FileDrop
+        label="Related document"
+        value={draft.file}
+        onChange={(file) => onChange({ file } as Partial<MedicationDraft>)}
+        hint={
+          draft.existingFileName && !draft.file
+            ? `Currently: ${draft.existingFileName}`
+            : "The prescription or the prescriber's written note"
+        }
         optional
       />
       <TextArea
@@ -275,11 +315,27 @@ export function ConditionFields({ draft, onChange, errors }: FieldSetProps<Condi
           {optionsFrom(SEVERITY_LABELS)}
         </SelectField>
       </Row>
+      <Row>
+        <TextField
+          label="When diagnosed"
+          type="date"
+          value={draft.onsetDate}
+          onChange={(e) => onChange({ onsetDate: e.target.value })}
+          optional
+        />
+        <TextField
+          label="ICD-10 code"
+          value={draft.icd10Code}
+          placeholder="e.g. E11.9"
+          onChange={(e) => onChange({ icd10Code: e.target.value })}
+          optional
+        />
+      </Row>
       <TextField
-        label="When diagnosed"
-        type="date"
-        value={draft.onsetDate}
-        onChange={(e) => onChange({ onsetDate: e.target.value })}
+        label="Diagnosed by"
+        value={draft.diagnosedBy}
+        placeholder="e.g. Dr. F. Abdullahi"
+        onChange={(e) => onChange({ diagnosedBy: e.target.value })}
         optional
       />
       {draft.status === "RESOLVED" && (
@@ -291,6 +347,17 @@ export function ConditionFields({ draft, onChange, errors }: FieldSetProps<Condi
           optional
         />
       )}
+      <FileDrop
+        label="Confirming document"
+        value={draft.file}
+        onChange={(file) => onChange({ file } as Partial<ConditionDraft>)}
+        hint={
+          draft.existingFileName && !draft.file
+            ? `Currently: ${draft.existingFileName}`
+            : "A letter or report that confirms the diagnosis"
+        }
+        optional
+      />
       <TextArea
         label="Notes"
         value={draft.notes}
@@ -361,13 +428,14 @@ export function AppointmentFields({ draft, onChange, errors }: FieldSetProps<App
 /* -------------------------------------------------------------- document -- */
 
 export function DocumentFields({ draft, onChange, errors }: FieldSetProps<DocumentDraft>) {
+  const isScan = draft.docType === "SCAN";
   return (
     <div className="space-y-4">
       <TextField
         label="Title"
         value={draft.title}
         error={errors.title}
-        placeholder="e.g. Full blood count"
+        placeholder={isScan ? "e.g. Chest X-ray" : "e.g. Full blood count"}
         onChange={(e) => onChange({ title: e.target.value })}
       />
       <Row>
@@ -386,6 +454,58 @@ export function DocumentFields({ draft, onChange, errors }: FieldSetProps<Docume
           optional
         />
       </Row>
+      {draft.docType === "LAB_RESULT" && (
+        <TextField
+          label="Lab name"
+          value={draft.labName}
+          placeholder="e.g. Lancet Kano, Aminu Kano Teaching Hospital lab"
+          onChange={(e) => onChange({ labName: e.target.value })}
+          optional
+        />
+      )}
+      {isScan && (
+        <>
+          <Row>
+            <SelectField
+              label="Imaging kind"
+              value={draft.imagingType}
+              placeholder="Choose"
+              onChange={(e) => onChange({ imagingType: e.target.value })}
+              optional
+            >
+              {IMAGING_TYPES.map((kind) => (
+                <option key={kind} value={kind}>
+                  {kind}
+                </option>
+              ))}
+              <option value={IMAGING_TYPE_OTHER}>{IMAGING_TYPE_OTHER}</option>
+            </SelectField>
+            <TextField
+              label="Body area"
+              value={draft.bodyArea}
+              placeholder="e.g. Chest, left wrist"
+              onChange={(e) => onChange({ bodyArea: e.target.value })}
+              optional
+            />
+          </Row>
+          {draft.imagingType === IMAGING_TYPE_OTHER && (
+            <TextField
+              label="Imaging kind"
+              value={draft.imagingTypeOther}
+              error={errors.imagingTypeOther}
+              placeholder="e.g. PET scan"
+              onChange={(e) => onChange({ imagingTypeOther: e.target.value })}
+            />
+          )}
+          <TextField
+            label="Provider"
+            value={draft.provider}
+            placeholder="e.g. Aminu Kano Teaching Hospital"
+            onChange={(e) => onChange({ provider: e.target.value })}
+            optional
+          />
+        </>
+      )}
       <FileDrop
         label="File"
         value={draft.file}
@@ -397,6 +517,17 @@ export function DocumentFields({ draft, onChange, errors }: FieldSetProps<Docume
         }
       />
       {errors.file && <p className="text-mhl-fine text-mhl-danger">{errors.file}</p>}
+      <TextArea
+        label={isScan ? "Findings / report" : "Notes"}
+        value={isScan ? draft.findings : draft.notes}
+        onChange={(e) =>
+          onChange(isScan ? { findings: e.target.value } : { notes: e.target.value })
+        }
+        placeholder={
+          isScan ? "What the report says…" : "Anything worth noting about this document"
+        }
+        optional
+      />
       <ConditionLinkField
         value={draft.conditionIds}
         onChange={(conditionIds) => onChange({ conditionIds })}
@@ -541,6 +672,24 @@ export function VitalFields({ draft, onChange, errors }: FieldSetProps<VitalRead
         value={draft.context}
         placeholder="e.g. Fasting, sitting, after exercise"
         onChange={(e) => onChange({ context: e.target.value })}
+        optional
+      />
+      <TextArea
+        label="Notes"
+        value={draft.notes}
+        onChange={(e) => onChange({ notes: e.target.value })}
+        placeholder="Anything worth knowing about this reading"
+        optional
+      />
+      <FileDrop
+        label="Related document"
+        value={draft.file}
+        onChange={(file) => onChange({ file } as Partial<VitalReadingDraft>)}
+        hint={
+          draft.existingFileName && !draft.file
+            ? `Currently: ${draft.existingFileName}`
+            : "A photo of the reading or a clinic printout"
+        }
         optional
       />
       <ConditionLinkField
