@@ -1,31 +1,57 @@
-# OS
+# ---- OS / editor noise ----
 .DS_Store
-
-# Editor
+Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea
+*.swp
+*.swo
 
-# Env (each service keeps its own .env; commit .env.example instead)
+# ---- Env (each service keeps its own .env; commit .env.example instead) ----
 **/.env
+**/.env.*
 !**/.env.example
 
-# Node (frontend has its own .gitignore too)
+# ---- Dependencies ----
 node_modules/
+.pnp
+.pnp.js
 
-# Python / backend (added for later)
+# ---- Build output & caches ----
+dist/
+dist-ssr/
+build/
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+.vite/
+coverage/
+.eslintcache
+
+# ---- Logs ----
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Python / backend (added for later) ----
 __pycache__/
 *.py[cod]
 .venv/
 db.sqlite3
 
-# Build output
-dist/
-
-# Claude Code local files + working docs (not part of the deployable app)
+# ---- Agent tooling (local only, not part of the app) ----
 .claude/
+.kilo/
+.impeccable/
+.freebuff/
+
+# ---- Working docs / scratch drafts (not part of the deployable app) ----
 docs/
 Claude.html
 claude1.html
-# Generated UI snapshots / debug previews (not source)
+
+# ---- Generated UI snapshots / debug previews (not source) ----
 frontend/preview/

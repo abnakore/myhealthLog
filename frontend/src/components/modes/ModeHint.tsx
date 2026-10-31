@@ -11,7 +11,18 @@ import { useRecords } from "@/store/RecordsContext";
 import { pregnancyView } from "@/lib/healthContexts";
 import { useContexts } from "@/store/ContextsContext";
 
-export function ModeHint({ page }: { page: "medications" | "measurements" | "conditions" | "appointments" | "documents" | "timeline" | "allergies" }) {
+/** The pages a mode can reframe. These are the *list* names — the same segments
+ *  the record routes use — so a record detail page can carry the same hint. */
+export type ModeHintPage =
+  | "medications"
+  | "measurements"
+  | "conditions"
+  | "appointments"
+  | "documents"
+  | "timeline"
+  | "allergies";
+
+export function ModeHint({ page }: { page: ModeHintPage }) {
   const { mode, criticalConditionId } = useAppMode();
   const { conditions } = useRecords();
   const { contexts } = useContexts();

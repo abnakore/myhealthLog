@@ -323,7 +323,7 @@ export const APPOINTMENT_STATUS_LABELS: Record<AppointmentStatus, string> = {
 export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
   LAB_RESULT: "Lab result",
   PRESCRIPTION: "Prescription",
-  SCAN: "Scan / imaging",
+  SCAN: "Imaging",
   DISCHARGE_SUMMARY: "Discharge summary",
   OTHER: "Other",
 };

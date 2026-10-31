@@ -398,7 +398,14 @@ export const documentToDraft = (doc: HealthDocument): DocumentDraft => {
 
 export function validateDocument(d: DocumentDraft): FieldErrors {
   const e: FieldErrors = {};
-  if (!d.title.trim()) e.title = "Give the document a title.";
+  if (!d.title.trim()) {
+    e.title =
+      d.docType === "LAB_RESULT"
+        ? "Give the test a name."
+        : d.docType === "SCAN"
+          ? "Give the scan a name."
+          : "Give the document a title.";
+  }
   if (!d.file && !d.existingFileName) e.file = "Attach the file.";
   if (d.docType === "SCAN" && d.imagingType === IMAGING_TYPE_OTHER && !d.imagingTypeOther.trim()) {
     e.imagingTypeOther = "Type the imaging kind, or pick one from the list.";

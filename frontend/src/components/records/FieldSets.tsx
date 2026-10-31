@@ -427,85 +427,11 @@ export function AppointmentFields({ draft, onChange, errors }: FieldSetProps<App
 
 /* -------------------------------------------------------------- document -- */
 
-export function DocumentFields({ draft, onChange, errors }: FieldSetProps<DocumentDraft>) {
-  const isScan = draft.docType === "SCAN";
+/** The attachment picker and its inline error, shared by every document form so
+    an edit always keeps the file already on record. */
+function DocumentFileField({ draft, onChange, errors }: FieldSetProps<DocumentDraft>) {
   return (
-    <div className="space-y-4">
-      <TextField
-        label="Title"
-        value={draft.title}
-        error={errors.title}
-        placeholder={isScan ? "e.g. Chest X-ray" : "e.g. Full blood count"}
-        onChange={(e) => onChange({ title: e.target.value })}
-      />
-      <Row>
-        <SelectField
-          label="Kind"
-          value={draft.docType}
-          onChange={(e) => onChange({ docType: e.target.value as DocumentType })}
-        >
-          {optionsFrom(DOCUMENT_TYPE_LABELS)}
-        </SelectField>
-        <TextField
-          label="Date on document"
-          type="date"
-          value={draft.documentDate}
-          onChange={(e) => onChange({ documentDate: e.target.value })}
-          optional
-        />
-      </Row>
-      {draft.docType === "LAB_RESULT" && (
-        <TextField
-          label="Lab name"
-          value={draft.labName}
-          placeholder="e.g. Lancet Kano, Aminu Kano Teaching Hospital lab"
-          onChange={(e) => onChange({ labName: e.target.value })}
-          optional
-        />
-      )}
-      {isScan && (
-        <>
-          <Row>
-            <SelectField
-              label="Imaging kind"
-              value={draft.imagingType}
-              placeholder="Choose"
-              onChange={(e) => onChange({ imagingType: e.target.value })}
-              optional
-            >
-              {IMAGING_TYPES.map((kind) => (
-                <option key={kind} value={kind}>
-                  {kind}
-                </option>
-              ))}
-              <option value={IMAGING_TYPE_OTHER}>{IMAGING_TYPE_OTHER}</option>
-            </SelectField>
-            <TextField
-              label="Body area"
-              value={draft.bodyArea}
-              placeholder="e.g. Chest, left wrist"
-              onChange={(e) => onChange({ bodyArea: e.target.value })}
-              optional
-            />
-          </Row>
-          {draft.imagingType === IMAGING_TYPE_OTHER && (
-            <TextField
-              label="Imaging kind"
-              value={draft.imagingTypeOther}
-              error={errors.imagingTypeOther}
-              placeholder="e.g. PET scan"
-              onChange={(e) => onChange({ imagingTypeOther: e.target.value })}
-            />
-          )}
-          <TextField
-            label="Provider"
-            value={draft.provider}
-            placeholder="e.g. Aminu Kano Teaching Hospital"
-            onChange={(e) => onChange({ provider: e.target.value })}
-            optional
-          />
-        </>
-      )}
+    <div>
       <FileDrop
         label="File"
         value={draft.file}
@@ -513,25 +439,191 @@ export function DocumentFields({ draft, onChange, errors }: FieldSetProps<Docume
         hint={
           draft.existingFileName && !draft.file
             ? `Currently: ${draft.existingFileName}`
-            : "PDF, image or scan"
+            : "PDF, a photo or a scan"
         }
       />
       {errors.file && <p className="text-mhl-fine text-mhl-danger">{errors.file}</p>}
+    </div>
+  );
+}
+
+/** A lab result's own form: the test, the lab that ran it, the report date and
+    anything that helps the next clinician read the numbers. */
+export function LabResultFields({ draft, onChange, errors }: FieldSetProps<DocumentDraft>) {
+  return (
+    <div className="space-y-4">
+      <TextField
+        label="Test name"
+        value={draft.title}
+        error={errors.title}
+        placeholder="e.g. Full blood count"
+        onChange={(e) => onChange({ title: e.target.value })}
+      />
+      <Row>
+        <TextField
+          label="Lab / facility"
+          value={draft.labName}
+          placeholder="e.g. Lancet Kano"
+          onChange={(e) => onChange({ labName: e.target.value })}
+          optional
+        />
+        <TextField
+          label="Date on result"
+          type="date"
+          value={draft.documentDate}
+          onChange={(e) => onChange({ documentDate: e.target.value })}
+          optional
+        />
+      </Row>
+      <DocumentFileField draft={draft} onChange={onChange} errors={errors} />
       <TextArea
-        label={isScan ? "Findings / report" : "Notes"}
-        value={isScan ? draft.findings : draft.notes}
-        onChange={(e) =>
-          onChange(isScan ? { findings: e.target.value } : { notes: e.target.value })
-        }
-        placeholder={
-          isScan ? "What the report says…" : "Anything worth noting about this document"
-        }
+        label="Notes"
+        value={draft.notes}
+        placeholder="e.g. Fasting sample, repeat in three months, low ferritin"
+        onChange={(e) => onChange({ notes: e.target.value })}
         optional
       />
       <ConditionLinkField
         value={draft.conditionIds}
         onChange={(conditionIds) => onChange({ conditionIds })}
+        label="Related conditions"
       />
+    </div>
+  );
+}
+
+/** Imaging's own form: modality and body area make a scan findable, the imaging
+    centre says where it happened, and findings hold the radiologist's words. */
+export function ImagingFields({ draft, onChange, errors }: FieldSetProps<DocumentDraft>) {
+  return (
+    <div className="space-y-4">
+      <TextField
+        label="Scan name"
+        value={draft.title}
+        error={errors.title}
+        placeholder="e.g. Chest X-ray"
+        onChange={(e) => onChange({ title: e.target.value })}
+      />
+      <Row>
+        <SelectField
+          label="Imaging kind"
+          value={draft.imagingType}
+          placeholder="Choose"
+          onChange={(e) => onChange({ imagingType: e.target.value })}
+          optional
+        >
+          {IMAGING_TYPES.map((kind) => (
+            <option key={kind} value={kind}>
+              {kind}
+            </option>
+          ))}
+          <option value={IMAGING_TYPE_OTHER}>{IMAGING_TYPE_OTHER}</option>
+        </SelectField>
+        <TextField
+          label="Body area"
+          value={draft.bodyArea}
+          placeholder="e.g. Chest, left wrist"
+          onChange={(e) => onChange({ bodyArea: e.target.value })}
+          optional
+        />
+      </Row>
+      {draft.imagingType === IMAGING_TYPE_OTHER && (
+        <TextField
+          label="Imaging kind"
+          value={draft.imagingTypeOther}
+          error={errors.imagingTypeOther}
+          placeholder="e.g. PET scan"
+          onChange={(e) => onChange({ imagingTypeOther: e.target.value })}
+        />
+      )}
+      <Row>
+        <TextField
+          label="Imaging centre"
+          value={draft.provider}
+          placeholder="e.g. Aminu Kano Teaching Hospital"
+          onChange={(e) => onChange({ provider: e.target.value })}
+          optional
+        />
+        <TextField
+          label="Date on report"
+          type="date"
+          value={draft.documentDate}
+          onChange={(e) => onChange({ documentDate: e.target.value })}
+          optional
+        />
+      </Row>
+      <DocumentFileField draft={draft} onChange={onChange} errors={errors} />
+      <TextArea
+        label="Findings / report"
+        value={draft.findings}
+        placeholder="What the report says…"
+        onChange={(e) => onChange({ findings: e.target.value })}
+        optional
+      />
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
+        label="Related conditions"
+      />
+    </div>
+  );
+}
+
+/** Everything that isn't a lab report or a scan — prescriptions, discharge
+    letters, referrals. */
+function GeneralDocumentFields({ draft, onChange, errors }: FieldSetProps<DocumentDraft>) {
+  return (
+    <div className="space-y-4">
+      <TextField
+        label="Title"
+        value={draft.title}
+        error={errors.title}
+        placeholder="e.g. Discharge summary"
+        onChange={(e) => onChange({ title: e.target.value })}
+      />
+      <TextField
+        label="Date on document"
+        type="date"
+        value={draft.documentDate}
+        onChange={(e) => onChange({ documentDate: e.target.value })}
+        optional
+      />
+      <DocumentFileField draft={draft} onChange={onChange} errors={errors} />
+      <TextArea
+        label="Notes"
+        value={draft.notes}
+        placeholder="Anything worth noting about this document"
+        onChange={(e) => onChange({ notes: e.target.value })}
+        optional
+      />
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
+        label="Related conditions"
+      />
+    </div>
+  );
+}
+
+/** The full document form. The kind picker at the top swaps the details below,
+    so the same modal can move a letter to a lab report without a second page. */
+export function DocumentFields({ draft, onChange, errors }: FieldSetProps<DocumentDraft>) {
+  return (
+    <div className="space-y-4">
+      <SelectField
+        label="Kind of document"
+        value={draft.docType}
+        onChange={(e) => onChange({ docType: e.target.value as DocumentType })}
+      >
+        {optionsFrom(DOCUMENT_TYPE_LABELS)}
+      </SelectField>
+      {draft.docType === "LAB_RESULT" ? (
+        <LabResultFields draft={draft} onChange={onChange} errors={errors} />
+      ) : draft.docType === "SCAN" ? (
+        <ImagingFields draft={draft} onChange={onChange} errors={errors} />
+      ) : (
+        <GeneralDocumentFields draft={draft} onChange={onChange} errors={errors} />
+      )}
     </div>
   );
 }

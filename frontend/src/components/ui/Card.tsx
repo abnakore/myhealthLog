@@ -6,12 +6,16 @@ interface CardProps extends HTMLAttributes<HTMLElement> {
   as?: ElementType;
 }
 
-/** A plain surface container: near-white, 1px rule, large radius. The base for
-    sections, panels and sheets. Nest at most one well (`bg-mhl-sunk`) inside. */
+/** A plain surface container: near-white, hairline rule, soft radius, one step of
+    tinted lift. The base for sections, panels and sheets. Nest at most one well
+    (`bg-mhl-sunk`) inside. */
 export function Card({ as: Tag = "div", className, children, ...rest }: CardProps) {
   return (
     <Tag
-      className={cn("rounded-mhl border border-mhl-rule bg-mhl-surface p-5", className)}
+      className={cn(
+        "rounded-mhl border border-mhl-rule bg-mhl-surface p-5 shadow-mhl",
+        className,
+      )}
       {...rest}
     >
       {children}

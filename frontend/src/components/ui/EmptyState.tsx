@@ -9,7 +9,7 @@ interface EmptyStateProps {
   className?: string;
 }
 
-/** An invitation, not an apology. Sits on a sunk well; leads with what this is and
+/** An invitation, not an apology. Sits on a soft well; leads with what this is and
     the one action that fills it. */
 export function EmptyState({
   icon,
@@ -21,14 +21,18 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center rounded-mhl-sm bg-mhl-sunk px-5 py-8 text-center",
+        "flex flex-col items-center rounded-mhl-sm bg-mhl-sunk px-5 py-9 text-center",
         className,
       )}
     >
-      {icon && <div className="mb-3 text-mhl-faint">{icon}</div>}
-      <p className="text-mhl-body font-semibold text-mhl-ink">{title}</p>
+      {icon && (
+        <span className="mb-3 grid h-11 w-11 place-items-center rounded-full bg-mhl-surface text-mhl-accent shadow-mhl">
+          {icon}
+        </span>
+      )}
+      <p className="text-mhl-card font-bold text-mhl-ink">{title}</p>
       {description && (
-        <p className="mt-1 max-w-xs text-mhl-fine text-mhl-muted">
+        <p className="mt-1 max-w-[34ch] text-mhl-fine text-mhl-muted [text-wrap:pretty]">
           {description}
         </p>
       )}

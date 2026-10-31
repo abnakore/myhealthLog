@@ -240,7 +240,7 @@ export default function Profile() {
       <PageHeader title="Medical profile" subtitle="The identity and baseline details every other record hangs off." />
 
       {/* Identity + baseline details */}
-      <Card>
+      <Card id="summary">
         <div className="flex items-center gap-4">
           <div className="relative flex-none">
             <Avatar name={profile.fullName} photoUrl={profile.photoUrl} size={64} />
@@ -288,6 +288,7 @@ export default function Profile() {
 
       {/* Location & contact details */}
       <Section
+        icon={<MapPinIcon size={18} />}
         question="Where can we reach you?"
         lead="Your contact number and address."
         action={
@@ -329,6 +330,7 @@ export default function Profile() {
 
       {/* Emergency contacts */}
       <Section
+        icon={<PhoneIcon size={18} />}
         question="Who should we call in an emergency?"
         lead="The first person on this list shows on your emergency card."
         action={
@@ -407,6 +409,7 @@ export default function Profile() {
       {/* Sharing & safety — the owner's own controls. A proxy sees who has access
           named in words, without a single control that would change it. */}
       <Section
+        icon={<ShieldIcon size={18} />}
         question="Who else needs in?"
         lead="Scoped access for doctors and labs, your care proxy, and the emergency card a responder can open."
       >
@@ -452,6 +455,7 @@ export default function Profile() {
           section because they answer neighbouring questions: this one is *which
           condition to read the record through*, the next is *how the app should work*. */}
       <Section
+        icon={<ConditionIcon size={18} />}
         question="Which condition should lead?"
         lead="Read your record through one condition at a time. Nothing is copied, hidden or moved — the full record is always here."
         action={
@@ -484,6 +488,7 @@ export default function Profile() {
 
       {/* Condition-aware mode */}
       <Section
+        icon={<SlidersIcon size={18} />}
         question="How should the app work for you?"
         lead="Condition-aware modes reshape myHealthLog around what matters now — same record, different focus."
         action={
@@ -518,6 +523,7 @@ export default function Profile() {
           signed-in user's own housekeeping, so it never shows in someone else's. */}
       {canEdit ? (
         <Section
+          icon={<DownloadIcon size={18} />}
           question="Your data"
           lead={isProxyView ? `A copy of ${activeOwnerName}'s record — for a doctor, or another app.` : "Your record is yours to take anywhere."}
         >

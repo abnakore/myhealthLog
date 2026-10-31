@@ -6,9 +6,10 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "md" | "lg";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-mhl-accent text-white hover:bg-mhl-accent-strong",
+  primary:
+    "bg-mhl-accent text-white shadow-[0_1px_2px_oklch(0.45_0.12_28/0.18)] hover:bg-mhl-accent-strong",
   secondary:
-    "bg-mhl-surface text-mhl-ink border border-mhl-rule hover:border-mhl-faint",
+    "bg-mhl-surface text-mhl-ink border border-mhl-rule hover:border-mhl-accent/40 hover:bg-mhl-sunk",
   ghost: "text-mhl-ink hover:bg-mhl-sunk",
   danger: "bg-mhl-danger text-white hover:brightness-95",
 };
@@ -25,9 +26,9 @@ export function buttonStyles(
   block = false,
 ): string {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-full font-semibold",
-    "transition-[background-color,border-color,filter] duration-150 ease-mhl select-none",
-    "disabled:opacity-55 disabled:pointer-events-none",
+    "inline-flex items-center justify-center gap-2 rounded-[0.7rem] font-semibold",
+    "transition-[background-color,border-color,filter,transform] duration-150 ease-mhl select-none",
+    "active:scale-[0.985] disabled:opacity-55 disabled:pointer-events-none",
     VARIANTS[variant],
     SIZES[size],
     block && "w-full",

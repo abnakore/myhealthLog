@@ -8,7 +8,7 @@ import { formatDate, yearOf } from "@/lib/format";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAppMode } from "@/store/AppModeContext";
 import { ModeHint } from "@/components/modes/ModeHint";
-import { Card } from "@/components/ui/Card";
+import { Section } from "@/components/ui/Section";
 import { buttonStyles } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
@@ -161,9 +161,9 @@ export default function Timeline() {
         }
         action={
           canEdit ? (
-            <Link to="/app/add" className={buttonStyles("secondary", "md")}>
-              <PlusIcon size={18} strokeWidth={2.25} />
-              Add
+            <Link to="/app/add" className={buttonStyles("primary", "md")}>
+              <PlusIcon size={18} strokeWidth={2.5} />
+              Add record
             </Link>
           ) : undefined
         }
@@ -185,28 +185,40 @@ export default function Timeline() {
           }
         />
       ) : (
-        <Card>
+        <Section
+          icon={<TimelineIcon size={18} />}
+          question="Everything on your record"
+          lead="Grouped by year, newest first. Every record you keep is here."
+        >
           {groups.map(([year, events], gi) => (
-            <div key={year} className={cn(gi > 0 && "mt-6 border-t border-mhl-rule pt-6")}>
-              <h2 className="mb-4 text-mhl-lead font-bold text-mhl-ink">{year}</h2>
+            <div key={year} className={cn(gi > 0 && "mt-5 border-t border-mhl-rule pt-5")}>
+              <h3 className="mb-3 mt-2 text-[0.8rem] font-bold uppercase tracking-[0.1em] text-mhl-faint first:mt-2">
+                {year}
+              </h3>
               <ol className="relative">
                 {events.map((ev, i) => {
                   const isLast = i === events.length - 1;
                   return (
-                    <li key={ev.key} className="relative flex gap-4 pb-7 last:pb-0">
+                    <li key={ev.key} className="relative flex gap-3.5 pb-6 last:pb-0">
                       {!isLast && (
                         <span
                           aria-hidden="true"
-                          className="absolute left-5 top-11 bottom-0 w-px bg-mhl-rule"
+                          className="absolute bottom-1 left-[21px] top-11 w-[1.5px] rounded-full bg-mhl-rule"
                         />
                       )}
-                      <span className="relative grid h-10 w-10 flex-none place-items-center rounded-full bg-mhl-sunk text-mhl-muted ring-4 ring-mhl-surface">
-                        <ev.Icon size={19} />
+                      <span className="relative grid h-11 w-11 flex-none place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent ring-4 ring-mhl-surface">
+                        <ev.Icon size={20} />
                       </span>
-                      <div className="min-w-0 flex-1 pt-1.5">
-                        <p className="text-mhl-body font-semibold text-mhl-ink">{ev.title}</p>
-                        {ev.meta && <p className="text-mhl-fine text-mhl-muted">{ev.meta}</p>}
-                        <p className="mt-0.5 text-mhl-fine text-mhl-faint">{formatDate(ev.date)}</p>
+                      <div className="min-w-0 flex-1 pt-2">
+                        <p className="text-[0.99rem] font-semibold text-mhl-ink">
+                          {ev.title}
+                        </p>
+                        {ev.meta && (
+                          <p className="mt-0.5 text-[0.845rem] text-mhl-muted">{ev.meta}</p>
+                        )}
+                        <p className="mt-0.5 text-[0.845rem] text-mhl-faint [font-variant-numeric:tabular-nums]">
+                          {formatDate(ev.date)}
+                        </p>
                       </div>
                     </li>
                   );
@@ -214,7 +226,7 @@ export default function Timeline() {
               </ol>
             </div>
           ))}
-        </Card>
+        </Section>
       )}
     </div>
   );

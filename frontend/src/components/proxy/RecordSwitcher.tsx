@@ -1,12 +1,12 @@
 /**
- * The "Viewing as" switcher — the entry point to Phase 2's second half.
+ * The "You're viewing" switcher — the entry point to a relative's record.
  *
  * One entry for the person's own record, then every record they hold proxy access to.
- * Choosing one moves the whole app: every Phase 1 page reads the active record from
- * the care-proxy layer, never from the session. A native <select> on purpose — it is
+ * Choosing one moves the whole app: every page reads the active record from the
+ * care-proxy layer, never from the session. A native <select> on purpose — it is
  * keyboard- and screen-reader-native, behaves on a phone without a custom popover, and
  * this is a control people touch rarely. With nothing shared with them it renders
- * nothing at all, rather than a select with one option in it.
+ * nothing at all: the rail stays the plain map of one record.
  */
 import { useId } from "react";
 import { cn } from "@/lib/cn";
@@ -19,28 +19,43 @@ interface RecordSwitcherProps {
 }
 
 export function RecordSwitcher({ variant = "rail" }: RecordSwitcherProps) {
-  const { openable, activeOwnerId, selfId, switchTo } = useCareProxy();
+  const { openable, activeOwnerId, selfId, switchTo, isProxyView } = useCareProxy();
   const id = useId();
 
-  if (openable.length === 0) return null;
+  // The list always contains your own record; a switcher only earns its space
+  // when there is at least one other to switch into. In your own record it stays
+  // out of the rail entirely: stepping into a relative's record is something you
+  // do deliberately, from Care proxy, not a control that follows you everywhere.
+  const others = openable.filter((grant) => grant.ownerUserId !== selfId);
+  if (!isProxyView || others.length === 0) return null;
 
   return (
-    <div className={cn(variant === "rail" ? "mt-5" : "border-t border-mhl-rule px-4 pb-3 pt-2.5")}>
-      <label htmlFor={id} className="text-[0.75rem] font-semibold text-mhl-muted">
+    <div
+      className={cn(
+        variant === "rail" ? "mt-6" : "border-t border-mhl-rule px-4 pb-3 pt-2.5",
+      )}
+    >
+      <label
+        htmlFor={id}
+        className={cn(
+          "font-medium text-mhl-faint",
+          variant === "rail" ? "px-3 text-[0.86rem]" : "text-[0.78rem]",
+        )}
+      >
         You're viewing
       </label>
-      <div className="relative mt-1">
+      <div className={cn("relative", variant === "rail" ? "mt-1.5 px-1" : "mt-1")}>
         <select
           id={id}
           value={activeOwnerId}
           onChange={(e) => switchTo(e.target.value)}
           className={cn(
-            "w-full appearance-none rounded-mhl-sm border border-mhl-rule bg-mhl-sunk py-2 pl-3 pr-9",
-            "text-mhl-fine font-medium text-mhl-ink",
+            "w-full appearance-none rounded-[0.7rem] border border-mhl-rule bg-mhl-surface py-2 pl-3 pr-9",
+            "text-mhl-fine font-semibold text-mhl-ink transition-colors hover:border-mhl-accent/40",
           )}
         >
           <option value={selfId}>My record</option>
-          {openable.map((grant) => (
+          {others.map((grant) => (
             <option key={grant.id} value={grant.ownerUserId}>
               {grant.ownerName} — {proxyPermissionLabel(grant.permission)}
             </option>

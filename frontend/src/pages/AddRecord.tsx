@@ -107,7 +107,9 @@ export default function AddRecord() {
       <PageHeader title="Add to your record" subtitle="Pick what you're adding, then fill in the details." />
 
       <fieldset className="min-w-0">
-        <legend className="mb-2 text-mhl-fine font-semibold text-mhl-ink">What are you adding?</legend>
+        <legend className="mb-2.5 text-[0.845rem] font-semibold text-mhl-muted">
+          What are you adding?
+        </legend>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {RECORD_KINDS.map((kind) => {
             const Icon = kind.icon;
@@ -119,23 +121,29 @@ export default function AddRecord() {
                 onClick={() => pick(kind)}
                 aria-pressed={active}
                 className={cn(
-                  "flex flex-col gap-2 rounded-mhl border p-3.5 text-left transition-colors",
+                  "flex flex-col gap-2.5 rounded-mhl border p-3.5 text-left shadow-mhl transition-colors duration-150",
                   active
-                    ? "border-mhl-accent bg-mhl-accent-lo"
-                    : "border-mhl-rule bg-mhl-surface hover:border-mhl-faint",
+                    ? "border-mhl-accent/60 bg-mhl-accent-lo"
+                    : "border-mhl-rule bg-mhl-surface hover:border-mhl-accent/40",
                 )}
               >
                 <span
                   className={cn(
-                    "grid h-10 w-10 place-items-center rounded-full",
-                    active ? "bg-mhl-accent text-white" : "bg-mhl-sunk text-mhl-muted",
+                    "grid h-10 w-10 place-items-center rounded-full transition-colors",
+                    active
+                      ? "bg-mhl-accent text-white"
+                      : "bg-mhl-accent-lo text-mhl-accent",
                   )}
                 >
-                  <Icon size={22} />
+                  <Icon size={21} />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-mhl-body font-semibold text-mhl-ink">{kind.label}</span>
-                  <span className="block text-mhl-fine text-mhl-muted">{kind.blurb}</span>
+                  <span className="block text-[0.95rem] font-semibold text-mhl-ink">
+                    {kind.label}
+                  </span>
+                  <span className="mt-0.5 block text-[0.8rem] leading-snug text-mhl-muted">
+                    {kind.blurb}
+                  </span>
                 </span>
               </button>
             );
@@ -145,7 +153,7 @@ export default function AddRecord() {
 
       {selected && FieldSet && (
         <Card as="form" onSubmit={handleSubmit} className="mt-5">
-          <h2 className="text-mhl-lead font-bold text-mhl-ink">{selected.label} details</h2>
+          <h2 className="text-mhl-card font-bold text-mhl-ink">{selected.label} details</h2>
           <div className="mt-4">
             <FieldSet
               draft={draft}

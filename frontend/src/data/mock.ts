@@ -174,7 +174,7 @@ export const demoAppointments: Appointment[] = [
     title: "Endocrinology follow-up",
     clinician: "Dr. F. Abdullahi",
     facility: "Murtala Muhammad Specialist Hospital",
-    scheduledFor: "2026-10-03T11:30:00",
+    scheduledFor: "2026-11-03T11:30:00",
     status: "SCHEDULED",
     reason: "Review diabetes control",
     conditionIds: ["cn_1"],
@@ -183,7 +183,7 @@ export const demoAppointments: Appointment[] = [
     id: "ap_2",
     title: "Blood pressure check",
     facility: "Aminu Kano Teaching Hospital",
-    scheduledFor: "2026-10-18T09:00:00",
+    scheduledFor: "2026-11-18T09:00:00",
     status: "SCHEDULED",
     conditionIds: ["cn_2"],
   },
@@ -935,7 +935,8 @@ export const demoConnections: Connection[] = [
 export const demoEmergencySettingsByOwner: Record<string, EmergencySettings> = {
   p_amina: {
     token: demoEmergencyToken,
-    pinEnabled: false,
+    pinEnabled: true,
+    pin: "4821",
     showBloodType: true,
     showAllergies: true,
     showMedications: true,

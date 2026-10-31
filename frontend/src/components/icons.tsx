@@ -43,6 +43,22 @@ export const HomeIcon = (p: IconProps) => (
   </Base>
 );
 
+/** Left-pointing chevron/arrow, for "go back to the list". */
+export const ArrowLeftIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M19 12H5" />
+    <path d="m12 19-7-7 7-7" />
+  </Base>
+);
+
+/** Open eye, for "view this record". */
+export const EyeIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+    <circle cx="12" cy="12" r="3" />
+  </Base>
+);
+
 export const RecordsIcon = (p: IconProps) => (
   <Base {...p}>
     <rect x="5" y="4" width="14" height="17" rx="2.5" />

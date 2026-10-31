@@ -11,18 +11,40 @@
    ========================================================================== */
 @theme {
   /* ---- surfaces & ink ---- */
-  --color-mhl-bg: oklch(0.945 0.023 74); /* warm sand */
-  --color-mhl-surface: oklch(0.995 0.005 74); /* near-white card */
-  --color-mhl-sunk: oklch(0.965 0.016 74); /* recessed well / input */
-  --color-mhl-rule: oklch(0.885 0.02 66); /* 1px borders */
+  --color-mhl-bg: oklch(0.962 0.014 76); /* warm paper — the desk */
+  --color-mhl-surface: oklch(0.998 0.004 76); /* near-white card */
+  --color-mhl-rail: oklch(0.982 0.008 76); /* the rail, a half-step off the desk */
+  --color-mhl-sunk: oklch(0.968 0.013 72); /* recessed well / input */
+  --color-mhl-rule: oklch(0.925 0.013 68); /* 1px borders */
   --color-mhl-ink: oklch(0.245 0.022 48); /* 16.1:1 on surface */
   --color-mhl-muted: oklch(0.47 0.028 48); /* 6.8:1 on surface */
   --color-mhl-faint: oklch(0.525 0.028 48); /* 4.6:1 on the sand bg */
 
   /* ---- accent (coral) — the one accent ---- */
-  --color-mhl-accent: oklch(0.545 0.16 30); /* 5.3:1 — usable as text */
-  --color-mhl-accent-strong: oklch(0.475 0.15 30); /* pressed / hover */
-  --color-mhl-accent-lo: oklch(0.955 0.03 30); /* coral tint bg */
+  --color-mhl-accent: oklch(0.535 0.165 28); /* 5.4:1 — usable as text */
+  --color-mhl-accent-strong: oklch(0.465 0.155 28); /* pressed / hover */
+  --color-mhl-accent-lo: oklch(0.955 0.028 28); /* coral tint bg */
+  --color-mhl-accent-mid: oklch(0.825 0.085 30); /* the emergency card's peach */
+
+  /* ---- document kinds (the five types a document can be) ----
+     Each kind gets a tint, an ink that reads on it, and a rule for the card
+     edge, so a card's type is legible at a glance without relying on the
+     icon alone. */
+  --color-mhl-lab-bg: oklch(0.955 0.028 150);
+  --color-mhl-lab-text: oklch(0.44 0.095 150);
+  --color-mhl-lab-border: oklch(0.79 0.065 150);
+  --color-mhl-rx-bg: oklch(0.955 0.022 252);
+  --color-mhl-rx-text: oklch(0.45 0.085 252);
+  --color-mhl-rx-border: oklch(0.79 0.06 252);
+  --color-mhl-scan-bg: oklch(0.95 0.03 300);
+  --color-mhl-scan-text: oklch(0.48 0.115 300);
+  --color-mhl-scan-border: oklch(0.79 0.065 300);
+  --color-mhl-ds-bg: oklch(0.955 0.03 30);
+  --color-mhl-ds-text: oklch(0.5 0.125 30);
+  --color-mhl-ds-border: oklch(0.81 0.07 30);
+  --color-mhl-other-bg: oklch(0.965 0.016 74);
+  --color-mhl-other-text: oklch(0.47 0.028 48);
+  --color-mhl-other-border: oklch(0.885 0.02 66);
 
   /* ---- status ---- */
   --color-mhl-good: oklch(0.465 0.105 152);
@@ -35,11 +57,11 @@
   --color-mhl-info-lo: oklch(0.95 0.022 252);
 
   /* ---- emergency register (inverts to near-black, AAA contrast) ---- */
-  --color-mhl-emerg: oklch(0.185 0.02 48);
+  --color-mhl-emerg: oklch(0.178 0.018 45);
   --color-mhl-emerg-ink: oklch(0.975 0.004 74);
   --color-mhl-emerg-muted: oklch(0.785 0.014 74);
   --color-mhl-emerg-faint: oklch(0.735 0.012 74);
-  --color-mhl-emerg-amber: oklch(0.845 0.095 40);
+  --color-mhl-emerg-amber: oklch(0.815 0.1 38);
   --color-mhl-emerg-alert: oklch(0.775 0.15 28);
 
   /* ---- type: one humanist family, multiple weights ---- */
@@ -53,6 +75,11 @@
   --text-mhl-body--line-height: 1.55;
   --text-mhl-lead: 1.094rem;
   --text-mhl-lead--line-height: 1.4;
+  /* Card heads sit one step above body; page titles one step above those. */
+  --text-mhl-card: 1.1875rem;
+  --text-mhl-card--line-height: 1.3;
+  --text-mhl-h1: 1.875rem;
+  --text-mhl-h1--line-height: 1.2;
   --text-mhl-title: 1.313rem;
   --text-mhl-title--line-height: 1.3;
   --text-mhl-answer: 1.625rem;
@@ -63,6 +90,16 @@
   /* ---- radii ---- */
   --radius-mhl: 1.25rem; /* cards */
   --radius-mhl-sm: 0.75rem; /* rows, inputs */
+  --radius-mhl-lg: 1.75rem; /* feature cards — the document grid */
+
+  /* ---- elevation ----
+     Two steps only: a resting lift for a raised card, and a hover lift for
+     the one thing on screen that responds to the pointer. Tinted warm, never
+     neutral black, so a card sits on the paper instead of on top of it. */
+  --shadow-mhl: 0 1px 2px oklch(0.62 0.04 55 / 0.05),
+    0 10px 26px -22px oklch(0.5 0.06 45 / 0.28);
+  --shadow-mhl-lg: 0 2px 4px oklch(0.62 0.04 55 / 0.06),
+    0 22px 40px -26px oklch(0.5 0.06 45 / 0.34);
 
   /* ---- motion ---- */
   --ease-mhl: cubic-bezier(0.22, 1, 0.36, 1);
@@ -85,14 +122,27 @@ body {
   line-height: 1.55;
 }
 
-/* Headings share the family; hierarchy is weight + size + color, not a display face. */
+/* The desk. The canvas behind the app carries two long, soft warm washes, so
+   the paper reads as lit rather than filled. Only the canvas paints this; the
+   rail stays clean. Decorative, pointer-free, and cheap (one static paint). */
+.mhl-canvas {
+  min-height: 100dvh;
+  background-color: var(--color-mhl-bg);
+  background-image:
+    radial-gradient(48rem 32rem at 106% 104%, oklch(0.902 0.05 38 / 0.48), transparent 62%),
+    radial-gradient(34rem 22rem at 100% -8%, oklch(0.947 0.03 55 / 0.4), transparent 60%);
+  background-repeat: no-repeat;
+}
+
+/* Headings share the family; hierarchy is weight + size + color, not a display face.
+   Weight and wrapping are set per use, never here: an unlayered element rule would
+   beat the layered utilities (and quietly flatten every bold heading or stop a
+   truncation from truncating). */
 h1,
 h2,
 h3 {
   margin: 0;
-  font-weight: 600;
   letter-spacing: -0.018em;
-  text-wrap: balance;
 }
 
 p {
@@ -111,67 +161,56 @@ p {
   color: var(--color-mhl-ink);
 }
 
-/* The dashboard grid, wide-screen (matching the normal-mode composition):
-   every block full-width below xl; from xl, the same 12-col asymmetric 7/5
-   pairs, broken by full-width bands (head, context, alert, strip, footer). */
+/* The dashboard composition. Phones and tablets get one column in reading
+   order — what is urgent, then what is recorded, then what to act on. From
+   80rem it opens into the reference's two columns at a 6:5 ratio: the record
+   on the left (readings, activity), the things a person acts on (emergency
+   card, next visit, sharing) on the right. */
 .mhl-dash {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
+}
+
+.mhl-dash__cols {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
 @media (min-width: 80rem) {
-  .mhl-dash {
-    display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: 1.75rem;
-    align-items: start;
+  /* Two independent stacks at a 6:5 ratio: the readings and activity on the
+     left, the emergency card and the things a person acts on at the right.
+     Flex (not a shared grid) so the right column stays tight against itself
+     even when the left column's activity card is much taller. */
+  .mhl-dash__cols {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.25rem;
   }
 
-  .mhl-dash > * {
-    grid-column: 1 / -1;
+  .mhl-dash__left {
+    flex: 1.2 1 0;
     min-width: 0;
   }
 
-  .mhl-dash > .mhl-dash__meas,
-  .mhl-dash > .mhl-dash__act {
-    grid-column: span 7;
-  }
-
-  .mhl-dash > .mhl-dash__emerg,
-  .mhl-dash > .mhl-dash__stack {
-    grid-column: span 5;
-  }
-}
-
-/* Mode-aware first-fold: the same blocks, reordered so each mode's focus
-   leads on wide screens too. DOM order never changes (screen readers and
-   keyboard keep the stable order); only the visual order moves. */
-@media (min-width: 80rem) {
-  /* The mode hero always leads; in elderly mode the medication schedule
-     follows it straight away, before everything else. */
-  .mhl-dash[data-focus] > .mhl-mode-hero {
-    order: -3;
-  }
-  .mhl-dash[data-focus="elderly"] > .mhl-dash__meds {
-    grid-column: 1 / -1;
-    order: -2;
-  }
-  .mhl-dash[data-focus="pregnancy"] > .mhl-dash__meas,
-  .mhl-dash[data-focus="critical"] > .mhl-dash__meas {
-    order: -1;
+  .mhl-dash__right {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }
 
 /* Mode heroes rise in like the rest of the grid — content is visible by
    default; the animation only settles it. */
 .mhl-mode-hero {
-  animation: mhl-rise 620ms var(--ease-mhl) both;
+  animation: mhl-rise 560ms var(--ease-mhl) both;
 }
 
 @media (min-width: 80rem) {
   .mhl-dash > .mhl-mode-hero {
-    animation-delay: 60ms;
+    animation-delay: 40ms;
   }
 }
 
@@ -212,7 +251,7 @@ p {
 @keyframes mhl-rise {
   from {
     opacity: 0.001;
-    transform: translateY(14px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -220,33 +259,33 @@ p {
   }
 }
 
-/* Staggered rise-in on desktop — blocks settle one after another so the page
-   feels composed rather than painted. Purely opacity+transform (compositor),
-   disabled below xl and for reduced-motion users. */
+/* A staggered settle on desktop — blocks arrive one after another so the page
+   reads as composed rather than painted. Only opacity and transform (both
+   compositor-friendly), never a reveal gate: content is visible without it. */
 @media (min-width: 80rem) {
   .mhl-dash > * {
-    animation: mhl-rise 620ms var(--ease-mhl) both;
+    animation: mhl-rise 560ms var(--ease-mhl) both;
   }
   .mhl-dash > *:nth-child(2) {
-    animation-delay: 60ms;
+    animation-delay: 50ms;
   }
   .mhl-dash > *:nth-child(3) {
-    animation-delay: 120ms;
+    animation-delay: 100ms;
   }
   .mhl-dash > *:nth-child(4) {
-    animation-delay: 180ms;
+    animation-delay: 150ms;
   }
   .mhl-dash > *:nth-child(5) {
-    animation-delay: 240ms;
+    animation-delay: 200ms;
   }
   .mhl-dash > *:nth-child(6) {
-    animation-delay: 300ms;
+    animation-delay: 250ms;
   }
   .mhl-dash > *:nth-child(7) {
-    animation-delay: 360ms;
+    animation-delay: 300ms;
   }
   .mhl-dash > *:nth-child(8) {
-    animation-delay: 420ms;
+    animation-delay: 350ms;
   }
 }
 
@@ -298,6 +337,73 @@ p {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ============================================================================
+   Animations & micro-interactions (respects prefers-reduced-motion)
+   ============================================================================ */
+
+@keyframes mhl-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mhl-scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes mhl-confetti-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(0); opacity: 0; }
+}
+
+@keyframes mhl-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+@keyframes mhl-slide-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.mhl-card-enter {
+  animation: mhl-fade-in 300ms var(--ease-mhl) both;
+}
+
+.mhl-row-enter {
+  animation: mhl-scale-in 220ms var(--ease-mhl) both;
+}
+
+/* The container is a fixed full-screen overlay (Tailwind classes on the
+   element) — the rule only supplies the clipping box, never `position`,
+   which would otherwise beat the utility class. */
+.mhl-confetti {
+  overflow: hidden;
+}
+
+.mhl-confetti .mhl-confetti-piece {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  animation: mhl-confetti-burst 700ms var(--ease-mhl) both;
+  border-radius: 2px;
+}
+
+.mhl-welcome-pulse {
+  animation: mhl-pulse 2s ease-in-out infinite;
+}
+
+.mhl-slide-up {
+  animation: mhl-slide-up 350ms var(--ease-mhl) both;
+}
+
+.mhl-pulse-highlight {
+  animation: mhl-pulse 1.2s ease-in-out both;
 }
 
 /* ---- per-mode theme: same tokens, retinted accent + background ---- */

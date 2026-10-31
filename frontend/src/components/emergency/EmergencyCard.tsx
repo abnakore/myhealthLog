@@ -83,47 +83,51 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   }
 
   const btn =
-    "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-mhl-body font-semibold transition-colors";
+    "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full px-4 text-mhl-body font-semibold transition-[background-color,filter,transform] duration-150 ease-mhl active:scale-[0.985]";
 
   return (
     <section
       className={cn(
-        "mhl-dash__emerg min-w-0 rounded-mhl-sm bg-mhl-emerg p-[1.1rem] text-mhl-emerg-ink sm:p-5",
+        "mhl-dash__emerg mhl-emerg-card min-w-0 rounded-mhl bg-mhl-emerg p-5 text-mhl-emerg-ink shadow-[0_18px_40px_-28px_oklch(0.2_0.05_40/0.75)]",
         className,
       )}
       aria-label="Emergency card"
     >
       {/* The PIN promise is a property of the card — it lives in the head, not as
           a footnote, but appears only when the pin is actually enabled. */}
-      <div className="flex items-center gap-2 text-mhl-emerg-amber">
-        <ShieldIcon size={20} />
-        <h2 className="min-w-0 flex-1 text-mhl-lead font-bold text-mhl-emerg-ink">Emergency card</h2>
+      <div className="flex items-center gap-2.5">
+        <span className="flex-none text-mhl-emerg-amber">
+          <ShieldIcon size={22} strokeWidth={1.9} />
+        </span>
+        <h2 className="min-w-0 flex-1 text-mhl-card font-bold text-mhl-emerg-ink">
+          Emergency card
+        </h2>
         {emergency.pinEnabled && (
-          <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-white/20 px-2 py-0.5 text-[0.75rem] font-semibold text-mhl-emerg-ink">
+          <span className="inline-flex flex-none items-center gap-1.5 rounded-full border border-white/20 px-2.5 py-1 text-[0.75rem] font-semibold text-mhl-emerg-ink">
             <LockIcon size={13} />
             PIN protected
           </span>
         )}
       </div>
-      <p className="mt-1 max-w-[46ch] text-mhl-fine text-mhl-emerg-muted">
+      <p className="mt-1 max-w-[46ch] text-[0.84rem] leading-snug text-mhl-emerg-muted">
         {isProxyView
           ? `Show this to a first responder. It opens ${ownerName}'s selected critical details.`
           : "Show this to a first responder. It opens your selected critical details."}
       </p>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
-        <div className="w-fit flex-none self-start rounded-mhl-sm bg-white p-2.5">
+      <div className="mt-3.5 grid gap-4 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-start">
+        <div className="w-fit flex-none self-start rounded-[0.85rem] bg-white p-2.5">
           <QrCode
             value={url}
-            size={104}
+            size={100}
             className="block text-mhl-emerg"
             label="Emergency QR code — scan to open the emergency view"
           />
         </div>
-        <dl className="min-w-0 space-y-2.5 text-mhl-fine">
+        <dl className="min-w-0 space-y-1.5 text-[0.88rem] leading-tight">
           {emergency.showBloodType && (
             <div>
-              <dt className="text-mhl-emerg-faint">Blood &amp; genotype</dt>
+              <dt className="text-[0.78rem] text-mhl-emerg-muted">Blood &amp; genotype</dt>
               <dd className="font-semibold text-mhl-emerg-ink [font-variant-numeric:tabular-nums]">
                 {profile.bloodType ?? "—"} · {profile.genotype ?? "—"}
               </dd>
@@ -131,7 +135,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
           )}
           {emergency.showAllergies && (
             <div>
-              <dt className="text-mhl-emerg-faint">Critical allergies</dt>
+              <dt className="text-[0.78rem] text-mhl-emerg-muted">Critical allergies</dt>
               <dd className="font-semibold text-mhl-emerg-ink">
                 {critical.length > 0 ? critical.join(", ") : "None recorded"}
               </dd>
@@ -139,13 +143,13 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
           )}
           {emergency.showMedications && activeMeds.length > 0 && (
             <div>
-              <dt className="text-mhl-emerg-faint">Current medications</dt>
+              <dt className="text-[0.78rem] text-mhl-emerg-muted">Current medications</dt>
               <dd className="font-semibold text-mhl-emerg-ink">{capList(activeMeds)}</dd>
             </div>
           )}
           {emergency.showConditions && activeConditions.length > 0 && (
             <div>
-              <dt className="text-mhl-emerg-faint">Ongoing conditions</dt>
+              <dt className="text-[0.78rem] text-mhl-emerg-muted">Ongoing conditions</dt>
               <dd className="font-semibold text-mhl-emerg-ink">{capList(activeConditions)}</dd>
               {mode === "critical" && focusName && (
                 <dd className="mt-1 text-mhl-fine text-mhl-emerg-amber">
@@ -156,7 +160,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
           )}
           {emergency.showContacts && primaryContact && (
             <div>
-              <dt className="text-mhl-emerg-faint">Emergency contact</dt>
+              <dt className="text-[0.78rem] text-mhl-emerg-muted">Emergency contact</dt>
               <dd className="font-semibold text-mhl-emerg-ink [font-variant-numeric:tabular-nums]">
                 {primaryContact.name} · {primaryContact.phone}
               </dd>
@@ -171,13 +175,13 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
         </p>
       )}
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-3.5 flex gap-2.5">
         <button
           type="button"
           onClick={handleDownload}
           className={cn(
             btn,
-            "mhl-interactive bg-mhl-emerg-amber text-mhl-emerg hover:brightness-95 active:brightness-90",
+            "mhl-interactive bg-mhl-accent-mid text-mhl-emerg hover:brightness-[1.03]",
           )}
         >
           <DownloadIcon size={18} />
@@ -196,26 +200,37 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
         </button>
       </div>
 
-      {emergency.pinEnabled && (
-        <p className="mt-3 flex items-center gap-1.5 text-[0.75rem] text-mhl-emerg-amber">
-          <LockIcon size={14} />
-          Protected with a PIN — a responder enters it to open{" "}
-          {isProxyView ? `${ownerName}'s` : "your"} card.
-        </p>
-      )}
-
-      <p aria-live="polite" className="mt-3 text-[0.75rem] text-mhl-emerg-faint">
-        {hideManageLink ? (
-          "This is exactly what a responder sees."
-        ) : (
-          <>
-            You choose what shows here.{" "}
-            <Link to="/app/emergency" className="font-semibold text-mhl-emerg-amber hover:underline">
-              Manage emergency access
-            </Link>
-          </>
+      <div className="mt-3 flex items-start gap-1.5 text-[0.78rem] leading-snug text-mhl-emerg-muted">
+        {emergency.pinEnabled && (
+          <span className="mt-[0.15rem] flex-none text-mhl-emerg-amber">
+            <LockIcon size={14} />
+          </span>
         )}
-      </p>
+        <p className="min-w-0 flex-1">
+          {emergency.pinEnabled ? (
+            <>
+              <span className="underline decoration-mhl-emerg-muted/60 underline-offset-2">
+                Protected with a PIN
+              </span>{" "}
+              — a responder enters it to open {isProxyView ? `${ownerName}'s` : "your"} card.
+            </>
+          ) : (
+            "You choose what shows on this card."
+          )}
+        </p>
+        {hideManageLink ? (
+          <span aria-live="polite" className="flex-none text-mhl-emerg-faint">
+            As a responder sees it
+          </span>
+        ) : (
+          <Link
+            to="/app/emergency"
+            className="flex-none rounded-full pb-1 pl-2 font-semibold text-mhl-emerg-amber transition-colors hover:text-mhl-emerg-ink"
+          >
+            Manage
+          </Link>
+        )}
+      </div>
     </section>
   );
 }

@@ -34,7 +34,7 @@ export function Tag({ tone = "neutral", children, className }: TagProps) {
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-mhl-fine font-semibold",
+        "inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[0.805rem] font-semibold leading-none",
         TONES[tone],
         className,
       )}

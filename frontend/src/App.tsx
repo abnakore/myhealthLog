@@ -7,6 +7,7 @@ import GoogleCallback from "@/pages/auth/GoogleCallback";
 import Onboarding from "@/pages/Onboarding";
 import Dashboard from "@/pages/Dashboard";
 import AddRecord from "@/pages/AddRecord";
+import RecordViewPage from "@/components/records/RecordViewPage";
 import Profile from "@/pages/Profile";
 import Allergies from "@/pages/Allergies";
 import Medications from "@/pages/Medications";
@@ -64,6 +65,13 @@ export default function App() {
         <Route path="appointments" element={<Appointments />} />
         <Route path="documents" element={<Documents />} />
         <Route path="measurements" element={<Measurements />} />
+        {/* Lab results and imaging live inside Documents now. The old pages are
+            gone, but their URLs still land on the matching filter. */}
+        <Route
+          path="lab-results"
+          element={<Navigate to="/app/documents?type=LAB_RESULT" replace />}
+        />
+        <Route path="imaging" element={<Navigate to="/app/documents?type=SCAN" replace />} />
         <Route path="timeline" element={<Timeline />} />
         {/* Condition-aware profiles: the list of lenses, and one lens itself. Both live
             under /app so a proxy reads their relative's profiles through the same gates. */}
@@ -76,6 +84,8 @@ export default function App() {
         <Route path="circle" element={<Navigate to="/app/proxy" replace />} />
         <Route path="emergency" element={<EmergencyAccess />} />
         <Route path="connections" element={<Connections />} />
+        {/* Dynamic record detail page — one page renders any record type's view. */}
+        <Route path="records/:type/:id" element={<RecordViewPage />} />
       </Route>
 
       {/* Everything else lands in the app; the gates route anonymous users to login. */}
