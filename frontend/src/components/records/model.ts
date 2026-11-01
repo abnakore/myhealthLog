@@ -48,6 +48,8 @@ export interface AllergyDraft {
   triggers: string[];
   notes: string;
   isVerified: boolean;
+  /** Conditions this allergy relates to — optional, and often empty. */
+  conditionIds: string[];
 }
 
 export const emptyAllergyDraft = (): AllergyDraft => ({
@@ -59,6 +61,7 @@ export const emptyAllergyDraft = (): AllergyDraft => ({
   triggers: [],
   notes: "",
   isVerified: false,
+  conditionIds: [],
 });
 
 export const allergyToDraft = (a: Allergy): AllergyDraft => ({
@@ -70,6 +73,7 @@ export const allergyToDraft = (a: Allergy): AllergyDraft => ({
   triggers: a.triggers ?? [],
   notes: a.notes ?? "",
   isVerified: a.isVerified ?? false,
+  conditionIds: a.conditionIds ?? [],
 });
 
 export function validateAllergy(d: AllergyDraft): FieldErrors {
@@ -90,6 +94,7 @@ export function allergyFromDraft(d: AllergyDraft, base?: Allergy): Allergy {
     isVerified: d.isVerified,
     notes: d.notes.trim() || undefined,
     source: base?.source ?? "SELF_REPORTED",
+    conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }
 
@@ -106,6 +111,8 @@ export interface MedicationDraft {
   reason: string;
   notes: string;
   active: boolean;
+  /** Conditions this medication is for — none, one, or several. */
+  conditionIds: string[];
 }
 
 export const emptyMedicationDraft = (): MedicationDraft => ({
@@ -119,6 +126,7 @@ export const emptyMedicationDraft = (): MedicationDraft => ({
   reason: "",
   notes: "",
   active: true,
+  conditionIds: [],
 });
 
 export const medicationToDraft = (m: Medication): MedicationDraft => ({
@@ -132,6 +140,7 @@ export const medicationToDraft = (m: Medication): MedicationDraft => ({
   reason: m.reason ?? "",
   notes: m.notes ?? "",
   active: m.active,
+  conditionIds: m.conditionIds ?? [],
 });
 
 export function validateMedication(d: MedicationDraft): FieldErrors {
@@ -158,6 +167,7 @@ export function medicationFromDraft(d: MedicationDraft, base?: Medication): Medi
     notes: d.notes.trim() || undefined,
     active: d.active,
     source: base?.source ?? "SELF_REPORTED",
+    conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }
 
@@ -219,6 +229,7 @@ export interface AppointmentDraft {
   status: AppointmentStatus;
   reason: string;
   notes: string;
+  conditionIds: string[];
 }
 
 export const emptyAppointmentDraft = (): AppointmentDraft => ({
@@ -229,6 +240,7 @@ export const emptyAppointmentDraft = (): AppointmentDraft => ({
   status: "SCHEDULED",
   reason: "",
   notes: "",
+  conditionIds: [],
 });
 
 export const appointmentToDraft = (a: Appointment): AppointmentDraft => ({
@@ -240,6 +252,7 @@ export const appointmentToDraft = (a: Appointment): AppointmentDraft => ({
   status: a.status,
   reason: a.reason ?? "",
   notes: a.notes ?? "",
+  conditionIds: a.conditionIds ?? [],
 });
 
 export function validateAppointment(d: AppointmentDraft): FieldErrors {
@@ -259,6 +272,7 @@ export function appointmentFromDraft(d: AppointmentDraft, base?: Appointment): A
     status: d.status,
     reason: d.reason.trim() || undefined,
     notes: d.notes.trim() || undefined,
+    conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }
 
@@ -272,6 +286,7 @@ export interface DocumentDraft {
   existingFileName?: string;
   existingFileSize?: number;
   existingMimeType?: string;
+  conditionIds: string[];
 }
 
 export const emptyDocumentDraft = (docType: DocumentType = "LAB_RESULT"): DocumentDraft => ({
@@ -279,6 +294,7 @@ export const emptyDocumentDraft = (docType: DocumentType = "LAB_RESULT"): Docume
   docType,
   documentDate: "",
   file: null,
+  conditionIds: [],
 });
 
 export const documentToDraft = (doc: HealthDocument): DocumentDraft => ({
@@ -289,6 +305,7 @@ export const documentToDraft = (doc: HealthDocument): DocumentDraft => ({
   existingFileName: doc.fileName,
   existingFileSize: doc.fileSize,
   existingMimeType: doc.mimeType,
+  conditionIds: doc.conditionIds ?? [],
 });
 
 export function validateDocument(d: DocumentDraft): FieldErrors {
@@ -311,6 +328,7 @@ export function documentFromDraft(d: DocumentDraft, base?: HealthDocument): Heal
     mimeType: mimeType || undefined,
     documentDate: d.documentDate || undefined,
     uploadedAt: base?.uploadedAt ?? new Date().toISOString(),
+    conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }
 
@@ -322,6 +340,7 @@ export interface ImmunizationDraft {
   administeredOn: string;
   nextDue: string;
   notes: string;
+  conditionIds: string[];
 }
 
 export const emptyImmunizationDraft = (): ImmunizationDraft => ({
@@ -330,6 +349,7 @@ export const emptyImmunizationDraft = (): ImmunizationDraft => ({
   administeredOn: "",
   nextDue: "",
   notes: "",
+  conditionIds: [],
 });
 
 export const immunizationToDraft = (im: Immunization): ImmunizationDraft => ({
@@ -338,6 +358,7 @@ export const immunizationToDraft = (im: Immunization): ImmunizationDraft => ({
   administeredOn: im.administeredOn,
   nextDue: im.nextDue ?? "",
   notes: im.notes ?? "",
+  conditionIds: im.conditionIds ?? [],
 });
 
 export function validateImmunization(d: ImmunizationDraft): FieldErrors {
@@ -355,6 +376,7 @@ export function immunizationFromDraft(d: ImmunizationDraft, base?: Immunization)
     administeredOn: d.administeredOn,
     nextDue: d.nextDue || undefined,
     notes: d.notes.trim() || undefined,
+    conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }
 
@@ -368,6 +390,7 @@ export interface VitalReadingDraft {
   measuredAt: string; // datetime-local
   context: string;
   label: string; // name of a CUSTOM measurement
+  conditionIds: string[];
 }
 
 // A datetime-local string ("YYYY-MM-DDTHH:mm") for right now, in local time.
@@ -385,6 +408,7 @@ export const emptyVitalDraft = (vitalType: VitalType = "BLOOD_PRESSURE"): VitalR
   measuredAt: nowLocalDateTime(),
   context: "",
   label: "",
+  conditionIds: [],
 });
 
 export const vitalToDraft = (v: VitalReading): VitalReadingDraft => ({
@@ -396,6 +420,7 @@ export const vitalToDraft = (v: VitalReading): VitalReadingDraft => ({
   measuredAt: v.measuredAt.slice(0, 16),
   context: v.context ?? "",
   label: v.label ?? "",
+  conditionIds: v.conditionIds ?? [],
 });
 
 export function validateVital(d: VitalReadingDraft): FieldErrors {
@@ -426,6 +451,7 @@ export function vitalFromDraft(d: VitalReadingDraft, base?: VitalReading): Vital
     measuredAt: d.measuredAt,
     context: d.context.trim() || undefined,
     label: d.vitalType === "CUSTOM" ? d.label.trim() || undefined : undefined,
+    conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
   };
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { useRecords } from "@/store/RecordsContext";
@@ -27,6 +28,8 @@ import { RecordEditModal } from "@/components/records/RecordEditModal";
 import { ActionRow } from "@/components/profile/ActionRow";
 import { ModeSwitchModal } from "@/components/profile/ModeSwitchModal";
 import { DataExportModal } from "@/components/profile/DataExportModal";
+import { useContexts } from "@/store/ContextsContext";
+import { contextLabel, isPregnancy } from "@/lib/healthContexts";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { Card } from "@/components/ui/Card";
@@ -48,11 +51,14 @@ import {
   PlusIcon,
   ShieldIcon,
   SlidersIcon,
+  SproutIcon,
+  ConditionIcon,
   StethoscopeIcon,
   TrashIcon,
   UserIcon,
   UsersIcon,
 } from "@/components/icons";
+import { buttonStyles } from "@/components/ui/Button";
 
 function Detail({ label, value, full = false }: { label: string; value: ReactNode; full?: boolean }) {
   return (
@@ -153,9 +159,10 @@ function PhotoModal({
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
-  const { profile, updateProfile } = useRecords();
+  const { profile, conditions, updateProfile } = useRecords();
   const { meta: modeMeta } = useAppMode();
   const { providers, connections } = useSharing();
+  const { contexts, active } = useContexts();
   // Everything on this page is the record's own details, so each control checks the
   // same permission: the owner's record, or a full-access proxy's.
   const { canEdit, isProxyView, activeOwnerName, invitedByMe } = useCareProxy();
@@ -440,6 +447,40 @@ export default function Profile() {
           </div>
         )}
       </Section>
+
+      {/* Condition-aware profiles — the lenses over the record. Kept next to the app-mode
+          section because they answer neighbouring questions: this one is *which
+          condition to read the record through*, the next is *how the app should work*. */}
+      <Section
+        question="Which condition should lead?"
+        lead="Read your record through one condition at a time. Nothing is copied, hidden or moved — the full record is always here."
+        action={
+          <Link to="/app/contexts" className={buttonStyles("secondary", "md")}>
+            Manage profiles
+          </Link>
+        }
+      >
+        {contexts.length === 0 ? (
+          <p className="mt-3 rounded-mhl-sm bg-mhl-sunk px-3.5 py-3 text-mhl-fine text-mhl-muted">
+            No profiles opened yet. Open one from a condition already on your record — or set up
+            a pregnancy context.
+          </p>
+        ) : (
+          <div className="mt-2 space-y-1">
+            {contexts.map((ctx) => (
+              <ActionRow
+                key={ctx.id}
+                icon={isPregnancy(ctx) ? <SproutIcon size={20} /> : <ConditionIcon size={20} />}
+                title={contextLabel(ctx, conditions)}
+                subtitle="A condition-aware profile over this record"
+                to={`/app/contexts/${ctx.id}`}
+                trailing={active?.id === ctx.id ? <Tag tone="due">In focus</Tag> : undefined}
+              />
+            ))}
+          </div>
+        )}
+      </Section>
+
 
       {/* Condition-aware mode */}
       <Section

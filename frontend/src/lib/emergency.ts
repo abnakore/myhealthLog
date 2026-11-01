@@ -31,6 +31,7 @@ import {
   type RecordBundle,
 } from "@/types/health";
 import { newEmergencyToken, type EmergencySettings } from "@/types/sharing";
+import { contextHeadline, contextsOf, findContext } from "@/lib/healthContexts";
 
 /* -------------------------------------------------------------- the link -- */
 
@@ -133,6 +134,14 @@ export interface EmergencySummary {
   /** Primary contact first. */
   contacts: EmergencyContact[];
   note?: string;
+  /**
+   * The context the owner has open on their record, if any — "Asthma", or a pregnancy
+   * with its dates. It is included only when the owner has already agreed to show their
+   * conditions, because that is the section it is derived from. Relevance never widens
+   * access: a record that is only relevant to a context stays exactly as hidden as the
+   * sharing rules say it is.
+   */
+  context?: { label: string; detail?: string };
   /** When the record behind this card last changed. */
   lastUpdated: string | null;
   /** Which sections the owner chose to reveal. */
@@ -194,6 +203,7 @@ export function compileEmergencySummary(
   bundle: RecordBundle,
   settings: EmergencySettings,
   ownerUserId: string,
+  context?: { label: string; detail?: string },
 ): EmergencySummary {
   const profile = bundle.profile;
   const contacts = [...profile.emergencyContacts]
@@ -225,6 +235,8 @@ export function compileEmergencySummary(
       .map((c) => ({ name: c.name, since: c.onsetDate })),
     contacts,
     note: note.length > 0 ? note : undefined,
+    // Only ever beside the conditions it comes from — never a section of its own.
+    context: settings.showConditions ? context : undefined,
     lastUpdated: mostRecent([lastRecordUpdate(bundle), settings.updatedAt]),
     shows: {
       bloodType: settings.showBloodType,
@@ -249,10 +261,13 @@ export interface EmergencyResolution {
 function readEmergencyState(): {
   settings: Record<string, EmergencySettings>;
   bundles: Record<string, RecordBundle>;
+  /** Which profile each record had open — the lens, keyed by owner. */
+  active: Record<string, string>;
 } {
   return {
     settings: loadJSON<Record<string, EmergencySettings>>(storageKey("sharing.emergency"), {}),
     bundles: loadJSON<Record<string, RecordBundle>>(storageKey("records"), {}),
+    active: loadJSON<Record<string, string>>(storageKey("contexts.active"), {}),
   };
 }
 
@@ -268,7 +283,7 @@ export function resolveEmergencyToken(code: string | undefined | null): Emergenc
   const wanted = (code ?? "").trim().toLowerCase();
   if (wanted.length === 0) return null;
 
-  const { settings, bundles } = readEmergencyState();
+  const { settings, bundles, active } = readEmergencyState();
   const ownerUserId = Object.keys(settings).find(
     (id) => settings[id]?.token?.trim().toLowerCase() === wanted,
   );
@@ -278,9 +293,28 @@ export function resolveEmergencyToken(code: string | undefined | null): Emergenc
   const ownerBundle = bundles[ownerUserId] ?? emptyRecordBundle(ownerUserId);
 
   return {
-    summary: compileEmergencySummary(ownerBundle, ownerSettings, ownerUserId),
+    summary: compileEmergencySummary(
+      ownerBundle,
+      ownerSettings,
+      ownerUserId,
+      contextHeadlineFor(ownerBundle, active[ownerUserId]),
+    ),
     pinRequired: ownerSettings.pinEnabled && Boolean(ownerSettings.pin?.trim()),
   };
+}
+
+/**
+ * The label for the profile the owner has open, read from the record's own contexts.
+ * A profile that has since been removed, or an id left behind by an older session,
+ * resolves to nothing — the card then simply reads the way it always did.
+ */
+function contextHeadlineFor(
+  bundle: RecordBundle,
+  activeId: string | undefined,
+): { label: string; detail?: string } | undefined {
+  const ctx = findContext(contextsOf(bundle), activeId);
+  if (!ctx) return undefined;
+  return contextHeadline(ctx, bundle.conditions);
 }
 
 /**

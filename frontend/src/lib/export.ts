@@ -369,8 +369,47 @@ function summarySection(title: string, body: string): string {
   return `<section><h2>${esc(title)}</h2>${body}</section>`;
 }
 
+/**
+ * The context a summary is being generated through, when one is open. Everything in it
+ * is read from the same record — the label, the dates, and the records the profile
+ * prioritises — so the summary never becomes a second, separately-maintained account of
+ * the patient.
+ */
+export interface SummaryFocus {
+  /** What the record is being read through: "Asthma", "Pregnancy". */
+  label: string;
+  /** One line of context, e.g. "26 weeks 2 days pregnant · due 12 Jan 2027". */
+  detail?: string;
+  /** The records the profile brings forward, in priority order. */
+  highlights: Array<{ title: string; meta?: string }>;
+  /** How many records the profile isn't showing — stated rather than left implied. */
+  others?: number;
+}
+
+function focusBlock(focus: SummaryFocus): string {
+  const items = focus.highlights.length
+    ? `<ul>${focus.highlights
+        .map(
+          (h) =>
+            `<li><strong>${esc(h.title)}</strong>${
+              h.meta ? ` <span class="muted">${esc(h.meta)}</span>` : ""
+            }</li>`,
+        )
+        .join("")}</ul>`
+    : "";
+  const rest =
+    focus.others && focus.others > 0
+      ? `<p class="muted">Priority view only — ${focus.others} more ${
+          focus.others === 1 ? "record" : "records"
+        } remain on the full record.</p>`
+      : "";
+  return `<p><strong>${esc(focus.label)}</strong>${
+    focus.detail ? ` — ${esc(focus.detail)}` : ""
+  }</p>${items}${rest}`;
+}
+
 /** Build a self-contained, print-friendly one-page clinical summary. */
-export function buildClinicalSummary(rec: RecordSnapshot): string {
+export function buildClinicalSummary(rec: RecordSnapshot, focus?: SummaryFocus): string {
   const p = rec.profile;
   const age = calcAge(p.dateOfBirth);
   const idLine = [
@@ -457,6 +496,7 @@ export function buildClinicalSummary(rec: RecordSnapshot): string {
     .padStart(2, "0")}:${generated.getMinutes().toString().padStart(2, "0")}`;
 
   const body = [
+    focus ? summarySection("In focus right now", focusBlock(focus)) : "",
     summarySection("Active problems", problems),
     summarySection("Current medicines", meds),
     summarySection("Allergies", allergies),
@@ -549,8 +589,12 @@ export function downloadFhirBundle(rec: RecordSnapshot): void {
   );
 }
 
-export function downloadClinicalSummary(rec: RecordSnapshot): void {
-  triggerDownload(`myhealthlog-summary-${stamp()}.html`, "text/html;charset=utf-8", buildClinicalSummary(rec));
+export function downloadClinicalSummary(rec: RecordSnapshot, focus?: SummaryFocus): void {
+  triggerDownload(
+    `myhealthlog-summary-${stamp()}.html`,
+    "text/html;charset=utf-8",
+    buildClinicalSummary(rec, focus),
+  );
 }
 
 /** Non-empty record categories with their counts, for "Includes …" copy. */

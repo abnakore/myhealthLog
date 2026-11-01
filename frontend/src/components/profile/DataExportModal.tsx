@@ -1,13 +1,18 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { DocumentIcon, DownloadIcon } from "@/components/icons";
 import { useRecords } from "@/store/RecordsContext";
+import { useContexts } from "@/store/ContextsContext";
+import { buildContextProfile, pregnancyLine } from "@/lib/healthContexts";
+import { buildContextRows, priorityRows } from "@/components/context/ContextRows";
 import {
   downloadClinicalSummary,
   downloadFhirBundle,
   recordCounts,
   type RecordSnapshot,
+  type SummaryFocus,
 } from "@/lib/export";
 
 function ExportOption({
@@ -44,6 +49,7 @@ function ExportOption({
 /** Download the whole record — as FHIR for another system, or a one-page summary for a doctor. */
 export function DataExportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const rec = useRecords();
+  const { active } = useContexts();
   const snapshot: RecordSnapshot = {
     profile: rec.profile,
     allergies: rec.allergies,
@@ -56,6 +62,21 @@ export function DataExportModal({ open, onClose }: { open: boolean; onClose: () 
     vitals: rec.vitals,
   };
   const counts = recordCounts(snapshot);
+
+  // If a condition-aware profile is open, the one-page summary leads with it — built
+  // from the same records, in the same priority order the app shows. The FHIR export
+  // stays the whole record: a hospital needs the patient, not the lens.
+  const focus = useMemo<SummaryFocus | undefined>(() => {
+    if (!active) return undefined;
+    const profile = buildContextProfile({ bundle: rec, ctx: active });
+    const rows = priorityRows(buildContextRows({ profile }));
+    return {
+      label: profile.label,
+      detail: profile.pregnancy ? pregnancyLine(profile.pregnancy) : undefined,
+      highlights: rows.slice(0, 6).map((r) => ({ title: r.title, meta: r.meta })),
+      others: profile.counts.rest,
+    };
+  }, [active, rec]);
 
   return (
     <Modal
@@ -80,9 +101,13 @@ export function DataExportModal({ open, onClose }: { open: boolean; onClose: () 
         <ExportOption
           icon={<DocumentIcon size={20} />}
           title="Clinical summary · one page"
-          desc="A printable snapshot a doctor can read in a minute: allergies, medicines, conditions, latest numbers."
+          desc={
+            focus
+              ? `A printable snapshot a doctor can read in a minute — with your ${focus.label} profile leading it.`
+              : "A printable snapshot a doctor can read in a minute: allergies, medicines, conditions, latest numbers."
+          }
           cta="Download summary"
-          onClick={() => downloadClinicalSummary(snapshot)}
+          onClick={() => downloadClinicalSummary(snapshot, focus)}
         />
       </div>
       {counts.length > 0 && (

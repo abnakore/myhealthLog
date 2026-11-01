@@ -15,6 +15,8 @@ import Appointments from "@/pages/Appointments";
 import Documents from "@/pages/Documents";
 import Measurements from "@/pages/Measurements";
 import Timeline from "@/pages/Timeline";
+import HealthContexts from "@/pages/HealthContexts";
+import HealthContextProfile from "@/pages/HealthContextProfile";
 import CareProviders from "@/pages/CareProviders";
 import CareProxy from "@/pages/CareProxy";
 import EmergencyAccess from "@/pages/EmergencyAccess";
@@ -63,6 +65,10 @@ export default function App() {
         <Route path="documents" element={<Documents />} />
         <Route path="measurements" element={<Measurements />} />
         <Route path="timeline" element={<Timeline />} />
+        {/* Condition-aware profiles: the list of lenses, and one lens itself. Both live
+            under /app so a proxy reads their relative's profiles through the same gates. */}
+        <Route path="contexts" element={<HealthContexts />} />
+        <Route path="contexts/:id" element={<HealthContextProfile />} />
         {/* Sharing & safety — reached from the Profile hub, not the tab bar. */}
         <Route path="providers" element={<CareProviders />} />
         <Route path="proxy" element={<CareProxy />} />

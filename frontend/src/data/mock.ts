@@ -22,6 +22,7 @@ import type {
 } from "@/types/health";
 import type { CareProvider, Connection, EmergencySettings } from "@/types/sharing";
 import type { CareProxyGrant } from "@/types/proxy";
+import type { HealthContext } from "@/types/context";
 
 export const demoProfile: HealthProfile = {
   id: "p_amina",
@@ -64,6 +65,7 @@ export const demoAllergies: Allergy[] = [
     isVerified: true,
     notes: "Confirmed after hospital admission in 2019. Carries no adrenaline pen currently.",
     source: "CLINICIAN",
+    // Relates to no condition on its own — it is a fact about her, not about a diagnosis.
   },
   {
     id: "al_2",
@@ -75,6 +77,21 @@ export const demoAllergies: Allergy[] = [
     isVerified: false,
     notes: "Moderate rash, no breathing difficulty.",
     source: "SELF_REPORTED",
+  },
+  {
+    id: "al_3",
+    substance: "Pollen",
+    allergyType: "ENVIRONMENTAL",
+    severity: "MODERATE",
+    reactions: ["Sneezing", "Itchy eyes", "Wheeze"],
+    triggers: ["Harmattan dust"],
+    firstReactionDate: "2011-03-01",
+    isVerified: false,
+    notes: "Wheeze alongside the asthma, worse in the harmattan.",
+    source: "SELF_REPORTED",
+    // Surfaced inside the Asthma profile as a relevant allergy — still an allergy, not a
+    // condition, and still on the full record under Allergies either way.
+    conditionIds: ["cn_3"],
   },
 ];
 
@@ -91,6 +108,7 @@ export const demoMedications: Medication[] = [
     reason: "Type 2 diabetes",
     active: true,
     source: "CLINICIAN",
+    conditionIds: ["cn_1"],
   },
   {
     id: "md_2",
@@ -104,6 +122,7 @@ export const demoMedications: Medication[] = [
     reason: "High blood pressure",
     active: true,
     source: "CLINICIAN",
+    conditionIds: ["cn_2"],
   },
   {
     id: "md_3",
@@ -118,6 +137,7 @@ export const demoMedications: Medication[] = [
     active: false,
     notes: "No longer in use — asthma settled.",
     source: "SELF_REPORTED",
+    conditionIds: ["cn_3"],
   },
 ];
 
@@ -157,6 +177,7 @@ export const demoAppointments: Appointment[] = [
     scheduledFor: "2026-10-03T11:30:00",
     status: "SCHEDULED",
     reason: "Review diabetes control",
+    conditionIds: ["cn_1"],
   },
   {
     id: "ap_2",
@@ -164,8 +185,12 @@ export const demoAppointments: Appointment[] = [
     facility: "Aminu Kano Teaching Hospital",
     scheduledFor: "2026-10-18T09:00:00",
     status: "SCHEDULED",
+    conditionIds: ["cn_2"],
   },
   {
+    // Nothing links this to a diagnosis — a routine check-up is still a record, and it
+    // still shows on the dashboard, the timeline and the full record. It simply isn't
+    // claimed by any single profile.
     id: "ap_3",
     title: "General check-up",
     clinician: "Dr. S. Okonkwo",
@@ -206,6 +231,18 @@ export const demoDocuments: HealthDocument[] = [
     mimeType: "application/pdf",
     documentDate: "2026-05-10",
     uploadedAt: "2026-05-10T16:20:00",
+    conditionIds: ["cn_1"],
+  },
+  {
+    id: "doc_4",
+    title: "Pulmonary function test",
+    docType: "SCAN",
+    fileName: "spirometry-2016.pdf",
+    fileSize: 337_920,
+    mimeType: "application/pdf",
+    documentDate: "2016-01-14",
+    uploadedAt: "2016-01-14T11:05:00",
+    conditionIds: ["cn_3"],
   },
 ];
 
@@ -238,7 +275,8 @@ export const demoProcedures: Procedure[] = [
 // blood sugar easing into range as weight comes down — so trends and sparklines are
 // alive on first load and the High → In range cue has something to show.
 export const demoVitals: VitalReading[] = [
-  // Blood pressure — home readings, morning, easing from high into range.
+  // Blood pressure — home readings, morning, easing from high into range. Linked to the
+  // high blood pressure diagnosis, which is what puts them first in that profile.
   {
     id: "vt_bp1",
     vitalType: "BLOOD_PRESSURE",
@@ -247,6 +285,7 @@ export const demoVitals: VitalReading[] = [
     unit: "mmHg",
     measuredAt: "2026-08-01T07:35:00",
     context: "Sitting, left arm",
+    conditionIds: ["cn_2"],
   },
   {
     id: "vt_bp2",
@@ -256,6 +295,7 @@ export const demoVitals: VitalReading[] = [
     unit: "mmHg",
     measuredAt: "2026-08-15T07:50:00",
     context: "Sitting, left arm",
+    conditionIds: ["cn_2"],
   },
   {
     id: "vt_bp3",
@@ -265,6 +305,7 @@ export const demoVitals: VitalReading[] = [
     unit: "mmHg",
     measuredAt: "2026-08-29T07:20:00",
     context: "Sitting, left arm",
+    conditionIds: ["cn_2"],
   },
   {
     id: "vt_bp4",
@@ -274,6 +315,7 @@ export const demoVitals: VitalReading[] = [
     unit: "mmHg",
     measuredAt: "2026-09-05T07:45:00",
     context: "Sitting, left arm",
+    conditionIds: ["cn_2"],
   },
   {
     id: "vt_bp5",
@@ -283,8 +325,9 @@ export const demoVitals: VitalReading[] = [
     unit: "mmHg",
     measuredAt: "2026-09-10T07:40:00",
     context: "Sitting, left arm",
+    conditionIds: ["cn_2"],
   },
-  // Blood sugar — fasting, coming down into range.
+  // Blood sugar — fasting, coming down into range. The diabetes profile's own numbers.
   {
     id: "vt_glu1",
     vitalType: "BLOOD_GLUCOSE",
@@ -292,6 +335,7 @@ export const demoVitals: VitalReading[] = [
     unit: "mmol/L",
     measuredAt: "2026-08-08T06:40:00",
     context: "Fasting",
+    conditionIds: ["cn_1"],
   },
   {
     id: "vt_glu2",
@@ -300,6 +344,7 @@ export const demoVitals: VitalReading[] = [
     unit: "mmol/L",
     measuredAt: "2026-08-22T06:50:00",
     context: "Fasting",
+    conditionIds: ["cn_1"],
   },
   {
     id: "vt_glu3",
@@ -308,6 +353,7 @@ export const demoVitals: VitalReading[] = [
     unit: "mmol/L",
     measuredAt: "2026-09-03T06:45:00",
     context: "Fasting",
+    conditionIds: ["cn_1"],
   },
   {
     id: "vt_glu4",
@@ -316,8 +362,29 @@ export const demoVitals: VitalReading[] = [
     unit: "mmol/L",
     measuredAt: "2026-09-10T06:55:00",
     context: "Fasting",
+    conditionIds: ["cn_1"],
   },
-  // Weight — a gentle, steady decline.
+  // Peak flow — the asthma profile's own number, from the years she was tracking it.
+  {
+    id: "vt_pf1",
+    vitalType: "PEAK_FLOW",
+    value: 420,
+    unit: "L/min",
+    measuredAt: "2016-02-08T08:00:00",
+    context: "Before inhaler",
+    conditionIds: ["cn_3"],
+  },
+  {
+    id: "vt_pf2",
+    vitalType: "PEAK_FLOW",
+    value: 480,
+    unit: "L/min",
+    measuredAt: "2016-06-14T08:00:00",
+    context: "After inhaler",
+    conditionIds: ["cn_3"],
+  },
+  // Weight — a gentle, steady decline. Deliberately linked to no condition: it's a
+  // number about her, not about a diagnosis, so no profile claims it.
   {
     id: "vt_wt1",
     vitalType: "WEIGHT",
@@ -451,6 +518,7 @@ export const demoMotherMedications: Medication[] = [
     reason: "Type 2 diabetes",
     active: true,
     source: "CLINICIAN",
+    conditionIds: ["cn_z1"],
   },
   {
     id: "md_z2",
@@ -516,6 +584,7 @@ export const demoMotherAppointments: Appointment[] = [
     scheduledFor: "2026-07-02T11:00:00",
     status: "ATTENDED",
     notes: "HbA1c 7.2%. Continue metformin, keep walking daily.",
+    conditionIds: ["cn_z1"],
   },
 ];
 
@@ -529,6 +598,7 @@ export const demoMotherDocuments: HealthDocument[] = [
     mimeType: "application/pdf",
     documentDate: "2026-07-02",
     uploadedAt: "2026-07-02T12:30:00",
+    conditionIds: ["cn_z1"],
   },
 ];
 
@@ -547,6 +617,7 @@ export const demoMotherVitals: VitalReading[] = [
     unit: "mmol/L",
     measuredAt: "2026-08-14T06:35:00",
     context: "Fasting",
+    conditionIds: ["cn_z1"],
   },
   {
     id: "vt_z2",
@@ -555,6 +626,7 @@ export const demoMotherVitals: VitalReading[] = [
     unit: "mmol/L",
     measuredAt: "2026-09-04T06:45:00",
     context: "Fasting",
+    conditionIds: ["cn_z1"],
   },
   {
     id: "vt_z3",
@@ -910,7 +982,40 @@ export const demoEmergencySettingsByOwner: Record<string, EmergencySettings> = {
  * Every record in the demo, keyed by the account it belongs to. The store keeps
  * these side by side and hands the active one to the pages, which is how a proxy
  * ends up reading someone else's record through the very same screens.
+ *
+ * `contexts` holds that person's condition-aware profiles — the lenses, not copies.
+ * Amina has two (her diabetes and her asthma); her mother has one, which is how the
+ * per-person isolation shows: stepping into Zainab's record shows Zainab's profiles,
+ * never the ones Amina was last reading. Her father's record has none at all, so the
+ * "you haven't opened any profiles yet" path is reachable too.
  */
+export const demoContexts: HealthContext[] = [
+  {
+    id: "ctx_diabetes",
+    kind: "CONDITION",
+    conditionId: "cn_1",
+    createdAt: "2026-09-11T08:20:00",
+    updatedAt: "2026-09-11T08:20:00",
+  },
+  {
+    id: "ctx_asthma",
+    kind: "CONDITION",
+    conditionId: "cn_3",
+    createdAt: "2026-09-12T19:05:00",
+    updatedAt: "2026-09-12T19:05:00",
+  },
+];
+
+export const demoMotherContexts: HealthContext[] = [
+  {
+    id: "ctx_z_diabetes",
+    kind: "CONDITION",
+    conditionId: "cn_z1",
+    createdAt: "2026-09-06T10:40:00",
+    updatedAt: "2026-09-06T10:40:00",
+  },
+];
+
 export const demoRecordBundles: Record<string, RecordBundle> = {
   p_amina: {
     profile: demoProfile,
@@ -922,6 +1027,7 @@ export const demoRecordBundles: Record<string, RecordBundle> = {
     immunizations: demoImmunizations,
     procedures: demoProcedures,
     vitals: demoVitals,
+    contexts: demoContexts,
   },
   p_zainab: {
     profile: demoMotherProfile,
@@ -933,6 +1039,7 @@ export const demoRecordBundles: Record<string, RecordBundle> = {
     immunizations: demoMotherImmunizations,
     procedures: demoMotherProcedures,
     vitals: demoMotherVitals,
+    contexts: demoMotherContexts,
   },
   p_musa: {
     profile: demoFatherProfile,
@@ -944,6 +1051,8 @@ export const demoRecordBundles: Record<string, RecordBundle> = {
     immunizations: demoFatherImmunizations,
     procedures: demoFatherProcedures,
     vitals: demoFatherVitals,
+    // Nothing opened yet — the empty state, on a record that is otherwise complete.
+    contexts: [],
   },
 };
 

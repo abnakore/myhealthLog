@@ -4,6 +4,13 @@ import { useAuth } from "@/auth/AuthContext";
 import { useRecords } from "@/store/RecordsContext";
 import { useCareProxy } from "@/store/CareProxyContext";
 import { useAppMode } from "@/store/AppModeContext";
+import { useContexts } from "@/store/ContextsContext";
+import { buildContextProfile } from "@/lib/healthContexts";
+import {
+  ContextRowList,
+  buildContextRows,
+  priorityRows,
+} from "@/components/context/ContextRows";
 import {
   isCriticalAllergy,
   formatVitalValue,
@@ -60,7 +67,28 @@ export default function Dashboard() {
   const { mode, meta: modeMeta } = useAppMode();
   const { canEdit, isProxyView, activeOwnerName } = useCareProxy();
   const ModeIcon = modeMeta.Icon;
-  const { profile, allergies, medications, appointments, documents, vitals } = useRecords();
+  const records = useRecords();
+  const { profile, allergies, medications, appointments, documents, vitals } = records;
+  const { active, activeLabel, deactivate } = useContexts();
+
+  // The prioritised reading of the record, only when a context is open. Building it is
+  // read-only — it doesn't touch the record, and the rest of the dashboard below shows
+  // everything as usual either way.
+  const contextProfile = useMemo(
+    () =>
+      active && active.id
+        ? buildContextProfile({ bundle: records, ctx: active })
+        : null,
+    [active, records],
+  );
+  const contextRows = useMemo(
+    () => (contextProfile ? buildContextRows({ profile: contextProfile }) : null),
+    [contextProfile],
+  );
+  const contextHighlights = useMemo(
+    () => (contextRows ? priorityRows(contextRows).slice(0, 4) : []),
+    [contextRows],
+  );
 
   const firstName = (user?.name ?? profile.fullName).split(" ")[0];
   const critical = allergies.filter((a) => isCriticalAllergy(a.severity));
@@ -131,14 +159,24 @@ export default function Dashboard() {
           <h1 className="text-mhl-answer font-bold text-mhl-ink">
             {timeGreeting()}, {firstName}
           </h1>
-          {mode !== "standard" && (
+          {contextProfile ? (
             <Link
-              to="/app/profile"
-              className="mt-1 inline-flex flex-none items-center gap-1.5 rounded-full bg-mhl-accent-lo px-3 py-1.5 text-mhl-fine font-semibold text-mhl-accent transition-colors hover:bg-mhl-accent/15"
+              to={`/app/contexts/${contextProfile.ctx.id}`}
+              className="mt-1 inline-flex flex-none items-center gap-1.5 rounded-full bg-mhl-accent px-3 py-1.5 text-mhl-fine font-semibold text-white transition-colors hover:brightness-95"
             >
               <ModeIcon size={15} />
-              {modeMeta.label} mode
+              {activeLabel} profile
             </Link>
+          ) : (
+            mode !== "standard" && (
+              <Link
+                to="/app/profile"
+                className="mt-1 inline-flex flex-none items-center gap-1.5 rounded-full bg-mhl-accent-lo px-3 py-1.5 text-mhl-fine font-semibold text-mhl-accent transition-colors hover:bg-mhl-accent/15"
+              >
+                <ModeIcon size={15} />
+                {modeMeta.label} mode
+              </Link>
+            )
           )}
         </div>
         <p className="mt-1 text-mhl-body text-mhl-muted">
@@ -147,6 +185,37 @@ export default function Dashboard() {
             : "Here's where your health record stands today."}
         </p>
       </header>
+
+      {/* The context's leading records — a prioritised reading, not a filtered one. The
+          complete dashboard carries on below, exactly as it does with no profile open. */}
+      {contextProfile && contextHighlights.length > 0 && (
+        <Section
+          question={`Because ${activeLabel} is in focus`}
+          lead="Everything linked to this profile, brought forward. Your complete record continues below."
+          action={
+            <Link
+              to={`/app/contexts/${contextProfile.ctx.id}`}
+              className="text-mhl-fine font-semibold text-mhl-accent hover:text-mhl-accent-strong"
+            >
+              Open profile
+            </Link>
+          }
+        >
+          <ContextRowList rows={contextHighlights} className="mt-2" />
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-mhl-rule pt-3">
+            <Link to="/app/contexts" className="text-mhl-fine font-semibold text-mhl-muted hover:text-mhl-ink">
+              Switch profile
+            </Link>
+            <button
+              type="button"
+              onClick={deactivate}
+              className="text-mhl-fine font-semibold text-mhl-muted hover:text-mhl-ink"
+            >
+              Back to all health records
+            </button>
+          </div>
+        </Section>
+      )}
 
       {/* Most urgent thing first, when there is one. */}
       {critical.length > 0 && (

@@ -10,7 +10,24 @@
 
 export type ID = string;
 
+import type { HealthContext } from "./context";
+
 export type RecordSource = "SELF_REPORTED" | "CLINICIAN" | "IMPORTED";
+
+/**
+ * The optional link every clinical record carries to the conditions it relates to.
+ *
+ * It is optional and plural on purpose: a routine check-up relates to nothing, a
+ * pregnancy blood test may relate to nothing at all, Salbutamol relates to Asthma,
+ * and Lisinopril relates to both hypertension and heart failure. A record with no
+ * link is a complete, valid record — `undefined`, not an empty box to fill in.
+ *
+ * It holds ids of Conditions already on file. A condition-aware profile reads these
+ * links; it never writes a second copy of the record.
+ */
+export interface ConditionLinked {
+  conditionIds?: ID[];
+}
 
 /* ---------------------------------------------------------------- profile -- */
 
@@ -68,7 +85,7 @@ export interface Condition {
 export type AllergyType = "DRUG" | "FOOD" | "ENVIRONMENTAL" | "OTHER";
 export type AllergySeverity = "MILD" | "MODERATE" | "SEVERE" | "ANAPHYLAXIS";
 
-export interface Allergy {
+export interface Allergy extends ConditionLinked {
   id: ID;
   substance: string;
   allergyType: AllergyType;
@@ -83,7 +100,7 @@ export interface Allergy {
 
 /* ------------------------------------------------------------ medications -- */
 
-export interface Medication {
+export interface Medication extends ConditionLinked {
   id: ID;
   name: string;
   dosage: string; // "500 mg"
@@ -103,7 +120,7 @@ export interface Medication {
 
 export type AppointmentStatus = "SCHEDULED" | "ATTENDED" | "MISSED" | "CANCELLED";
 
-export interface Appointment {
+export interface Appointment extends ConditionLinked {
   id: ID;
   title: string;
   clinician?: string;
@@ -123,7 +140,7 @@ export type DocumentType =
   | "DISCHARGE_SUMMARY"
   | "OTHER";
 
-export interface HealthDocument {
+export interface HealthDocument extends ConditionLinked {
   id: ID;
   title: string;
   docType: DocumentType;
@@ -136,7 +153,7 @@ export interface HealthDocument {
 
 /* --------------------------------------------- procedures & immunizations -- */
 
-export interface Procedure {
+export interface Procedure extends ConditionLinked {
   id: ID;
   name: string;
   performedOn: string;
@@ -146,7 +163,7 @@ export interface Procedure {
   notes?: string;
 }
 
-export interface Immunization {
+export interface Immunization extends ConditionLinked {
   id: ID;
   vaccine: string;
   doseNumber?: number;
@@ -171,7 +188,7 @@ export type VitalType =
   | "PEAK_FLOW"
   | "CUSTOM";
 
-export interface VitalReading {
+export interface VitalReading extends ConditionLinked {
   id: ID;
   vitalType: VitalType;
   value: number;
@@ -196,6 +213,13 @@ export interface RecordCollections {
   immunizations: Immunization[];
   procedures: Procedure[];
   vitals: VitalReading[];
+  /**
+   * Condition-aware profiles on file for this person. Stored with the record it
+   * belongs to (so a proxy sees their relative's own contexts) but deliberately
+   * *separate* from it: a context holds no clinical data of its own beyond the few
+   * life-stage facts, and removing one removes a lens, never a record.
+   */
+  contexts: HealthContext[];
 }
 
 /** Everything on file for one person: the profile plus its collections. */
@@ -214,6 +238,7 @@ export function emptyCollections(): RecordCollections {
     immunizations: [],
     procedures: [],
     vitals: [],
+    contexts: [],
   };
 }
 

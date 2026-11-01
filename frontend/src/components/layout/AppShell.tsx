@@ -6,6 +6,7 @@ import { buttonStyles } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { ProxyBanner } from "@/components/proxy/ProxyBanner";
 import { RecordSwitcher } from "@/components/proxy/RecordSwitcher";
+import { ContextBanner } from "@/components/context/ContextBanner";
 import { LogoutIcon, PlusIcon } from "@/components/icons";
 import { primaryNav, recordNav, type NavItem } from "./nav";
 
@@ -165,6 +166,7 @@ export function AppShell() {
         </header>
 
         <ProxyBanner />
+        <ContextBanner />
 
         <main className="mx-auto w-full max-w-[42rem] px-4 pb-28 pt-6 lg:px-8 lg:pb-14">
           <Outlet />

@@ -54,10 +54,14 @@ export function RecordsProvider({ children }: { children: ReactNode }) {
 
   // Someone with nothing on file (a brand-new sign-up, or a record opened through a
   // proxy grant before it holds anything) still gets a record to render: empty.
-  const bundle = useMemo(
-    () => bundles[activeOwnerId] ?? emptyRecordBundle(activeOwnerId, activeOwnerName),
-    [bundles, activeOwnerId, activeOwnerName],
-  );
+  //
+  // The second half of that is migration safety for existing data: a record saved
+  // before condition-aware profiles existed has no `contexts` key. A missing list is
+  // an empty list — it is never a reason to drop, migrate or rewrite the record.
+  const bundle = useMemo(() => {
+    const stored = bundles[activeOwnerId] ?? emptyRecordBundle(activeOwnerId, activeOwnerName);
+    return Array.isArray(stored.contexts) ? stored : { ...stored, contexts: [] };
+  }, [bundles, activeOwnerId, activeOwnerName]);
 
   /** Every write lands on the active record — the person's own, or the one they're viewing. */
   const patchBundle = useCallback(
@@ -119,6 +123,7 @@ export function RecordsProvider({ children }: { children: ReactNode }) {
       immunizations: bundle.immunizations,
       procedures: bundle.procedures,
       vitals: bundle.vitals,
+      contexts: bundle.contexts,
       addItem,
       updateItem,
       removeItem,

@@ -172,6 +172,19 @@ function SummaryPage({ code, summary }: { code: string; summary: EmergencySummar
           )}
         </section>
 
+        {/* The profile the owner has open, where there is one. It sits beside the record
+            it belongs to, never in place of it: this card always describes the whole
+            person. Only shown when the owner already shares their conditions. */}
+        {summary.context && (
+          <p className="mt-3 rounded-mhl-sm border border-mhl-emerg-ink/20 px-4 py-2.5 text-mhl-fine text-mhl-emerg-ink">
+            <span className="font-bold tracking-[0.08em] text-mhl-emerg-faint">
+              RECORD CURRENTLY IN FOCUS:{" "}
+            </span>
+            {summary.context.label}
+            {summary.context.detail ? ` · ${summary.context.detail}` : ""}
+          </p>
+        )}
+
         {/* The one block that changes treatment decisions — first, and loudest. */}
         {shows.allergies && (
           <section

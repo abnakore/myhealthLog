@@ -8,6 +8,7 @@ import type { ReactNode } from "react";
 import { TextField, TextArea, SelectField } from "@/components/ui/fields";
 import { TagInput } from "@/components/ui/TagInput";
 import { FileDrop } from "@/components/ui/FileDrop";
+import { ConditionLinkField } from "@/components/records/ConditionLinkField";
 import {
   ALLERGY_TYPE_LABELS,
   ALLERGY_SEVERITY_LABELS,
@@ -151,6 +152,10 @@ export function AllergyFields({ draft, onChange, errors }: FieldSetProps<Allergy
         checked={draft.isVerified}
         onChange={(isVerified) => onChange({ isVerified })}
       />
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
+      />
     </div>
   );
 }
@@ -232,6 +237,10 @@ export function MedicationFields({ draft, onChange, errors }: FieldSetProps<Medi
         hint="Turn off for a past medication."
         checked={draft.active}
         onChange={(active) => onChange({ active })}
+      />
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
       />
     </div>
   );
@@ -340,6 +349,11 @@ export function AppointmentFields({ draft, onChange, errors }: FieldSetProps<App
         onChange={(e) => onChange({ notes: e.target.value })}
         optional
       />
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
+        label="Related conditions"
+      />
     </div>
   );
 }
@@ -383,6 +397,10 @@ export function DocumentFields({ draft, onChange, errors }: FieldSetProps<Docume
         }
       />
       {errors.file && <p className="text-mhl-fine text-mhl-danger">{errors.file}</p>}
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
+      />
     </div>
   );
 }
@@ -429,6 +447,10 @@ export function ImmunizationFields({ draft, onChange, errors }: FieldSetProps<Im
         value={draft.notes}
         onChange={(e) => onChange({ notes: e.target.value })}
         optional
+      />
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
       />
     </div>
   );
@@ -520,6 +542,11 @@ export function VitalFields({ draft, onChange, errors }: FieldSetProps<VitalRead
         placeholder="e.g. Fasting, sitting, after exercise"
         onChange={(e) => onChange({ context: e.target.value })}
         optional
+      />
+      <ConditionLinkField
+        value={draft.conditionIds}
+        onChange={(conditionIds) => onChange({ conditionIds })}
+        label="Related conditions"
       />
     </div>
   );
