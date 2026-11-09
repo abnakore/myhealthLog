@@ -36,14 +36,23 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ---- Python / backend (added for later) ----
+# ---- Python / backend ----
 __pycache__/
 *.py[cod]
 .venv/
+venv/
 db.sqlite3
+backend/mediafiles/
+backend/staticfiles/
+backend/logs/
+backend/htmlcov/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
 
 # ---- Agent tooling (local only, not part of the app) ----
 .claude/
+.cloud-attachments/
 .kilo/
 .impeccable/
 .freebuff/
@@ -52,6 +61,8 @@ db.sqlite3
 docs/
 Claude.html
 claude1.html
+DESIGN.md
+PRODUCT.md
 
 # ---- Generated UI snapshots / debug previews (not source) ----
 frontend/preview/
