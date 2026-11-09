@@ -77,12 +77,15 @@ export default function HealthContexts() {
   const hasPregnancy = contexts.some(isPregnancy);
   const totalRecords = Object.values(recordSource).reduce((n, list) => n + list.length, 0);
 
-  function openConditionProfile(condition: Condition) {
-    navigate(`/app/contexts/${openCondition(condition)}`);
+  async function openConditionProfile(condition: Condition) {
+    // The context is created server-side first, so wait for its real id.
+    const id = await openCondition(condition);
+    if (id) navigate(`/app/contexts/${id}`);
   }
 
-  function openPregnancyProfile() {
-    navigate(`/app/contexts/${openPregnancy()}`);
+  async function openPregnancyProfile() {
+    const id = await openPregnancy();
+    if (id) navigate(`/app/contexts/${id}`);
   }
 
   return (

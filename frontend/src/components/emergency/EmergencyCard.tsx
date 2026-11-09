@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
 import { useAppMode } from "@/store/AppModeContext";
 import { useCareProxy } from "@/store/CareProxyContext";
 import { useSharing } from "@/store/SharingContext";
-import { emergencyUrl } from "@/lib/emergency";
-import { qrSvgMarkup } from "@/lib/qrcode";
-import { isCriticalAllergy } from "@/types/health";
+import { emergencyUrl, tokenSuffix } from "@/lib/emergency";
+import { formatDate } from "@/lib/format";
+import { isCriticalAllergy, SEX_LABELS } from "@/types/health";
 import { ShieldIcon, DownloadIcon, ShareIcon, CheckIcon, LockIcon } from "@/components/icons";
 import { QrCode } from "./QrCode";
+import { EmergencyCardExport } from "./EmergencyCardExport";
 
 interface EmergencyCardProps {
   className?: string;
@@ -37,6 +38,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   const { mode, criticalConditionId } = useAppMode();
   const focusName = conditions.find((c) => c.id === criticalConditionId)?.name;
   const [copied, setCopied] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const ownerName = activeOwnerName || profile.fullName;
 
   const token = emergency.token;
@@ -49,17 +51,55 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   const primaryContact = [...profile.emergencyContacts].sort((a, b) => a.priority - b.priority)[0];
   const note = emergency.note.trim();
 
-  function handleDownload() {
-    const blob = new Blob([qrSvgMarkup(url)], { type: "image/svg+xml" });
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = "myhealthlog-emergency-code.svg";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objectUrl);
-  }
+  // The printed/downloaded card is the same record, drawn to scale — built here so
+  // the preview, the PNG and the print sheet can never drift apart.
+  const card = useMemo(
+    () => ({
+      name: ownerName || profile.fullName,
+      // A responder needs the date of birth, not an age that is wrong the day
+      // after it was printed. Age is deliberately absent from the card.
+      meta: [
+        profile.sex ? SEX_LABELS[profile.sex] : null,
+        profile.dateOfBirth ? `born ${formatDate(profile.dateOfBirth)}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      bloodType: profile.bloodType,
+      genotype: profile.genotype,
+      allergies: critical,
+      medications: activeMeds,
+      conditions: activeConditions,
+      contact: primaryContact
+        ? [primaryContact.name, primaryContact.phone].filter(Boolean).join(" · ")
+        : undefined,
+      note,
+      url,
+      pin: emergency.pinEnabled ? emergency.pin : undefined,
+      tokenLabel: tokenSuffix(token),
+      mode,
+      show: {
+        bloodType: emergency.showBloodType,
+        allergies: emergency.showAllergies,
+        medications: emergency.showMedications,
+        conditions: emergency.showConditions,
+        contacts: emergency.showContacts,
+        note: emergency.showNote,
+      },
+    }),
+    [
+      ownerName,
+      profile,
+      critical,
+      activeMeds,
+      activeConditions,
+      primaryContact,
+      note,
+      url,
+      emergency,
+      token,
+      mode,
+    ],
+  );
 
   async function handleShare() {
     const data = {
@@ -147,10 +187,12 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
               <dd className="font-semibold text-mhl-emerg-ink">{capList(activeMeds)}</dd>
             </div>
           )}
-          {emergency.showConditions && activeConditions.length > 0 && (
+          {emergency.showConditions && (
             <div>
-              <dt className="text-[0.78rem] text-mhl-emerg-muted">Ongoing conditions</dt>
-              <dd className="font-semibold text-mhl-emerg-ink">{capList(activeConditions)}</dd>
+              <dt className="text-[0.78rem] text-mhl-emerg-muted">Active conditions</dt>
+              <dd className="font-semibold text-mhl-emerg-ink">
+                {activeConditions.length > 0 ? capList(activeConditions) : "None recorded"}
+              </dd>
               {mode === "critical" && focusName && (
                 <dd className="mt-1 text-mhl-fine text-mhl-emerg-amber">
                   {focusName} leads — it is the Critical-mode focus.
@@ -178,14 +220,14 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
       <div className="mt-3.5 flex gap-2.5">
         <button
           type="button"
-          onClick={handleDownload}
+          onClick={() => setExportOpen(true)}
           className={cn(
             btn,
             "mhl-interactive bg-mhl-accent-mid text-mhl-emerg hover:brightness-[1.03]",
           )}
         >
           <DownloadIcon size={18} />
-          Download
+          Save or print
         </button>
         <button
           type="button"
@@ -231,6 +273,8 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
           </Link>
         )}
       </div>
+
+      <EmergencyCardExport open={exportOpen} onClose={() => setExportOpen(false)} card={card} />
     </section>
   );
 }

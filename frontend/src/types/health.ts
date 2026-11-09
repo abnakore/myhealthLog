@@ -29,6 +29,24 @@ export interface ConditionLinked {
   conditionIds?: ID[];
 }
 
+/**
+ * Who put a record on file. A record can be added by the person themselves, by a
+ * care proxy with full access, or by a care provider through their scoped link —
+ * and whoever reads the record afterwards is entitled to know which. Optional, so
+ * every record seeded before this existed stays valid.
+ */
+export interface Provenance {
+  addedBy: string;
+  addedById?: ID;
+  addedByRole: "OWNER" | "CARE_PROXY" | "CARE_PROVIDER";
+  addedAt: string; // ISO
+}
+
+/** Every record that can be created carries its own provenance. */
+export interface Audited {
+  provenance?: Provenance;
+}
+
 /* ---------------------------------------------------------------- profile -- */
 
 export type Sex = "MALE" | "FEMALE" | "OTHER";
@@ -64,12 +82,34 @@ export interface HealthProfile {
   emergencyContacts: EmergencyContact[];
 }
 
+/* ------------------------------------------------------------ attachments -- */
+
+export type AiExtractionStatus = "PENDING" | "PROCESSING" | "DONE" | "FAILED" | "SKIPPED";
+
+/** Any record can carry one supporting file (a prescription photo, a clinic
+ *  letter, a monitor printout) and the AI's reading of it — the same pieces a
+ *  HealthDocument has, so every record page can show them the same way. */
+export interface Attachable {
+  fileName?: string;
+  fileSize?: number;
+  mimeType?: string;
+  /** Signed, expiring URL to the attached file — set by the backend serializer. */
+  fileUrl?: string;
+  /** The file to upload, present only while a new attachment is being saved. */
+  file?: File;
+  /** Set on an edit to drop the attached file. */
+  removeFile?: boolean;
+  aiExtraction?: AiExtractionResult | null;
+  /** Empty/undefined when there is no file to analyse. */
+  aiExtractionStatus?: AiExtractionStatus;
+}
+
 /* ------------------------------------------------------------- conditions -- */
 
 export type ConditionStatus = "ACTIVE" | "RESOLVED" | "IN_REMISSION";
 export type ClinicalSeverity = "MILD" | "MODERATE" | "SEVERE";
 
-export interface Condition {
+export interface Condition extends Audited, Attachable {
   id: ID;
   name: string;
   status: ConditionStatus;
@@ -81,10 +121,6 @@ export interface Condition {
   /** Who made the diagnosis, e.g. "Dr. F. Abdullahi". */
   diagnosedBy?: string;
   notes?: string;
-  /** A document that confirms the condition — a letter or report. */
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
   source?: RecordSource;
 }
 
@@ -93,7 +129,7 @@ export interface Condition {
 export type AllergyType = "DRUG" | "FOOD" | "ENVIRONMENTAL" | "OTHER";
 export type AllergySeverity = "MILD" | "MODERATE" | "SEVERE" | "ANAPHYLAXIS";
 
-export interface Allergy extends ConditionLinked {
+export interface Allergy extends ConditionLinked, Audited, Attachable {
   id: ID;
   substance: string;
   allergyType: AllergyType;
@@ -108,7 +144,7 @@ export interface Allergy extends ConditionLinked {
 
 /* ------------------------------------------------------------ medications -- */
 
-export interface Medication extends ConditionLinked {
+export interface Medication extends ConditionLinked, Audited, Attachable {
   id: ID;
   name: string;
   dosage: string; // "500 mg"
@@ -121,10 +157,6 @@ export interface Medication extends ConditionLinked {
   prescriber?: string;
   reason?: string;
   notes?: string;
-  /** An attached document — the prescriber's written note, a pack photo, etc. */
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
   active: boolean; // brief: mark active/inactive (defaults from endDate)
   source?: RecordSource;
 }
@@ -133,7 +165,7 @@ export interface Medication extends ConditionLinked {
 
 export type AppointmentStatus = "SCHEDULED" | "ATTENDED" | "MISSED" | "CANCELLED";
 
-export interface Appointment extends ConditionLinked {
+export interface Appointment extends ConditionLinked, Audited, Attachable {
   id: ID;
   title: string;
   clinician?: string;
@@ -153,13 +185,15 @@ export type DocumentType =
   | "DISCHARGE_SUMMARY"
   | "OTHER";
 
-export interface HealthDocument extends ConditionLinked {
+export interface HealthDocument extends ConditionLinked, Audited {
   id: ID;
   title: string;
   docType: DocumentType;
   fileName: string;
   fileSize: number; // bytes
   mimeType?: string;
+  /** The file to upload, present only while a new attachment is being saved. */
+  file?: File;
   documentDate?: string;
   uploadedAt: string;
   notes?: string;
@@ -170,11 +204,38 @@ export interface HealthDocument extends ConditionLinked {
   bodyArea?: string; // "Chest", "Left wrist"
   findings?: string; // the report / radiologist's findings
   provider?: string; // who produced the imaging, e.g. "Aminu Kano Teaching Hospital"
+  /** Absolute URL to download/view the file — set by the backend serializer. */
+  fileUrl?: string;
+  /** Structured data extracted from the document by AI. null = not yet run. */
+  aiExtraction?: AiExtractionResult | null;
+  /** Current status of the AI extraction pipeline. */
+  aiExtractionStatus?: AiExtractionStatus;
+}
+
+export interface AiKeyFinding {
+  metric: string;
+  value: string;
+  unit?: string;
+  reference_range?: string;
+  status?: "normal" | "low" | "high" | "critical" | null;
+}
+
+export interface AiExtractionResult {
+  document_type?: string;
+  title?: string;
+  date?: string;
+  summary?: string;
+  key_findings?: AiKeyFinding[];
+  medications_mentioned?: Array<{ name: string; dosage?: string; frequency?: string }>;
+  conditions_mentioned?: string[];
+  follow_up?: string[];
+  provider?: string;
+  ordering_clinician?: string;
 }
 
 /* --------------------------------------------- procedures & immunizations -- */
 
-export interface Procedure extends ConditionLinked {
+export interface Procedure extends ConditionLinked, Audited {
   id: ID;
   name: string;
   performedOn: string;
@@ -184,7 +245,7 @@ export interface Procedure extends ConditionLinked {
   notes?: string;
 }
 
-export interface Immunization extends ConditionLinked {
+export interface Immunization extends ConditionLinked, Audited {
   id: ID;
   vaccine: string;
   doseNumber?: number;
@@ -209,7 +270,7 @@ export type VitalType =
   | "PEAK_FLOW"
   | "CUSTOM";
 
-export interface VitalReading extends ConditionLinked {
+export interface VitalReading extends ConditionLinked, Audited, Attachable {
   id: ID;
   vitalType: VitalType;
   value: number;
@@ -219,10 +280,6 @@ export interface VitalReading extends ConditionLinked {
   context?: string; // "fasting", "post-meal", "sitting, left arm"
   label?: string; // display name for a CUSTOM reading, e.g. "Ketones"
   notes?: string;
-  /** An attached document — a photo of the monitor reading, a clinic printout. */
-  fileName?: string;
-  fileSize?: number;
-  mimeType?: string;
 }
 
 /* --------------------------------------------------------- per-person set -- */

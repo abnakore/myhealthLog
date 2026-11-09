@@ -220,6 +220,31 @@ function DocumentItem({
         <p className="mt-3 line-clamp-2 px-5 text-mhl-fine text-mhl-muted">{document.notes}</p>
       )}
 
+      {/* What the AI read in the file, right on the shelf — so a document does not
+          have to be opened to see whether it was understood. The full analysis,
+          preview and file live in the document viewer. */}
+      {(document.aiExtractionStatus === "PENDING" || document.aiExtractionStatus === "PROCESSING") && (
+        <p className="mt-2 px-5 text-mhl-fine font-medium text-mhl-accent">
+          AI is reading this document…
+        </p>
+      )}
+      {document.aiExtractionStatus === "DONE" && document.aiExtraction?.summary && (
+        <div className="mx-5 mt-3 rounded-mhl-sm border border-mhl-rule bg-mhl-surface px-3.5 py-2.5">
+          <p className="text-[0.7rem] font-bold uppercase tracking-[0.08em] text-mhl-muted">
+            AI extracted
+          </p>
+          <p className="mt-1 line-clamp-2 text-mhl-fine text-mhl-ink">
+            {document.aiExtraction.summary}
+          </p>
+          <Link
+            to={`/app/records/documents/${document.id}`}
+            className="mt-1 inline-flex text-mhl-fine font-semibold text-mhl-accent hover:underline"
+          >
+            See the preview and full analysis →
+          </Link>
+        </div>
+      )}
+
       {/* Actions sit on their own row so each keeps a 44px tap target. */}
       <div className="mt-auto flex flex-wrap items-center gap-2 px-5 pb-5 pt-4">
         <Link

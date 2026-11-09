@@ -1,22 +1,27 @@
 /**
- * The care-proxy layer: who may open whose record, and whose record the app is
- * showing right now.
+ * CareProxy store — backed by the real API.
  *
- * Those two belong together. A permission with no context is abstract, and a context
- * with no permission is a hole — so one store answers both, and every page asks it
- * rather than assuming the signed-in user is the record owner. <RecordsProvider>
- * reads the active id from here, which is what lets a proxy's Medications page be
- * someone else's medications without that page knowing anything about proxies.
+ * Manages the full grant lifecycle:
+ *  - Fetch all grants (given and received)
+ *  - Invite / revoke / accept / decline / resend / update permission
+ *  - Track which record is "active" (own vs proxy's)
  *
- * Seeded from the demo grants and mirrored to localStorage, so an invite you send
- * (or accept) survives a refresh. When the DRF backend lands, these mutators become
- * the API calls and the seed goes away; the component API (useCareProxy) stays.
+ * Note: "Stepping into" a proxy's record is a UI concept only here — the
+ * backend scopes every record endpoint to `request.user`. When Phase 2 is
+ * fully built, the backend would need proxy-scoped record endpoints. For
+ * now, switching to another owner's record in the UI simply shows a read-only
+ * view pulled from the grant data returned at login.
  */
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useAuth } from "@/auth/AuthContext";
-import { demoProxyGrants } from "@/data/mock";
-import { genId } from "@/lib/id";
-import { usePersistentState } from "@/lib/storage";
 import {
   openableRecords,
   pendingInvitations,
@@ -24,60 +29,117 @@ import {
   type CareProxyGrant,
   type ProxyPermission,
 } from "@/types/proxy";
+import {
+  fetchProxyGrants,
+  createProxyGrant as apiCreateGrant,
+  revokeProxyGrant as apiRevoke,
+  acceptProxyGrant as apiAccept,
+  declineProxyGrant as apiDecline,
+  resendProxyInvite as apiResend,
+  updateProxyPermission as apiUpdatePermission,
+} from "@/services/sharing";
+import { apiErrorMessage } from "@/services/api";
+import { setActAsUser } from "@/services/activeRecord";
 
-/** What the invite form collects: their email or username, the level, and a note. */
 export interface ProxyInvite {
-  /** Where the invite goes — an address, or the username they signed up with. */
   email: string;
   permission: ProxyPermission;
   message?: string;
 }
 
 interface CareProxyContextValue {
-  /** Every grant this account is part of — owned, held, or waiting to be answered. */
   grants: CareProxyGrant[];
-  /** People the signed-in user has invited to their own record (revoked ones aside). */
   invitedByMe: CareProxyGrant[];
-  /** Invitations addressed to the signed-in user that they haven't answered. */
   invitations: CareProxyGrant[];
-  /** Other people's records the signed-in user may step into. */
   openable: CareProxyGrant[];
+  isLoading: boolean;
+  error: string | null;
 
   selfId: string;
   selfName: string;
-  /** Whose record every page is showing — the signed-in user, or a proxy's owner. */
   activeOwnerId: string;
   activeOwnerName: string;
   isProxyView: boolean;
-  /** What the signed-in user may do in that record. */
   permission: ProxyPermission;
-  /** False for a view-only proxy: write controls hide, the record still reads. */
   canEdit: boolean;
 
   switchTo: (ownerId: string) => void;
-  invite: (invite: ProxyInvite) => CareProxyGrant;
-  acceptInvite: (id: string) => void;
-  declineInvite: (id: string) => void;
-  updatePermission: (id: string, permission: ProxyPermission) => void;
-  revoke: (id: string) => void;
-  resendInvite: (id: string) => void;
+  invite: (invite: ProxyInvite) => Promise<CareProxyGrant>;
+  acceptInvite: (id: string) => Promise<void>;
+  declineInvite: (id: string) => Promise<void>;
+  updatePermission: (id: string, permission: ProxyPermission) => Promise<void>;
+  revoke: (id: string) => Promise<void>;
+  resendInvite: (id: string) => Promise<void>;
 }
 
 const CareProxyContext = createContext<CareProxyContextValue | null>(null);
 
 export function CareProxyProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, isAuthed } = useAuth();
   const selfId = user?.id ?? "";
   const selfName = user?.name ?? "You";
   const selfEmail = user?.email ?? "";
 
-  const [grants, setGrants] = usePersistentState<CareProxyGrant[]>(
-    "careProxy.grants",
-    () => demoProxyGrants,
+  const [grants, setGrants] = useState<CareProxyGrant[]>([]);
+  // The record a proxy stepped into survives a page refresh in this tab. It is
+  // only honoured while a live grant for that owner exists (see `viewed`), and
+  // the backend re-checks the grant on every request regardless.
+  const storageKey = `mhl.actingFor.${selfId}`;
+  // Bumped on every change so the stored value is re-read; the user id (and so
+  // the key) arrives after the first render, which re-reads it too.
+  const [selectionVersion, setSelectionVersion] = useState(0);
+  const selectedId = useMemo(() => {
+    void selectionVersion;
+    try {
+      return sessionStorage.getItem(storageKey) ?? "";
+    } catch {
+      return "";
+    }
+  }, [storageKey, selectionVersion]);
+  const setSelectedId = useCallback(
+    (id: string) => {
+      try {
+        if (id) sessionStorage.setItem(storageKey, id);
+        else sessionStorage.removeItem(storageKey);
+      } catch {
+        /* storage unavailable: the choice just won't survive a refresh */
+      }
+      setSelectionVersion((v) => v + 1);
+    },
+    [storageKey],
   );
-  /** "" is the person's own record — the default, and the only state a new account is ever in. */
-  const [selectedId, setSelectedId] = usePersistentState<string>("careProxy.viewing", () => "");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // ---------------------------------------------------------------------------
+  // Load grants on auth
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!isAuthed) {
+      // The stored choice is kept: it is keyed to the user, and auth is briefly
+      // false while a refreshed session is restored. With no grants loaded it
+      // opens nothing anyway.
+      setGrants([]);
+      setActAsUser(null);
+      return;
+    }
+    setIsLoading(true);
+    fetchProxyGrants()
+      .then(({ given, received }) => {
+        // Merge given + received, deduplicating by id
+        const all = [...given];
+        for (const r of received) {
+          if (!all.some((g) => g.id === r.id)) all.push(r);
+        }
+        setGrants(all);
+      })
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setIsLoading(false));
+  }, [isAuthed]);
+
+  // ---------------------------------------------------------------------------
+  // Derived state
+  // ---------------------------------------------------------------------------
   const openable = useMemo(
     () => openableRecords(grants, selfId, selfEmail),
     [grants, selfId, selfEmail],
@@ -91,16 +153,23 @@ export function CareProxyProvider({ children }: { children: ReactNode }) {
     [grants, selfId],
   );
 
-  // Only a record still open can be the active one: revoke or decline a grant and the
-  // app falls back to the person's own record rather than leaving a stale context on
-  // screen. Revoked grants stay in the list — access ended, the history didn't.
   const viewed = openable.find((g) => g.ownerUserId === selectedId);
   const activeOwnerId = viewed ? viewed.ownerUserId : selfId;
   const activeOwnerName = viewed ? viewed.ownerName : selfName;
   const isProxyView = activeOwnerId !== selfId;
-  // One source of truth for the answer, so no page can compute a different one.
   const permission = permissionOver(grants, activeOwnerId, selfId, selfEmail) ?? "VIEW";
   const canEdit = permission === "FULL";
+
+  // Every request made from here on must act on the record on screen. Without
+  // this the proxy's edits were written to their own record and never reached
+  // the person whose record they were looking at.
+  useEffect(() => {
+    setActAsUser(isProxyView ? activeOwnerId : null);
+  }, [isProxyView, activeOwnerId]);
+
+  // ---------------------------------------------------------------------------
+  // Mutations
+  // ---------------------------------------------------------------------------
 
   const switchTo = useCallback(
     (ownerId: string) => setSelectedId(ownerId === selfId ? "" : ownerId),
@@ -108,84 +177,47 @@ export function CareProxyProvider({ children }: { children: ReactNode }) {
   );
 
   const invite = useCallback(
-    (input: ProxyInvite) => {
-      const grant: CareProxyGrant = {
-        id: genId("proxy"),
-        ownerUserId: selfId,
-        ownerName: selfName,
-        // Not linked to an account yet — accepting is what sets this.
-        proxyUserId: null,
-        proxyName: "",
-        proxyEmail: input.email.trim(),
-        permission: input.permission,
-        status: "INVITED",
-        message: input.message?.trim() || undefined,
-        invitedAt: new Date().toISOString(),
-      };
+    async (input: ProxyInvite): Promise<CareProxyGrant> => {
+      const grant = await apiCreateGrant(
+        input.email.trim(),
+        input.permission,
+        input.message?.trim(),
+      );
       setGrants((prev) => [grant, ...prev]);
       return grant;
     },
-    [selfId, selfName, setGrants],
+    [],
   );
 
-  const acceptInvite = useCallback(
-    (id: string) => {
-      const now = new Date().toISOString();
-      setGrants((prev) =>
-        prev.map((g) =>
-          g.id === id
-            ? {
-                ...g,
-                status: "ACTIVE" as const,
-                // The link between the two accounts is the grant's whole point.
-                proxyUserId: g.proxyUserId ?? selfId,
-                proxyName: g.proxyName.trim() || selfName,
-                acceptedAt: now,
-              }
-            : g,
-        ),
-      );
-    },
-    [selfId, selfName, setGrants],
-  );
+  const acceptInvite = useCallback(async (id: string) => {
+    const updated = await apiAccept(id);
+    setGrants((prev) => prev.map((g) => (g.id === id ? updated : g)));
+  }, []);
 
-  const declineInvite = useCallback(
-    (id: string) => {
-      setGrants((prev) =>
-        prev.map((g) => (g.id === id ? { ...g, status: "DECLINED" as const } : g)),
-      );
-    },
-    [setGrants],
-  );
+  const declineInvite = useCallback(async (id: string) => {
+    const updated = await apiDecline(id);
+    setGrants((prev) => prev.map((g) => (g.id === id ? updated : g)));
+  }, []);
 
   const updatePermission = useCallback(
-    (id: string, permission: ProxyPermission) => {
-      setGrants((prev) => prev.map((g) => (g.id === id ? { ...g, permission } : g)));
+    async (id: string, perm: ProxyPermission) => {
+      const updated = await apiUpdatePermission(id, perm);
+      setGrants((prev) => prev.map((g) => (g.id === id ? updated : g)));
     },
-    [setGrants],
+    [],
   );
 
-  const revoke = useCallback(
-    (id: string) => {
-      setGrants((prev) =>
-        prev.map((g) =>
-          g.id === id ? { ...g, status: "REVOKED" as const, revokedAt: new Date().toISOString() } : g,
-        ),
-      );
-    },
-    [setGrants],
-  );
+  const revoke = useCallback(async (id: string) => {
+    const updated = await apiRevoke(id);
+    setGrants((prev) => prev.map((g) => (g.id === id ? updated : g)));
+    // If this was the active proxy record, revert to own record
+    if (selectedId === updated.ownerUserId) setSelectedId("");
+  }, [selectedId, setSelectedId]);
 
-  // A resend re-stamps the send date, so the row reads "just now" — the honest signal
-  // that something happened, without a toast for a one-line action.
-  const resendInvite = useCallback(
-    (id: string) => {
-      setGrants((prev) =>
-        prev.map((g) => (g.id === id ? { ...g, invitedAt: new Date().toISOString() } : g)),
-      );
-    },
-    [setGrants],
-  );
+  const resendInvite = useCallback(async (id: string) => {
+    const updated = await apiResend(id);
+    setGrants((prev) => prev.map((g) => (g.id === id ? updated : g)));
+  }, []);
 
   const value = useMemo<CareProxyContextValue>(
     () => ({
@@ -193,6 +225,8 @@ export function CareProxyProvider({ children }: { children: ReactNode }) {
       invitedByMe,
       invitations,
       openable,
+      isLoading,
+      error,
       selfId,
       selfName,
       activeOwnerId,
@@ -209,24 +243,9 @@ export function CareProxyProvider({ children }: { children: ReactNode }) {
       resendInvite,
     }),
     [
-      grants,
-      invitedByMe,
-      invitations,
-      openable,
-      selfId,
-      selfName,
-      activeOwnerId,
-      activeOwnerName,
-      isProxyView,
-      permission,
-      canEdit,
-      switchTo,
-      invite,
-      acceptInvite,
-      declineInvite,
-      updatePermission,
-      revoke,
-      resendInvite,
+      grants, invitedByMe, invitations, openable, isLoading, error,
+      selfId, selfName, activeOwnerId, activeOwnerName, isProxyView, permission, canEdit,
+      switchTo, invite, acceptInvite, declineInvite, updatePermission, revoke, resendInvite,
     ],
   );
 

@@ -26,6 +26,7 @@
  * relevance as permission. Access is decided by the care-proxy and sharing layers
  * before a bundle reaches here (see lib/emergency.ts for the public case).
  */
+import { conditionPriority, readingBand } from "@/lib/summaryInsights";
 import { genId } from "@/lib/id";
 import { formatDate } from "@/lib/format";
 import {
@@ -269,17 +270,67 @@ export function mentionsName(text: string, name: string): boolean {
   if (!haystack || !name.trim()) return false;
   const terms = matchTerms(name);
   if (terms.length === 0) return haystack.includes(normalize(name));
-  return terms.some((t) => new RegExp(`(^|[^a-z0-9])${t}`).test(haystack));
+  if (terms.some((t) => new RegExp(`(^|[^a-z0-9])${t}`).test(haystack))) return true;
+  // The markers and medicines a clinician reads as "about" the condition.
+  return clinicalSynonyms(name).some((t) => new RegExp(`(^|[^a-z0-9])${t}([^a-z0-9]|$)`).test(haystack));
+}
+
+/**
+ * Words that mean a record is about a condition even when it never names it —
+ * an HbA1c report is a diabetes record, lisinopril is a blood-pressure medicine.
+ * Declared as data, kept short and conservative; a match still shows as
+ * "Mentioned", never as a link the user made.
+ */
+const CLINICAL_SYNONYMS: [RegExp, string[]][] = [
+  [/diabet/, ["hba1c", "glucose", "glycaemic", "glycemic", "metformin", "insulin", "glibenclamide", "gliclazide", "sitagliptin"]],
+  [/hypertens|blood pressure/, ["blood pressure", "amlodipine", "lisinopril", "losartan", "nifedipine", "hydrochlorothiazide", "ramipril", "enalapril"]],
+  [/asthma/, ["salbutamol", "inhaler", "peak flow", "budesonide", "montelukast"]],
+  [/kidney|renal|ckd/, ["egfr", "creatinine", "urea", "potassium", "nephrology"]],
+  [/sickle/, ["hydroxyurea", "hydroxycarbamide", "haemoglobin", "hemoglobin", "folic acid"]],
+  [/hiv/, ["antiretroviral", "tenofovir", "dolutegravir", "cd4", "viral load"]],
+  [/cholesterol|lipid/, ["cholesterol", "ldl", "atorvastatin", "rosuvastatin", "simvastatin"]],
+];
+
+function clinicalSynonyms(name: string): string[] {
+  const n = normalize(name);
+  return CLINICAL_SYNONYMS.filter(([re]) => re.test(n)).flatMap(([, words]) => words.map(normalize));
+}
+
+/** What the AI read from a record's attached file, as plain text. */
+function extractedText(r: Record<string, unknown>): string {
+  const x = r.aiExtraction as
+    | {
+        summary?: string;
+        title?: string;
+        conditions_mentioned?: string[];
+        key_findings?: { metric?: string }[];
+        medications_mentioned?: { name?: string }[];
+        follow_up?: string[];
+      }
+    | null
+    | undefined;
+  if (!x) return "";
+  return [
+    x.title,
+    x.summary,
+    ...(x.conditions_mentioned ?? []),
+    ...(x.key_findings ?? []).map((f) => f.metric),
+    ...(x.medications_mentioned ?? []).map((m) => m.name),
+    ...(x.follow_up ?? []),
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /** The free text a record of each category carries — what a mention is read from. */
 export function recordText(category: RecordCategory, record: unknown): string {
   const r = record as Record<string, unknown>;
   const str = (...keys: string[]) =>
-    keys
-      .map((k) => r[k])
-      .filter((v): v is string => typeof v === "string" && v.length > 0)
-      .join(" ");
+    [
+      ...keys.map((k) => r[k]).filter((v): v is string => typeof v === "string" && v.length > 0),
+      // A record's attached file speaks for it too.
+      extractedText(r),
+    ].join(" ");
   switch (category) {
     case "medications":
       return str("name", "reason", "notes", "prescriber");
@@ -288,7 +339,7 @@ export function recordText(category: RecordCategory, record: unknown): string {
     case "vitals":
       return str("label", "context");
     case "documents":
-      return str("title");
+      return str("title", "notes", "labName", "findings", "bodyArea");
     case "appointments":
       return str("title", "reason", "notes", "facility");
     case "procedures":
@@ -512,8 +563,49 @@ const BASIS_RANK: Record<RelevanceBasis, number> = {
   RECENT: 3,
 };
 
+/**
+ * How clinically urgent one record is, 0 = most. Inside a profile the dangerous
+ * things lead: an anaphylactic allergy before a mild one, a reading in a danger
+ * band before a normal one, a lab report with abnormal results before a clean
+ * one, a medicine being taken before one that was stopped.
+ */
+export function clinicalUrgency(category: RecordCategory, record: unknown): number {
+  const r = record as Record<string, unknown>;
+  switch (category) {
+    case "allergies":
+      return r.severity === "ANAPHYLAXIS" ? 0 : r.severity === "SEVERE" ? 1 : 2;
+    case "conditions":
+      return conditionPriority({ name: String(r.name ?? ""), status: String(r.status ?? ""), severity: r.severity as string | undefined });
+    case "medications":
+      return r.active === false ? 3 : 1;
+    case "vitals": {
+      const band = readingBand({
+        vitalType: String(r.vitalType ?? ""),
+        value: Number(r.value),
+        value2: r.value2 as number | undefined,
+        unit: r.unit as string | undefined,
+      });
+      return band ? (band.level === "critical" ? 0 : 1) : 2;
+    }
+    case "documents": {
+      const findings = ((r.aiExtraction as { key_findings?: { status?: string | null }[] } | null)?.key_findings) ?? [];
+      if (findings.some((f) => f.status === "critical")) return 0;
+      if (findings.some((f) => f.status === "high" || f.status === "low")) return 1;
+      return 2;
+    }
+    case "appointments": {
+      const when = +new Date(String(r.scheduledFor ?? ""));
+      return r.status === "SCHEDULED" && when >= Date.now() ? 1 : 2;
+    }
+    default:
+      return 2;
+  }
+}
+
 function byPriorityThenDate<T>(category: RecordCategory) {
   return (a: Prioritized<T>, b: Prioritized<T>): number => {
+    const urgency = clinicalUrgency(category, a.record) - clinicalUrgency(category, b.record);
+    if (urgency !== 0) return urgency;
     const rank = BASIS_RANK[a.basis] - BASIS_RANK[b.basis];
     if (rank !== 0) return rank;
     return (
@@ -656,7 +748,9 @@ export function gestationLabel(age: GestationalAge): string {
 /** The dated facts of a pregnancy, as the profile and the emergency view show them. */
 export function pregnancyView(ctx: HealthContext, now: Date = new Date()): PregnancyView {
   const p = ctx.pregnancy ?? { status: "ONGOING" as const };
-  const age = gestationalAgeOf(ctx, now);
+  // Weeks only count while the pregnancy is ongoing: after delivery the dates on file
+  // can't say how long it lasted, so we don't keep counting forward from them.
+  const age = p.status === "ONGOING" ? gestationalAgeOf(ctx, now) : null;
   const due = dueDateOf(ctx);
   return {
     statusLabel: PREGNANCY_STATUS_LABELS[p.status] ?? "Ongoing",

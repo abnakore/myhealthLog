@@ -17,6 +17,10 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Tag, conditionTone } from "@/components/ui/Tag";
 import { PregnancyModal } from "@/components/context/PregnancyModal";
+import { emptyPregnancyContext } from "@/types/context";
+
+/** A stable empty shell, so the first-time form only re-seeds when it opens. */
+const EMPTY_PREGNANCY = emptyPregnancyContext();
 import { CheckIcon, ConditionIcon, PlusIcon } from "@/components/icons";
 
 export function CriticalConditionModal({ open, mode, onClose, onDone }: {
@@ -69,17 +73,19 @@ export function CriticalConditionModal({ open, mode, onClose, onDone }: {
               : "Next, add your dates so the dashboard can show how far along you are."}
           </p>
         </Modal>
+        {pregOpen && (
         <PregnancyModal
-          open={pregOpen}
-          current={{ status: "ONGOING" }}
+          open
+          current={EMPTY_PREGNANCY}
           onClose={() => setPregOpen(false)}
-          onSave={(patch) => {
-            const id = openPregnancy();
-            updatePregnancy(id, patch);
+          onSave={async (patch) => {
+            const id = await openPregnancy();
+            await updatePregnancy(id, patch);
             setMode("pregnancy");
             onDone();
           }}
         />
+        )}
       </>
     );
   }

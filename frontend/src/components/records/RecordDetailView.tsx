@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
-import { ArrowLeftIcon, CheckIcon, ShareIcon } from "@/components/icons";
+import { ArrowLeftIcon, CheckIcon, DownloadIcon, ShareIcon } from "@/components/icons";
 import { Confetti } from "@/components/ui/Confetti";
 import {
   formatDate,
@@ -17,7 +17,12 @@ import {
   formatRelative,
 } from "@/lib/format";
 import {
+  ALLERGY_SEVERITY_LABELS,
+  ALLERGY_TYPE_LABELS,
+  APPOINTMENT_STATUS_LABELS,
+  CONDITION_STATUS_LABELS,
   DOCUMENT_TYPE_LABELS,
+  SEVERITY_LABELS,
   VITAL_LABELS,
   type Allergy,
   type Appointment,
@@ -25,6 +30,7 @@ import {
   type HealthDocument,
   type Immunization,
   type Medication,
+  type Provenance,
   type VitalReading,
 } from "@/types/health";
 
@@ -41,6 +47,12 @@ export type DisplayRecord =
 /** Narrows a record to one shape by a field only that shape carries. The return
  *  type is written per-guard (below) rather than derived, because the union has
  *  no single "the field that marks this kind" type to extract. */
+const SOURCE_LABELS: Record<string, string> = {
+  SELF_REPORTED: "Added by you",
+  CLINICIAN: "From a clinician",
+  IMPORTED: "Imported",
+};
+
 function hasField(v: unknown, field: string): boolean {
   return (
     typeof v === "object" &&
@@ -87,7 +99,7 @@ function isCondition(v: unknown): v is Condition {
   );
 }
 
-function RecordTitle(record: DisplayRecord): string {
+export function RecordTitle(record: DisplayRecord): string {
   if (isImmunization(record)) return record.vaccine || "Immunization";
   if (isMedication(record)) return record.name || "Medication";
   if (isCondition(record)) return record.name || "Condition";
@@ -135,9 +147,10 @@ function RecordCaption(record: DisplayRecord): string {
   return "On file";
 }
 
-function RecordFields(record: DisplayRecord): [string, string][] {
+export function RecordFields(record: DisplayRecord): [string, string][] {
   const fields: [string, string][] = [];
   if (isMedication(record)) {
+    fields.push(["Status", record.active ? "Taking now" : "Stopped"]);
     if (record.dosage) fields.push(["Dosage", record.dosage]);
     if (record.form) fields.push(["Form", record.form]);
     if (record.route) fields.push(["Route", record.route]);
@@ -148,23 +161,23 @@ function RecordFields(record: DisplayRecord): [string, string][] {
     if (record.prescriber) fields.push(["Prescriber", record.prescriber]);
     if (record.reason) fields.push(["Reason", record.reason]);
   } else if (isCondition(record)) {
-    if (record.severity) fields.push(["Severity", record.severity]);
+    fields.push(["Status", CONDITION_STATUS_LABELS[record.status] ?? record.status]);
+    if (record.severity) fields.push(["Severity", SEVERITY_LABELS[record.severity] ?? record.severity]);
     if (record.onsetDate) fields.push(["Onset", formatDate(record.onsetDate)]);
     if (record.resolvedDate) fields.push(["Resolved", formatDate(record.resolvedDate)]);
     if (record.icd10Code) fields.push(["ICD-10", record.icd10Code]);
     if (record.diagnosedBy) fields.push(["Diagnosed by", record.diagnosedBy]);
-    if (record.source) fields.push(["Source", record.source]);
+    if (record.source) fields.push(["Source", SOURCE_LABELS[record.source] ?? record.source]);
   } else if (isAllergy(record)) {
-    if (record.allergyType) fields.push(["Type", record.allergyType]);
-    if (record.severity) fields.push(["Severity", record.severity]);
+    if (record.allergyType) fields.push(["Type", ALLERGY_TYPE_LABELS[record.allergyType] ?? record.allergyType]);
+    if (record.severity) fields.push(["Severity", ALLERGY_SEVERITY_LABELS[record.severity] ?? record.severity]);
     if (record.firstReactionDate) fields.push(["First reaction", formatDate(record.firstReactionDate)]);
     if (record.reactions && record.reactions.length) fields.push(["Reactions", record.reactions.join(", ")]);
     if (record.triggers && record.triggers.length) fields.push(["Triggers", record.triggers.join(", ")]);
-    if (record.isVerified) fields.push(["Verified", "Yes"]);
-    if (record.source) fields.push(["Source", record.source]);
+    fields.push(["Confirmed by a clinician", record.isVerified ? "Yes" : "No"]);
+    if (record.source) fields.push(["Source", SOURCE_LABELS[record.source] ?? record.source]);
   } else if (isAppointment(record)) {
-    if (record.title) fields.push(["Title", record.title]);
-    if (record.status) fields.push(["Status", record.status]);
+    if (record.status) fields.push(["Status", APPOINTMENT_STATUS_LABELS[record.status] ?? record.status]);
     if (record.scheduledFor) fields.push(["Scheduled", formatDateTime(record.scheduledFor)]);
     if (record.clinician) fields.push(["Clinician", record.clinician]);
     if (record.facility) fields.push(["Facility", record.facility]);
@@ -197,8 +210,13 @@ function RecordFields(record: DisplayRecord): [string, string][] {
   } else if (isVital(record)) {
     if (record.vitalType) fields.push(["Type", VITAL_LABELS[record.vitalType] || record.vitalType]);
     if (record.label) fields.push(["Label", record.label]);
-    if (record.value !== undefined) fields.push(["Value", `${record.value} ${record.unit || ""}`].filter(Boolean) as [string, string]);
-    if (record.value2 !== undefined) fields.push(["Secondary", `${record.value2} ${record.unit || ""}`]);
+    if (record.value !== undefined) {
+      const value =
+        record.value2 !== undefined && record.value2 !== null
+          ? `${record.value}/${record.value2}`
+          : String(record.value);
+      fields.push(["Reading", `${value} ${record.unit || ""}`.trim()]);
+    }
     if (record.context) fields.push(["Context", record.context]);
     if (record.measuredAt) fields.push(["Measured", formatDateTime(record.measuredAt)]);
   } else if (isImmunization(record)) {
@@ -210,7 +228,7 @@ function RecordFields(record: DisplayRecord): [string, string][] {
   return fields;
 }
 
-function RecordNotes(record: DisplayRecord): string | null {
+export function RecordNotes(record: DisplayRecord): string | null {
   if (isMedication(record) && record.notes) return record.notes;
   if (isCondition(record) && record.notes) return record.notes;
   if (isAllergy(record) && record.notes) return record.notes;
@@ -219,6 +237,30 @@ function RecordNotes(record: DisplayRecord): string | null {
   if (isVital(record) && record.notes) return record.notes;
   if (isImmunization(record) && record.notes) return record.notes;
   return null;
+}
+
+/** Who added this record and when — the record's own audit line. Silent for
+    records seeded before provenance existed, so nothing is invented. */
+function ProvenanceLine({ provenance }: { provenance?: Provenance }) {
+  if (!provenance?.addedBy) return null;
+  const role =
+    provenance.addedByRole === "CARE_PROVIDER"
+      ? "care provider"
+      : provenance.addedByRole === "CARE_PROXY"
+        ? "care proxy"
+        : null;
+  return (
+    <p className="mt-4 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-mhl-fine text-mhl-muted">
+      <span>
+        Added by <span className="font-semibold text-mhl-ink">{provenance.addedBy}</span>
+        {role ? ` · ${role}` : ""}
+      </span>
+      <span aria-hidden="true" className="text-mhl-faint">
+        ·
+      </span>
+      <span>{formatDateTime(provenance.addedAt)}</span>
+    </p>
+  );
 }
 
 interface RecordActionsProps {
@@ -267,6 +309,75 @@ function RecordActions({ detailPath, backTo, onShare }: RecordActionsProps) {
         </Link>
       )}
     </div>
+  );
+}
+
+/** The file that belongs to this record, shown the same way a document's
+ *  report is shown: inline for images and PDFs, a download otherwise. Any
+ *  record type can carry one, not just HealthDocument. */
+function RecordAttachment({ record }: { record: DisplayRecord }) {
+  const file = record as {
+    fileUrl?: string;
+    fileName?: string;
+    fileSize?: number;
+    mimeType?: string;
+  };
+  if (!file.fileUrl) return null;
+
+  const mime = file.mimeType ?? "";
+  const name = file.fileName ?? "Attached file";
+  const isImage = mime.startsWith("image/") || /\.(jpe?g|png|gif|webp)$/i.test(name);
+  const isPdf = mime === "application/pdf" || /\.pdf$/i.test(name);
+
+  return (
+    <section className="mt-4 overflow-hidden rounded-mhl-sm border border-mhl-rule bg-mhl-surface">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-mhl-rule px-4 py-3">
+        <div className="min-w-0">
+          <p className="truncate text-mhl-fine font-semibold text-mhl-ink">{name}</p>
+          <p className="text-mhl-fine text-mhl-muted">
+            {isPdf ? "PDF" : isImage ? "Image" : "File"}
+            {file.fileSize ? ` · ${formatFileSize(file.fileSize)}` : ""}
+          </p>
+        </div>
+        <div className="flex flex-none items-center gap-2">
+          <a
+            href={file.fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-mhl-rule bg-mhl-surface px-3.5 text-mhl-fine font-semibold text-mhl-ink hover:bg-mhl-sunk"
+          >
+            Open
+          </a>
+          <a
+            href={file.fileUrl}
+            download={name}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-mhl-accent-lo px-3.5 text-mhl-fine font-semibold text-mhl-accent hover:bg-mhl-accent/15"
+          >
+            <DownloadIcon size={16} /> Download
+          </a>
+        </div>
+      </div>
+
+      {isImage && (
+        <img
+          src={file.fileUrl}
+          alt={name}
+          className="mx-auto max-h-[70vh] w-auto max-w-full object-contain"
+        />
+      )}
+      {isPdf && (
+        <iframe
+          src={file.fileUrl}
+          title={name}
+          className="h-[min(70vh,40rem)] w-full bg-mhl-sunk"
+        />
+      )}
+      {!isImage && !isPdf && (
+        <p className="px-4 py-6 text-center text-mhl-fine text-mhl-muted">
+          This file type can't be previewed here. Use Open or Download to view it.
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -327,6 +438,8 @@ export function RecordDetailView<T extends DisplayRecord>({
             </dl>
           </div>
 
+          <RecordAttachment record={record} />
+
           {/* A scan's report is the substance of the record, so it gets room to
               read rather than a truncated cell in the facts grid. */}
           {isDocument(record) && record.docType === "SCAN" && record.findings && (
@@ -337,6 +450,8 @@ export function RecordDetailView<T extends DisplayRecord>({
               </p>
             </section>
           )}
+
+          <ProvenanceLine provenance={(record as { provenance?: Provenance }).provenance} />
 
           {relatedConditions && relatedConditions.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-2">

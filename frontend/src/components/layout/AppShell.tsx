@@ -1,16 +1,29 @@
+import { useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { useAppMode } from "@/store/AppModeContext";
 import { useRecords } from "@/store/RecordsContext";
 import { Avatar } from "@/components/ui/Avatar";
+import { Modal } from "@/components/ui/Modal";
 import { ProxyBanner } from "@/components/proxy/ProxyBanner";
 import { RecordSwitcher } from "@/components/proxy/RecordSwitcher";
-import { ContextBanner } from "@/components/context/ContextBanner";
 import { ModeBanner } from "@/components/modes/ModeBanner";
 import { ModeSwitcher } from "@/components/modes/ModeSwitcher";
 import { ModeSync } from "@/components/modes/ModeSync";
-import { LogoutIcon, PlusIcon } from "@/components/icons";
+import { ModeTransition } from "@/components/modes/ModeTransition";
+import { ProfileTransition } from "@/components/modes/ProfileTransition";
+import { CriticalConditionModal } from "@/components/modes/CriticalConditionModal";
+import { BloomArt, HillsArt } from "@/components/ui/Motifs";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { NotificationsPanel } from "@/components/notifications/NotificationsPanel";
+import {
+  LogoutIcon,
+  PlusIcon,
+  ChevronRightIcon,
+  ConditionIcon,
+  RecordsIcon,
+} from "@/components/icons";
 import { navForMode, type NavItem } from "./nav";
 
 function Wordmark({ onNavigate }: { onNavigate?: () => void }) {
@@ -101,6 +114,37 @@ function TabLink({ item, accent = false, large = false }: { item: NavItem; accen
 
 const ADD_ITEM: NavItem = { to: "/app/add", label: "Add", icon: PlusIcon };
 
+/** The quiet slogan each mode signs its rail with — the reference's parting
+    line, set under that mode's own faint line-art on a soft wash of its colour. */
+function RailTagline({ lines, art }: { lines: string[]; art?: ReactNode }) {
+  return (
+    <div
+      aria-hidden="true"
+      className="mhl-rail-art mb-4 overflow-hidden rounded-mhl-sm bg-gradient-to-br from-mhl-accent-lo/70 to-transparent px-3.5 pb-3.5 pt-2"
+    >
+      {art && <div className="mb-1 text-mhl-accent/45">{art}</div>}
+      {lines.map((line) => (
+        <p key={line} className="text-[0.86rem] font-semibold leading-snug tracking-[-0.01em] text-mhl-muted">
+          {line}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** The rail's mode slogans, from the references. */
+const RAIL_TAGLINES: Record<string, string[]> = {
+  elderly: ["Good health", "brings peace of mind."],
+  critical: ["Better care.", "More control.", "Always."],
+  pregnancy: ["Healthy you.", "Healthy baby.", "Brighter tomorrow."],
+};
+
+/** The line-art above each slogan — hills for Elderly, a bloom for Pregnancy. */
+const RAIL_ART: Record<string, ReactNode> = {
+  elderly: <HillsArt className="block h-[4.2rem] w-full" />,
+  pregnancy: <BloomArt className="block h-[4.2rem] w-full" />,
+};
+
 /** The app frame: a warm rail from `lg` up, a top bar + docked tab bar below it.
     Every screen keeps the same three anchors — where you are, the record's six
     shelves, and who you're signed in as — so navigating never changes shape. */
@@ -110,28 +154,31 @@ export function AppShell() {
   const { conditions } = useRecords();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const [focusOpen, setFocusOpen] = useState(false);
+  const [recordsOpen, setRecordsOpen] = useState(false);
 
-  // The dashboard is the one page that needs the full two-column composition: on
-  // wide screens it opens to the desktop width while every other page stays in
-  // the 42rem reading column. Documents opens to a wide grid for its cards.
+  // The dashboard opens edge to edge — it's a composition of cards, and a
+  // capped column left a dead margin on wide screens. Reading pages keep their
+  // measure, centred so the page reads as composed rather than parked left.
   const isDashboard = pathname === "/app" || pathname === "/app/";
   const isDocuments = pathname === "/app/documents";
   const isAddRecord = pathname === "/app/add";
   const isElderly = mode === "elderly";
 
-  // Critical mode renames the Conditions entry after the focused condition,
-  // so the rail says what it means ("Diabetes" instead of "Conditions").
-  const criticalName = conditions.find((c) => c.id === criticalConditionId)?.name;
-  const nav = navForMode(mode, criticalName);
+  // In Critical mode the focused condition gets its own card at the rail's foot.
+  const focusCondition = conditions.find((c) => c.id === criticalConditionId);
+  const nav = navForMode(mode);
 
-  // Elderly mobile: four large plain-language tabs (Home + medicines + records
-  // + emergency). Appointments stay one tap away on the dashboard's upcoming card.
-  const elderlyTabs: NavItem[] = [
-    nav.primary[0],
-    nav.record[0],
-    nav.record[2],
-    nav.record[3],
-  ].filter(Boolean) as NavItem[];
+  // "Your records" is a destination of its own on a phone: one tab opens the
+  // same six shelves the rail lists, as a sheet. It reads as current when the
+  // page behind it is any of them — including a record's detail page.
+  const recordsActive =
+    pathname.startsWith("/app/records/") ||
+    nav.record.some((i) => pathname === i.to || pathname.startsWith(`${i.to}/`));
+
+  // Elderly mobile: four large plain-language tabs (Home + records + visits +
+  // emergency). Appointments stay one tap away on the dashboard's upcoming card.
+  const elderlyTabs: NavItem[] = [nav.primary[0], ...nav.record].slice(0, 4).filter(Boolean) as NavItem[];
 
   function handleLogout() {
     logout();
@@ -144,6 +191,11 @@ export function AppShell() {
       className={cn("min-h-dvh bg-mhl-bg", isElderly && "text-[1.04rem]")}
     >
       <ModeSync />
+      <ModeTransition />
+      <ProfileTransition />
+      {/* Notifications panel — rendered at root level of the shell so it
+          can be z-indexed correctly above both the rail and the content. */}
+      <NotificationsPanel />
 
       {/* Desktop rail */}
       <aside
@@ -158,9 +210,30 @@ export function AppShell() {
             the rail stays the plain, quiet map the home page asks for. */}
         <RecordSwitcher />
         {mode !== "standard" && (
-          <div className="mt-3">
+          <div className="mt-4">
+            {/* The references name the mechanism: you're viewing X, and why. */}
+            {mode !== "elderly" && (
+              <p className="mb-1.5 px-1 text-[0.78rem] font-medium text-mhl-faint">You're viewing</p>
+            )}
             <ModeSwitcher />
+            {mode !== "elderly" && (
+              <p className="mt-1.5 px-1 text-[0.74rem] leading-snug text-mhl-faint">
+                {mode === "critical" ? "Focused on your selected condition." : "Your pregnancy journey is our focus."}
+              </p>
+            )}
           </div>
+        )}
+
+        {/* In Pregnancy and Critical the reference puts the one coral action in
+            the rail; in Normal and Elderly it lives on the dashboard instead. */}
+        {(mode === "critical" || mode === "pregnancy") && (
+          <Link
+            to="/app/add"
+            className="mhl-interactive mt-4 flex min-h-11 items-center justify-center gap-2 rounded-full bg-mhl-accent px-4 text-[0.95rem] font-bold text-white shadow-[0_6px_16px_-8px_oklch(0.45_0.15_28/0.6)] transition-colors hover:bg-mhl-accent-strong"
+          >
+            <PlusIcon size={18} strokeWidth={2.5} />
+            Add record
+          </Link>
         )}
 
         <nav aria-label="Primary" className={cn("mt-7 flex flex-col gap-1", isElderly && "mt-5 gap-2")}>
@@ -177,10 +250,37 @@ export function AppShell() {
           {nav.record.map((item) => (
             <RailLink key={item.to + item.label} item={item} large={isElderly} />
           ))}
+
+          {/* Critical mode: the focused condition, one card, one tap to change
+              it — so the thing the mode is about is always in view. */}
+          {mode === "critical" && focusCondition && (
+            <button
+              type="button"
+              onClick={() => setFocusOpen(true)}
+              className="mhl-interactive mt-3 flex min-w-0 items-center gap-2.5 rounded-mhl-sm bg-mhl-accent-lo px-3 py-3 text-left transition-colors hover:bg-mhl-accent/20"
+            >
+              <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-mhl-accent text-white">
+                <ConditionIcon size={18} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[0.9rem] font-bold text-mhl-ink">
+                  {focusCondition.name}
+                </span>
+                <span className="block truncate text-[0.74rem] text-mhl-muted">Active condition</span>
+              </span>
+              <span className="flex-none text-mhl-faint">
+                <ChevronRightIcon size={16} />
+              </span>
+            </button>
+          )}
         </nav>
 
+        {RAIL_TAGLINES[mode] && (
+          <RailTagline lines={RAIL_TAGLINES[mode]} art={RAIL_ART[mode]} />
+        )}
+
         <div className="mt-auto flex items-center gap-2.5 border-t border-mhl-rule pt-5">
-          <Avatar name={user?.name ?? "You"} photoUrl={user?.photoUrl} size={44} />
+          <Avatar name={user?.name ?? "You"} photoUrl={user?.photoUrl ?? undefined} size={44} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-[0.9rem] font-semibold leading-tight text-mhl-ink">
               {user?.name}
@@ -189,6 +289,7 @@ export function AppShell() {
               {user?.email}
             </p>
           </div>
+          <NotificationBell />
           <button
             type="button"
             onClick={handleLogout}
@@ -207,14 +308,17 @@ export function AppShell() {
         <header className="sticky top-0 z-30 border-b border-mhl-rule bg-mhl-bg/90 backdrop-blur lg:hidden">
           <div className="flex items-center justify-between px-4 py-3">
             <Wordmark />
-            <button
-              type="button"
-              onClick={handleLogout}
-              aria-label="Log out"
-              className="grid h-9 w-9 place-items-center rounded-full text-mhl-muted transition-colors hover:bg-mhl-sunk hover:text-mhl-ink"
-            >
-              <LogoutIcon size={20} />
-            </button>
+            <div className="flex items-center gap-1">
+              <NotificationBell />
+              <button
+                type="button"
+                onClick={handleLogout}
+                aria-label="Log out"
+                className="grid h-9 w-9 place-items-center rounded-full text-mhl-muted transition-colors hover:bg-mhl-sunk hover:text-mhl-ink"
+              >
+                <LogoutIcon size={20} />
+              </button>
+            </div>
           </div>
           <RecordSwitcher variant="bar" />
           {mode !== "standard" && (
@@ -225,19 +329,23 @@ export function AppShell() {
         </header>
 
         <ProxyBanner />
-        <ContextBanner />
-        <ModeBanner />
+        {/* The home screen states its mode in the rail and in its own hero; every
+            other page keeps the one-tap banner. */}
+        {!isDashboard && <ModeBanner />}
 
         <main
           className={cn(
-            "w-full px-4 pb-28 pt-7 lg:px-8 lg:pb-12 lg:pt-8",
+            "w-full px-4 pb-28 pt-7 lg:px-10 lg:pb-14 lg:pt-9",
             isDashboard
-              ? "min-[80rem]:max-w-[80rem]"
+              ? // The dashboard fills the column it's given — every reference is a
+                // full-bleed composition, and the old 80rem cap stranded the right
+                // third of a wide screen as dead paper.
+                ""
               : isDocuments
-                ? "max-w-[44rem] lg:max-w-[64rem] min-[80rem]:max-w-[76rem]"
+                ? "mx-auto max-w-[44rem] lg:max-w-[64rem] min-[80rem]:max-w-[76rem]"
                 : isAddRecord
-                  ? "max-w-[44rem] lg:max-w-[48rem]"
-                  : "max-w-[44rem] lg:max-w-[56rem]",
+                  ? "mx-auto max-w-[44rem] lg:max-w-[48rem]"
+                  : "mx-auto max-w-[44rem] lg:max-w-[56rem]",
           )}
         >
           <Outlet />
@@ -258,17 +366,84 @@ export function AppShell() {
           ))}
         </nav>
       ) : (
-        <nav
-          className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-mhl-rule bg-mhl-surface/95 backdrop-blur lg:hidden"
-          style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-          aria-label="Primary"
-        >
-          <TabLink item={nav.primary[0]} />
-          <TabLink item={nav.primary[1]} />
-          <TabLink item={nav.primary[2]} />
-          <TabLink item={ADD_ITEM} accent />
-        </nav>
+        <>
+          <nav
+            className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-mhl-rule bg-mhl-surface/95 backdrop-blur lg:hidden"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+            aria-label="Primary"
+          >
+            <TabLink item={nav.primary[0]} />
+            <button
+              type="button"
+              onClick={() => setRecordsOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={recordsOpen}
+              className={cn(
+                "relative flex flex-col items-center justify-center gap-1 py-2",
+                recordsOpen || recordsActive ? "text-mhl-accent" : "text-mhl-muted",
+              )}
+            >
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute inset-x-4 top-0 h-0.5 rounded-full bg-mhl-accent transition-opacity",
+                  recordsOpen || recordsActive ? "opacity-100" : "opacity-0",
+                )}
+              />
+              <span className="grid place-items-center rounded-full">
+                <RecordsIcon size={23} strokeWidth={1.75} />
+              </span>
+              <span
+                className={cn(
+                  "text-[0.7rem] leading-none",
+                  (recordsOpen || recordsActive) && "font-semibold",
+                )}
+              >
+                Records
+              </span>
+            </button>
+            <TabLink item={nav.primary[1]} />
+            <TabLink item={nav.primary[2]} />
+            <TabLink item={ADD_ITEM} accent />
+          </nav>
+
+          <Modal
+            open={recordsOpen}
+            onClose={() => setRecordsOpen(false)}
+            title="Your records"
+            description="Every shelf of the record, one tap away."
+          >
+            <nav aria-label="Your records" className="flex flex-col gap-1">
+              {nav.record.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.to + item.label}
+                    to={item.to}
+                    onClick={() => setRecordsOpen(false)}
+                    className="mhl-interactive flex min-h-12 items-center gap-3 rounded-mhl-sm px-2 py-2 text-[0.99rem] font-medium text-mhl-ink hover:bg-mhl-sunk"
+                  >
+                    <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent">
+                      <Icon size={20} />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    <span className="flex-none text-mhl-faint">
+                      <ChevronRightIcon size={17} />
+                    </span>
+                  </Link>
+                );
+              })}
+            </nav>
+          </Modal>
+        </>
       )}
+
+      <CriticalConditionModal
+        open={focusOpen}
+        mode="critical"
+        onClose={() => setFocusOpen(false)}
+        onDone={() => setFocusOpen(false)}
+      />
     </div>
   );
 }

@@ -45,7 +45,15 @@ function numOrUndef(s: string): number | undefined {
 
 /* --------------------------------------------------------------- allergy -- */
 
-export interface AllergyDraft {
+/** The attachment part every record draft carries. */
+export interface AttachmentDraft {
+  file: File | null;
+  existingFileName?: string;
+  /** Drop the file already on record when the edit is saved. */
+  removeFile?: boolean;
+}
+
+export interface AllergyDraft extends AttachmentDraft {
   substance: string;
   allergyType: AllergyType;
   severity: AllergySeverity;
@@ -68,6 +76,7 @@ export const emptyAllergyDraft = (): AllergyDraft => ({
   notes: "",
   isVerified: false,
   conditionIds: [],
+  file: null,
 });
 
 export const allergyToDraft = (a: Allergy): AllergyDraft => ({
@@ -80,6 +89,8 @@ export const allergyToDraft = (a: Allergy): AllergyDraft => ({
   notes: a.notes ?? "",
   isVerified: a.isVerified ?? false,
   conditionIds: a.conditionIds ?? [],
+  file: null,
+  existingFileName: a.fileName,
 });
 
 export function validateAllergy(d: AllergyDraft): FieldErrors {
@@ -101,12 +112,22 @@ export function allergyFromDraft(d: AllergyDraft, base?: Allergy): Allergy {
     notes: d.notes.trim() || undefined,
     source: base?.source ?? "SELF_REPORTED",
     conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
+    ...attachmentFromDraft(d),
+  };
+}
+
+/** The attachment fields a saved draft sends: a new file, or a removal. */
+export function attachmentFromDraft(d: AttachmentDraft) {
+  return {
+    fileName: d.removeFile && !d.file ? undefined : (d.file?.name ?? d.existingFileName),
+    file: d.file ?? undefined,
+    removeFile: d.removeFile && !d.file ? true : undefined,
   };
 }
 
 /* ------------------------------------------------------------ medication -- */
 
-export interface MedicationDraft {
+export interface MedicationDraft extends AttachmentDraft {
   name: string;
   dosage: string;
   form: string; // a MEDICATION_FORMS entry, or MEDICATION_FORM_OTHER
@@ -197,7 +218,7 @@ export function medicationFromDraft(d: MedicationDraft, base?: Medication): Medi
     prescriber: d.prescriber.trim() || undefined,
     reason: d.reason.trim() || undefined,
     notes: d.notes.trim() || undefined,
-    fileName: d.file?.name ?? d.existingFileName,
+    ...attachmentFromDraft(d),
     fileSize: d.file?.size ?? d.existingFileSize,
     mimeType: d.file?.type || d.existingMimeType,
     active: d.active,
@@ -208,7 +229,7 @@ export function medicationFromDraft(d: MedicationDraft, base?: Medication): Medi
 
 /* ------------------------------------------------------------- condition -- */
 
-export interface ConditionDraft {
+export interface ConditionDraft extends AttachmentDraft {
   name: string;
   status: ConditionStatus;
   severity: ClinicalSeverity | "";
@@ -268,7 +289,7 @@ export function conditionFromDraft(d: ConditionDraft, base?: Condition): Conditi
     icd10Code: d.icd10Code.trim() || undefined,
     diagnosedBy: d.diagnosedBy.trim() || undefined,
     notes: d.notes.trim() || undefined,
-    fileName: d.file?.name ?? d.existingFileName,
+    ...attachmentFromDraft(d),
     fileSize: d.file?.size ?? d.existingFileSize,
     mimeType: d.file?.type || d.existingMimeType,
     source: base?.source ?? "SELF_REPORTED",
@@ -277,7 +298,7 @@ export function conditionFromDraft(d: ConditionDraft, base?: Condition): Conditi
 
 /* ----------------------------------------------------------- appointment -- */
 
-export interface AppointmentDraft {
+export interface AppointmentDraft extends AttachmentDraft {
   title: string;
   clinician: string;
   facility: string;
@@ -297,6 +318,7 @@ export const emptyAppointmentDraft = (): AppointmentDraft => ({
   reason: "",
   notes: "",
   conditionIds: [],
+  file: null,
 });
 
 export const appointmentToDraft = (a: Appointment): AppointmentDraft => ({
@@ -309,6 +331,8 @@ export const appointmentToDraft = (a: Appointment): AppointmentDraft => ({
   reason: a.reason ?? "",
   notes: a.notes ?? "",
   conditionIds: a.conditionIds ?? [],
+  file: null,
+  existingFileName: a.fileName,
 });
 
 export function validateAppointment(d: AppointmentDraft): FieldErrors {
@@ -329,6 +353,7 @@ export function appointmentFromDraft(d: AppointmentDraft, base?: Appointment): A
     reason: d.reason.trim() || undefined,
     notes: d.notes.trim() || undefined,
     conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
+    ...attachmentFromDraft(d),
   };
 }
 
@@ -425,6 +450,7 @@ export function documentFromDraft(d: DocumentDraft, base?: HealthDocument): Heal
     fileName,
     fileSize,
     mimeType: mimeType || undefined,
+    file: d.file ?? undefined,
     documentDate: d.documentDate || undefined,
     uploadedAt: base?.uploadedAt ?? new Date().toISOString(),
     notes: d.notes.trim() || undefined,
@@ -491,7 +517,7 @@ export function immunizationFromDraft(d: ImmunizationDraft, base?: Immunization)
 
 /* ----------------------------------------------------------------- vitals -- */
 
-export interface VitalReadingDraft {
+export interface VitalReadingDraft extends AttachmentDraft {
   vitalType: VitalType;
   value: string;
   value2: string; // second value for a paired reading (BP diastolic)
@@ -574,7 +600,7 @@ export function vitalFromDraft(d: VitalReadingDraft, base?: VitalReading): Vital
     context: d.context.trim() || undefined,
     label: d.vitalType === "CUSTOM" ? d.label.trim() || undefined : undefined,
     notes: d.notes.trim() || undefined,
-    fileName: d.file?.name ?? d.existingFileName,
+    ...attachmentFromDraft(d),
     fileSize: d.file?.size ?? d.existingFileSize,
     mimeType: d.file?.type || d.existingMimeType,
     conditionIds: d.conditionIds.length > 0 ? d.conditionIds : undefined,
@@ -622,6 +648,32 @@ export const profileToBasicsDraft = (p: HealthProfile): ProfileBasicsDraft => ({
 export function validateProfileBasics(d: ProfileBasicsDraft): FieldErrors {
   const e: FieldErrors = {};
   if (!d.fullName.trim()) e.fullName = "Enter your name.";
+
+  if (d.dateOfBirth) {
+    const dob = new Date(`${d.dateOfBirth}T00:00:00`);
+    if (Number.isNaN(dob.getTime())) {
+      e.dateOfBirth = "Enter a valid date.";
+    } else if (dob.getTime() > Date.now()) {
+      e.dateOfBirth = "A date of birth can't be in the future.";
+    }
+  }
+
+  // The API rejects these ranges, so catch them here where we can point at the field.
+  const height = d.heightCm.trim();
+  if (height) {
+    const h = Number(height);
+    if (!Number.isFinite(h)) e.heightCm = "Enter height as a number.";
+    else if (!/^\d+(\.\d)?$/.test(height)) e.heightCm = "Use one decimal place at most.";
+    else if (h < 50 || h > 300) e.heightCm = "Height must be between 50 and 300 cm.";
+  }
+
+  const weight = d.weightKg.trim();
+  if (weight) {
+    const w = Number(weight);
+    if (!Number.isFinite(w)) e.weightKg = "Enter weight as a number.";
+    else if (w < 20 || w > 500) e.weightKg = "Weight must be between 20 and 500 kg.";
+  }
+
   return e;
 }
 

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { apiErrorMessage, apiFieldErrors } from "@/services/api";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
 import { useCareProxy } from "@/store/CareProxyContext";
@@ -20,7 +21,7 @@ import { CheckIcon, PlusIcon } from "@/components/icons";
 export default function AddRecord() {
   const [params] = useSearchParams();
   const { addItem } = useRecords();
-  const { canEdit, activeOwnerName } = useCareProxy();
+  const { canEdit, isProxyView, activeOwnerName } = useCareProxy();
 
   const [selected, setSelected] = useState<KindConfig | null>(() => findKind(params.get("type")) ?? null);
   const [draft, setDraft] = useState<unknown>(() => {
@@ -29,6 +30,8 @@ export default function AddRecord() {
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saved, setSaved] = useState<KindConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // The only write path in the app is also the first thing a view-only proxy would
   // reach for, so it says why instead of rendering a form that would be refused.
@@ -54,14 +57,30 @@ export default function AddRecord() {
     setErrors({});
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!selected) return;
+    if (!selected || saving) return;
     const errs = selected.validate(draft);
     setErrors(errs);
+    setSaveError(null);
     if (Object.keys(errs).length > 0) return;
-    addItem(selected.collectionKey, selected.fromDraft(draft) as never);
-    setSaved(selected);
+    setSaving(true);
+    try {
+      await addItem(selected.collectionKey, selected.fromDraft(draft) as never);
+      setSaved(selected);
+    } catch (err) {
+      // Only claim success once the server has the record.
+      const details = apiFieldErrors(err);
+      const draftKeys = new Set(Object.keys((draft as object) ?? {}));
+      const fieldErrs: FieldErrors = {};
+      for (const [key, message] of Object.entries(details)) {
+        if (draftKeys.has(key)) fieldErrs[key] = message;
+      }
+      setErrors(fieldErrs);
+      setSaveError(Object.keys(fieldErrs).length > 0 ? null : apiErrorMessage(err));
+    } finally {
+      setSaving(false);
+    }
   }
 
   function addAnother() {
@@ -75,16 +94,18 @@ export default function AddRecord() {
   if (saved) {
     return (
       <div>
-        <PageHeader title="Added to your record" />
+        <PageHeader title={isProxyView ? `Added to ${activeOwnerName}'s record` : "Added to your record"} />
         <Card className="flex flex-col items-center py-10 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-full bg-mhl-good-lo text-mhl-good">
             <CheckIcon size={30} strokeWidth={2.25} />
           </span>
           <h2 className="mt-4 text-mhl-lead font-bold text-mhl-ink">
-            Your {saved.label.toLowerCase()} is saved
+            The {saved.label.toLowerCase()} is saved
           </h2>
           <p className="mt-1 max-w-sm text-mhl-body text-mhl-muted">
-            It's now in your {saved.listLabel.toLowerCase()} and will show wherever it's relevant.
+            {isProxyView
+              ? `${activeOwnerName} will see it in their ${saved.listLabel.toLowerCase()} and gets a notification about it.`
+              : `It's now in your ${saved.listLabel.toLowerCase()} and will show wherever it's relevant.`}
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <button type="button" onClick={addAnother} className={buttonStyles("primary", "md")}>
@@ -104,7 +125,10 @@ export default function AddRecord() {
 
   return (
     <div>
-      <PageHeader title="Add to your record" subtitle="Pick what you're adding, then fill in the details." />
+      <PageHeader
+        title={isProxyView ? `Add to ${activeOwnerName}'s record` : "Add to your record"}
+        subtitle="Pick what you're adding, then fill in the details."
+      />
 
       <fieldset className="min-w-0">
         <legend className="mb-2.5 text-[0.845rem] font-semibold text-mhl-muted">
@@ -163,11 +187,18 @@ export default function AddRecord() {
               errors={errors}
             />
           </div>
+          {saveError && (
+            <p role="alert" className="mt-4 rounded-mhl-sm bg-mhl-danger-lo px-3.5 py-3 text-mhl-fine font-medium text-mhl-danger">
+              {saveError}
+            </p>
+          )}
           <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Link to="/app" className={buttonStyles("secondary", "md")}>
               Cancel
             </Link>
-            <Button type="submit">Save {selected.label.toLowerCase()}</Button>
+            <Button type="submit" loading={saving} disabled={saving}>
+              Save {selected.label.toLowerCase()}
+            </Button>
           </div>
         </Card>
       )}

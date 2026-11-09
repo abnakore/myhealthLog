@@ -153,6 +153,15 @@ export const DownloadIcon = (p: IconProps) => (
   </Base>
 );
 
+/** A printer, for the "print this card" export. */
+export const PrinterIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M7 9V4h10v5" />
+    <path d="M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2" />
+    <path d="M7 14h10v6H7z" />
+  </Base>
+);
+
 export const ShareIcon = (p: IconProps) => (
   <Base {...p}>
     <path d="M12 15V4M8 8l4-4 4 4" />
@@ -431,6 +440,14 @@ export const LifebuoyIcon = (p: IconProps) => (
     <circle cx="12" cy="12" r="9" />
     <circle cx="12" cy="12" r="3.6" />
     <path d="m14.6 9.4 3.8-3.8M9.4 9.4 5.6 5.6M14.6 14.6l3.8 3.8M9.4 14.6l-3.8 3.8" />
+  </Base>
+);
+
+/** Chat / AI copilot icon — speech bubble with a pulse inside. */
+export const CopilotIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10Z" />
+    <path d="M7 9.5h3.5l1.5-2.5 2 5 1.5-2.5H18" />
   </Base>
 );
 

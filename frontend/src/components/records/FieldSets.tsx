@@ -38,6 +38,7 @@ import {
 } from "@/types/health";
 import type {
   AllergyDraft,
+  AttachmentDraft,
   AppointmentDraft,
   ConditionDraft,
   ContactDraft,
@@ -96,6 +97,49 @@ const optionsFrom = (labels: Record<string, string>) =>
 
 /* --------------------------------------------------------------- allergy -- */
 
+/** The supporting-file control every record form shares: pick or drop a file,
+ *  see the one already on record, or mark it for removal. */
+function AttachmentField<D extends AttachmentDraft>({
+  draft,
+  onChange,
+  label = "Supporting document",
+  hint,
+}: {
+  draft: D;
+  onChange: (patch: Partial<D>) => void;
+  label?: string;
+  hint: string;
+}) {
+  const hasExisting = Boolean(draft.existingFileName);
+  return (
+    <div className="space-y-2">
+      <FileDrop
+        label={label}
+        value={draft.file}
+        onChange={(file) => onChange({ file, removeFile: false } as Partial<D>)}
+        hint={
+          hasExisting && !draft.file
+            ? draft.removeFile
+              ? `${draft.existingFileName} will be removed when you save`
+              : `Currently: ${draft.existingFileName} — choose a new file to replace it`
+            : hint
+        }
+        optional
+      />
+      {hasExisting && !draft.file && (
+        <label className="flex items-center gap-2 text-mhl-fine text-mhl-muted">
+          <input
+            type="checkbox"
+            checked={Boolean(draft.removeFile)}
+            onChange={(e) => onChange({ removeFile: e.target.checked } as Partial<D>)}
+          />
+          Remove the attached file
+        </label>
+      )}
+    </div>
+  );
+}
+
 export function AllergyFields({ draft, onChange, errors }: FieldSetProps<AllergyDraft>) {
   return (
     <div className="space-y-4">
@@ -149,6 +193,11 @@ export function AllergyFields({ draft, onChange, errors }: FieldSetProps<Allergy
         onChange={(e) => onChange({ notes: e.target.value })}
         placeholder="Anything a clinician should know — current treatment, whether you carry adrenaline…"
         optional
+      />
+      <AttachmentField
+        draft={draft}
+        onChange={onChange}
+        hint="An allergy test result or a clinic letter that confirms it"
       />
       <CheckRow
         label="Confirmed by a clinician"
@@ -255,16 +304,11 @@ export function MedicationFields({ draft, onChange, errors }: FieldSetProps<Medi
         onChange={(e) => onChange({ reason: e.target.value })}
         optional
       />
-      <FileDrop
+      <AttachmentField
+        draft={draft}
+        onChange={onChange}
         label="Related document"
-        value={draft.file}
-        onChange={(file) => onChange({ file } as Partial<MedicationDraft>)}
-        hint={
-          draft.existingFileName && !draft.file
-            ? `Currently: ${draft.existingFileName}`
-            : "The prescription or the prescriber's written note"
-        }
-        optional
+        hint="The prescription or the prescriber's written note"
       />
       <TextArea
         label="Notes"
@@ -347,16 +391,11 @@ export function ConditionFields({ draft, onChange, errors }: FieldSetProps<Condi
           optional
         />
       )}
-      <FileDrop
+      <AttachmentField
+        draft={draft}
+        onChange={onChange}
         label="Confirming document"
-        value={draft.file}
-        onChange={(file) => onChange({ file } as Partial<ConditionDraft>)}
-        hint={
-          draft.existingFileName && !draft.file
-            ? `Currently: ${draft.existingFileName}`
-            : "A letter or report that confirms the diagnosis"
-        }
-        optional
+        hint="A letter or report that confirms the diagnosis"
       />
       <TextArea
         label="Notes"
@@ -415,6 +454,11 @@ export function AppointmentFields({ draft, onChange, errors }: FieldSetProps<App
         value={draft.notes}
         onChange={(e) => onChange({ notes: e.target.value })}
         optional
+      />
+      <AttachmentField
+        draft={draft}
+        onChange={onChange}
+        hint="A referral letter, appointment slip or visit summary"
       />
       <ConditionLinkField
         value={draft.conditionIds}
@@ -773,16 +817,11 @@ export function VitalFields({ draft, onChange, errors }: FieldSetProps<VitalRead
         placeholder="Anything worth knowing about this reading"
         optional
       />
-      <FileDrop
+      <AttachmentField
+        draft={draft}
+        onChange={onChange}
         label="Related document"
-        value={draft.file}
-        onChange={(file) => onChange({ file } as Partial<VitalReadingDraft>)}
-        hint={
-          draft.existingFileName && !draft.file
-            ? `Currently: ${draft.existingFileName}`
-            : "A photo of the reading or a clinic printout"
-        }
-        optional
+        hint="A photo of the reading or a clinic printout"
       />
       <ConditionLinkField
         value={draft.conditionIds}
@@ -818,6 +857,7 @@ export function ProfileBasicsFields({
           label="Date of birth"
           type="date"
           value={draft.dateOfBirth}
+          error={errors.dateOfBirth}
           onChange={(e) => onChange({ dateOfBirth: e.target.value })}
           optional
         />
@@ -862,6 +902,7 @@ export function ProfileBasicsFields({
           type="number"
           inputMode="numeric"
           value={draft.heightCm}
+          error={errors.heightCm}
           onChange={(e) => onChange({ heightCm: e.target.value })}
           optional
         />
@@ -870,6 +911,7 @@ export function ProfileBasicsFields({
           type="number"
           inputMode="numeric"
           value={draft.weightKg}
+          error={errors.weightKg}
           onChange={(e) => onChange({ weightKg: e.target.value })}
           optional
         />

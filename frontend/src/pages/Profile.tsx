@@ -1,5 +1,4 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/auth/AuthContext";
 import { useRecords } from "@/store/RecordsContext";
@@ -29,7 +28,9 @@ import { ActionRow } from "@/components/profile/ActionRow";
 import { ModeSwitchModal } from "@/components/profile/ModeSwitchModal";
 import { DataExportModal } from "@/components/profile/DataExportModal";
 import { useContexts } from "@/store/ContextsContext";
-import { contextLabel, isPregnancy } from "@/lib/healthContexts";
+import { PregnancyModal } from "@/components/context/PregnancyModal";
+import { pregnancyView } from "@/lib/healthContexts";
+import { emptyPregnancyContext } from "@/types/context";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { Card } from "@/components/ui/Card";
@@ -41,6 +42,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Tag } from "@/components/ui/Tag";
 import { FileDrop } from "@/components/ui/FileDrop";
 import { useSharing } from "@/store/SharingContext";
+import { apiErrorMessage, apiFieldErrors } from "@/services/api";
 import {
   CameraIcon,
   DownloadIcon,
@@ -52,13 +54,13 @@ import {
   ShieldIcon,
   SlidersIcon,
   SproutIcon,
-  ConditionIcon,
   StethoscopeIcon,
   TrashIcon,
   UserIcon,
   UsersIcon,
 } from "@/components/icons";
-import { buttonStyles } from "@/components/ui/Button";
+/** A stable empty shell, so the dates form only re-seeds when it opens. */
+const EMPTY_PREGNANCY = emptyPregnancyContext();
 
 function Detail({ label, value, full = false }: { label: string; value: ReactNode; full?: boolean }) {
   return (
@@ -87,12 +89,16 @@ function PhotoModal({
   currentUrl,
   onClose,
   onSave,
+  onRemove,
+  error,
 }: {
   open: boolean;
   name: string;
   currentUrl?: string;
   onClose: () => void;
-  onSave: (url: string | undefined) => void;
+  onSave: (file: File) => void;
+  onRemove: () => void;
+  error?: string | null;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | undefined>(currentUrl);
@@ -127,11 +133,18 @@ function PhotoModal({
           <Button variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button onClick={() => onSave(preview)}>Save photo</Button>
+          <Button disabled={!file} onClick={() => file && onSave(file)}>
+            Save photo
+          </Button>
         </>
       }
     >
       <div className="flex flex-col items-center gap-4">
+        {error && (
+          <p role="alert" className="w-full rounded-mhl-sm bg-mhl-danger-lo px-3.5 py-3 text-mhl-fine font-medium text-mhl-danger">
+            {error}
+          </p>
+        )}
         <Avatar name={name} photoUrl={preview} size={96} />
         <div className="w-full">
           <FileDrop
@@ -146,7 +159,7 @@ function PhotoModal({
         {currentUrl && (
           <button
             type="button"
-            onClick={() => onSave(undefined)}
+            onClick={onRemove}
             className="text-mhl-fine font-semibold text-mhl-danger hover:underline"
           >
             Remove current photo
@@ -159,10 +172,18 @@ function PhotoModal({
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
-  const { profile, conditions, updateProfile } = useRecords();
+  const {
+    profile,
+    updateProfile,
+    uploadProfilePhoto,
+    removeProfilePhoto,
+    addEmergencyContact,
+    updateEmergencyContact,
+    removeEmergencyContact,
+  } = useRecords();
   const { meta: modeMeta } = useAppMode();
   const { providers, connections } = useSharing();
-  const { contexts, active } = useContexts();
+  const { pregnancy, updatePregnancy } = useContexts();
   // Everything on this page is the record's own details, so each control checks the
   // same permission: the owner's record, or a full-access proxy's.
   const { canEdit, isProxyView, activeOwnerName, invitedByMe } = useCareProxy();
@@ -177,10 +198,24 @@ export default function Profile() {
   const [contactState, setContactState] = useState<{ id: string | null; draft: ContactDraft } | null>(null);
   const [contactErrors, setContactErrors] = useState<FieldErrors>({});
   const [contactToDelete, setContactToDelete] = useState<EmergencyContact | null>(null);
+  // A save that failed at the API level — shown inside the open dialog.
+  const [modalError, setModalError] = useState<string | null>(null);
 
   const [modeOpen, setModeOpen] = useState(false);
+  const [pregOpen, setPregOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+
+  const pregView = pregnancy ? pregnancyView(pregnancy) : null;
+  const pregLine = pregView
+    ? [
+        pregView.statusLabel,
+        pregView.ageLabel,
+        pregView.dueDateLabel ? `due ${pregView.dueDateLabel}` : null,
+      ]
+        .filter(Boolean)
+        .join("  ·  ")
+    : "";
 
   const age = calcAge(profile.dateOfBirth);
   const bmi = bmiFrom(profile.heightCm, profile.weightKg);
@@ -192,7 +227,7 @@ export default function Profile() {
     profile.phone || profile.city || profile.state || profile.country || profile.address,
   );
 
-  function saveBasics() {
+  async function saveBasics() {
     if (!basicsDraft) return;
     const errs = validateProfileBasics(basicsDraft);
     setBasicsErrors(errs);
@@ -201,37 +236,66 @@ export default function Profile() {
     const patch = profileBasicsToPatch(basicsDraft);
     delete patch.phone;
     delete patch.city;
-    updateProfile(patch);
-    updateUser({ name: basicsDraft.fullName.trim() });
-    setBasicsDraft(null);
+    try {
+      await updateProfile(patch);
+      updateUser({ name: basicsDraft.fullName.trim() });
+      setBasicsDraft(null);
+      setModalError(null);
+    } catch (err) {
+      const details = apiFieldErrors(err);
+      const fieldErrs: FieldErrors = {};
+      if (details.full_name) fieldErrs.fullName = details.full_name;
+      if (details.date_of_birth) fieldErrs.dateOfBirth = details.date_of_birth;
+      if (details.height_cm) fieldErrs.heightCm = details.height_cm;
+      if (details.weightKg) fieldErrs.weightKg = details.weightKg;
+      setBasicsErrors(fieldErrs);
+      setModalError(Object.keys(fieldErrs).length > 0 ? null : apiErrorMessage(err));
+    }
   }
 
-  function saveLocation() {
+  async function saveLocation() {
     if (!locationDraft) return;
-    updateProfile(locationToPatch(locationDraft));
-    setLocationDraft(null);
+    try {
+      await updateProfile(locationToPatch(locationDraft));
+      setLocationDraft(null);
+      setModalError(null);
+    } catch (err) {
+      setModalError(apiErrorMessage(err));
+    }
   }
 
-  function saveContact() {
+  async function saveContact() {
     if (!contactState) return;
     const errs = validateContact(contactState.draft);
     setContactErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    let next: EmergencyContact[];
-    if (contactState.id) {
-      const base = contacts.find((c) => c.id === contactState.id);
-      next = contacts.map((c) =>
-        c.id === contactState.id ? contactFromDraft(contactState.draft, base?.priority ?? c.priority, base) : c,
-      );
-    } else {
-      const priority = contacts.reduce((m, c) => Math.max(m, c.priority), 0) + 1;
-      next = [...contacts, contactFromDraft(contactState.draft, priority)];
+    const base = contactState.id ? contacts.find((c) => c.id === contactState.id) : undefined;
+    const priority = contactState.id
+      ? base?.priority ?? 1
+      : contacts.reduce((m, c) => Math.max(m, c.priority), 0) + 1;
+    const draft = contactFromDraft(contactState.draft, priority, base);
+    try {
+      if (contactState.id) {
+        await updateEmergencyContact(contactState.id, {
+          name: draft.name,
+          relationship: draft.relationship,
+          phone: draft.phone,
+          altPhone: draft.altPhone,
+          language: draft.language,
+          notes: draft.notes,
+        });
+      } else {
+        await addEmergencyContact(draft);
+      }
+      setContactState(null);
+      setModalError(null);
+    } catch (err) {
+      setModalError(apiErrorMessage(err));
     }
-    updateProfile({ emergencyContacts: next });
-    setContactState(null);
   }
 
   function openLocation() {
+    setModalError(null);
     setLocationDraft(locationToDraft(profile));
   }
 
@@ -247,7 +311,10 @@ export default function Profile() {
             {canEdit && (
               <button
                 type="button"
-                onClick={() => setPhotoOpen(true)}
+                onClick={() => {
+                  setModalError(null);
+                  setPhotoOpen(true);
+                }}
                 aria-label="Change photo"
                 className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-mhl-surface bg-mhl-accent text-white transition-colors hover:bg-mhl-accent-strong"
               >
@@ -264,6 +331,7 @@ export default function Profile() {
               variant="secondary"
               icon={<EditIcon size={18} />}
               onClick={() => {
+                setModalError(null);
                 setBasicsDraft(profileToBasicsDraft(profile));
                 setBasicsErrors({});
               }}
@@ -339,6 +407,7 @@ export default function Profile() {
               variant="secondary"
               icon={<PlusIcon size={18} strokeWidth={2.25} />}
               onClick={() => {
+                setModalError(null);
                 setContactState({ id: null, draft: emptyContactDraft() });
                 setContactErrors({});
               }}
@@ -369,6 +438,7 @@ export default function Profile() {
                     <IconButton
                       label={`Edit ${c.name}`}
                       onClick={() => {
+                        setModalError(null);
                         setContactState({ id: c.id, draft: contactToDraft(c) });
                         setContactErrors({});
                       }}
@@ -394,6 +464,7 @@ export default function Profile() {
                 <Button
                   icon={<PlusIcon size={18} strokeWidth={2.25} />}
                   onClick={() => {
+                    setModalError(null);
                     setContactState({ id: null, draft: emptyContactDraft() });
                     setContactErrors({});
                   }}
@@ -451,41 +522,6 @@ export default function Profile() {
         )}
       </Section>
 
-      {/* Condition-aware profiles — the lenses over the record. Kept next to the app-mode
-          section because they answer neighbouring questions: this one is *which
-          condition to read the record through*, the next is *how the app should work*. */}
-      <Section
-        icon={<ConditionIcon size={18} />}
-        question="Which condition should lead?"
-        lead="Read your record through one condition at a time. Nothing is copied, hidden or moved — the full record is always here."
-        action={
-          <Link to="/app/contexts" className={buttonStyles("secondary", "md")}>
-            Manage profiles
-          </Link>
-        }
-      >
-        {contexts.length === 0 ? (
-          <p className="mt-3 rounded-mhl-sm bg-mhl-sunk px-3.5 py-3 text-mhl-fine text-mhl-muted">
-            No profiles opened yet. Open one from a condition already on your record — or set up
-            a pregnancy context.
-          </p>
-        ) : (
-          <div className="mt-2 space-y-1">
-            {contexts.map((ctx) => (
-              <ActionRow
-                key={ctx.id}
-                icon={isPregnancy(ctx) ? <SproutIcon size={20} /> : <ConditionIcon size={20} />}
-                title={contextLabel(ctx, conditions)}
-                subtitle="A condition-aware profile over this record"
-                to={`/app/contexts/${ctx.id}`}
-                trailing={active?.id === ctx.id ? <Tag tone="due">In focus</Tag> : undefined}
-              />
-            ))}
-          </div>
-        )}
-      </Section>
-
-
       {/* Condition-aware mode */}
       <Section
         icon={<SlidersIcon size={18} />}
@@ -516,6 +552,19 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {/* The pregnancy's own dates, editable from here — the rail's mode menu only
+            switches modes, it doesn't edit a profile. */}
+        {pregnancy && canEdit && (
+          <div className="mt-4 border-t border-mhl-rule pt-3.5">
+            <ActionRow
+              icon={<SproutIcon size={20} />}
+              title="Pregnancy details"
+              subtitle={pregLine || "Due date, last period and obstetric history"}
+              onClick={() => setPregOpen(true)}
+            />
+          </div>
+        )}
       </Section>
 
       {/* Data. Export stays with whoever may hold the record (the owner, or a
@@ -555,6 +604,7 @@ export default function Profile() {
         draft={basicsDraft}
         errors={basicsErrors}
         Fields={IdentityFields}
+        error={modalError}
         onChange={(patch) => setBasicsDraft((d) => (d ? { ...d, ...patch } : d))}
         onSave={saveBasics}
         onClose={() => setBasicsDraft(null)}
@@ -567,6 +617,7 @@ export default function Profile() {
         draft={locationDraft}
         errors={{}}
         Fields={LocationFields}
+        error={modalError}
         onChange={(patch) => setLocationDraft((d) => (d ? { ...d, ...patch } : d))}
         onSave={saveLocation}
         onClose={() => setLocationDraft(null)}
@@ -576,10 +627,25 @@ export default function Profile() {
         open={photoOpen}
         name={profile.fullName}
         currentUrl={profile.photoUrl}
+        error={modalError}
         onClose={() => setPhotoOpen(false)}
-        onSave={(url) => {
-          updateProfile({ photoUrl: url });
-          setPhotoOpen(false);
+        onSave={async (file) => {
+          try {
+            await uploadProfilePhoto(file);
+            setPhotoOpen(false);
+            setModalError(null);
+          } catch (err) {
+            setModalError(apiErrorMessage(err));
+          }
+        }}
+        onRemove={async () => {
+          try {
+            await removeProfilePhoto();
+            setPhotoOpen(false);
+            setModalError(null);
+          } catch (err) {
+            setModalError(apiErrorMessage(err));
+          }
         }}
       />
 
@@ -590,6 +656,7 @@ export default function Profile() {
         errors={contactErrors}
         Fields={ContactFields}
         saveLabel={contactState?.id ? "Save changes" : "Add contact"}
+        error={modalError}
         onChange={(patch) => setContactState((s) => (s ? { ...s, draft: { ...s.draft, ...patch } } : s))}
         onSave={saveContact}
         onClose={() => setContactState(null)}
@@ -605,9 +672,12 @@ export default function Profile() {
         }
         confirmLabel="Remove"
         danger
-        onConfirm={() => {
-          if (contactToDelete) {
-            updateProfile({ emergencyContacts: contacts.filter((c) => c.id !== contactToDelete.id) });
+        onConfirm={async () => {
+          if (!contactToDelete) return;
+          try {
+            await removeEmergencyContact(contactToDelete.id);
+          } catch (err) {
+            setModalError(apiErrorMessage(err));
           }
           setContactToDelete(null);
         }}
@@ -615,6 +685,18 @@ export default function Profile() {
       />
 
       <ModeSwitchModal open={modeOpen} onClose={() => setModeOpen(false)} />
+
+      {pregnancy && pregOpen && (
+        <PregnancyModal
+          open
+          current={pregnancy.pregnancy ?? EMPTY_PREGNANCY}
+          onSave={(patch) => {
+            updatePregnancy(pregnancy.id, patch);
+            setPregOpen(false);
+          }}
+          onClose={() => setPregOpen(false)}
+        />
+      )}
 
       <DataExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
 

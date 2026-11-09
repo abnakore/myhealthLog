@@ -68,7 +68,7 @@ export const PROVIDER_ACCESS: { value: ProviderAccess; label: string; hint: stri
   {
     value: "CONTRIBUTE",
     label: "View & fill in",
-    hint: "They can also add results and notes — for after a visit or a lab test.",
+    hint: "They can add and edit records in the parts you pick — nothing outside them.",
   },
 ];
 
@@ -94,6 +94,7 @@ export interface CareProvider {
   access: ProviderAccess;
   shareCode: string;
   pin?: string; // optional 4-digit gate
+  pinEnabled?: boolean; // whether that gate is on for this provider's code
   status: ShareStatus;
   createdAt: string; // ISO
   expiresAt?: string; // ISO — optional auto-expiry

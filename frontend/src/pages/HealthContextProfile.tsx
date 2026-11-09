@@ -31,6 +31,7 @@ import {
 } from "@/types/health";
 import { formatDate, yearOf } from "@/lib/format";
 import type { ReactNode } from "react";
+import { emptyPregnancyContext } from "@/types/context";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Section } from "@/components/ui/Section";
 import { Tag, allergyTone, conditionTone } from "@/components/ui/Tag";
@@ -53,6 +54,9 @@ import {
   PhoneIcon,
   SproutIcon,
 } from "@/components/icons";
+
+/** A stable empty shell, so the details form only re-seeds when it opens. */
+const EMPTY_PREGNANCY = emptyPregnancyContext();
 
 /** A labelled fact in the context overview. */
 function Fact({ label, value }: { label: string; value: ReactNode }) {
@@ -264,10 +268,10 @@ export default function HealthContextProfile() {
         </div>
       </div>
 
-      {pregnancy && (
+      {pregnancy && pregnancyOpen && (
         <PregnancyModal
-          open={pregnancyOpen}
-          current={ctx.pregnancy ?? { status: "ONGOING" }}
+          open
+          current={ctx.pregnancy ?? EMPTY_PREGNANCY}
           onSave={(patch) => {
             updatePregnancy(ctx.id, patch);
             setPregnancyOpen(false);
@@ -343,9 +347,12 @@ function PregnancyOverview({
         <Fact
           label="Gestational age"
           value={
-            pregnancy.ageLabel ?? (
+            pregnancy.ageLabel ??
+            (pregnancy.statusLabel !== "Ongoing" ? (
+              pregnancy.statusLabel
+            ) : (
               <span className="text-mhl-muted">Add a date to work this out</span>
-            )
+            ))
           }
         />
         <Fact label="Estimated due date" value={pregnancy.dueDateLabel} />

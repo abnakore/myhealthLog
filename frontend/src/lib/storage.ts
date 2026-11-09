@@ -1,23 +1,27 @@
 /**
- * The mock persistence layer. Everything the app lets you change — profile, records,
- * app mode, sharing — is JSON-serialisable, so it survives a refresh in localStorage
- * here and swaps to real API reads/writes when the Django/DRF backend lands.
+ * Storage utilities.
  *
- * Keys are namespaced `mhl.*` and versioned. Bump SCHEMA_VERSION when a stored shape
- * changes so a returning demo falls back to a fresh seed instead of choking on stale
- * data. Auth owns its own key ("mhl.auth.user") and predates this — it's left alone.
- * Writes are wrapped: a full quota or private-mode throw is non-fatal, the app just
- * runs for that session without persisting.
+ * The app is backed by the real Django/DRF API — clinical data (records, profile,
+ * sharing, proxy grants) lives in the database, not localStorage.
+ *
+ * This module retains:
+ *  - `loadJSON` / `saveJSON` / `storageKey` — still imported by lib/emergency.ts
+ *    and lib/providerAccess.ts (kept for the URL/path helpers those files export)
+ *  - `usePersistentState` — used by AppModeContext for UI-mode preferences
+ *
+ * `resetDemoData` is kept as a no-op stub so Profile.tsx compiles without change;
+ * the "Reset to sample data" UI button is hidden because there is no more demo data.
  */
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 const SCHEMA_VERSION = "v3";
 
-/** Namespaced, versioned key for a stored slice, e.g. storageKey("profile") → "mhl.profile.v1". */
+/** Namespaced, versioned localStorage key, e.g. storageKey("mode") → "mhl.mode.v3" */
 export function storageKey(name: string): string {
   return `mhl.${name}.${SCHEMA_VERSION}`;
 }
 
+/** Load JSON from localStorage, returning `fallback` on any error. */
 export function loadJSON<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(key);
@@ -28,47 +32,42 @@ export function loadJSON<T>(key: string, fallback: T): T {
   }
 }
 
+/** Write JSON to localStorage — silently swallows quota / private-mode errors. */
 export function saveJSON(key: string, value: unknown): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    /* quota exceeded or storage unavailable — carry on without persistence */
+    /* quota exceeded or storage unavailable — non-fatal */
   }
 }
 
 /**
- * `useState`, mirrored to localStorage under a namespaced, versioned key. First mount
- * reads the stored value (or the seed if there's nothing yet); every change writes back.
+ * Lightweight persistent state for UI preferences (app mode, active context id)
+ * that should survive a page refresh but are NOT health data.
+ *
+ * Do NOT use this for clinical data — that belongs in the API-backed stores.
  */
 export function usePersistentState<T>(
-  name: string,
+  key: string,
   initial: T | (() => T),
 ): [T, Dispatch<SetStateAction<T>>] {
-  const key = storageKey(name);
   const [state, setState] = useState<T>(() => {
     const seed = typeof initial === "function" ? (initial as () => T)() : initial;
     return loadJSON(key, seed);
   });
+
   useEffect(() => {
     saveJSON(key, state);
   }, [key, state]);
+
   return [state, setState];
 }
 
 /**
- * Wipe everything this app has persisted (records, profile, mode, sharing) while
- * keeping the sign-in (auth key) intact, then let the caller reload to reseed from
- * the demo data. The prefix sweep means new slices are covered automatically.
+ * No-op stub — kept so existing Profile.tsx code compiles without changes.
+ * The "Reset to sample data" button is hidden by the Profile page since there
+ * is no longer any demo data to reset to.
  */
 export function resetDemoData(): void {
-  try {
-    const doomed: string[] = [];
-    for (let i = 0; i < localStorage.length; i += 1) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith("mhl.") && !k.startsWith("mhl.auth.")) doomed.push(k);
-    }
-    doomed.forEach((k) => localStorage.removeItem(k));
-  } catch {
-    /* storage unavailable — nothing to reset */
-  }
+  // Nothing to reset — data lives in the backend database now.
 }

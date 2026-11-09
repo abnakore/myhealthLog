@@ -1,14 +1,13 @@
 /**
- * The sharing & safety store — care providers, connected apps, and emergency-card
- * settings. Seeded from the demo data and mirrored to localStorage so grants,
- * connections and toggles survive a refresh (the mock stand-in for the backend's
- * Share / Consent tables). When the DRF backend lands, these mutators become the API
- * calls and the seed goes away; the component API (useSharing) stays the same.
+ * Sharing & safety store — backed by the real API.
  *
- * Emergency settings are keyed by person, not held once: the code belongs to the
- * record it opens, so `emergency` is the card of whoever the app is showing — which
- * is what lets a proxy see their relative's real card while only the owner can change
- * it. Care proxy access itself lives in its own store (store/CareProxyContext.tsx).
+ * Manages:
+ *  - Care providers (share codes)
+ *  - Emergency settings (token, PIN, toggles)
+ *
+ * Note: The "Connections" feature (Samsung Health etc.) remains a local-only
+ * mock because there is no real integration backend. That section of the UI
+ * is clearly labelled as a demo.
  */
 import {
   createContext,
@@ -16,82 +15,149 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useState,
   type ReactNode,
 } from "react";
-import type { CareProvider, Connection, EmergencySettings } from "@/types/sharing";
-import { defaultEmergencySettings, emergencySettingsFor } from "@/lib/emergency";
-import { usePersistentState } from "@/lib/storage";
-import { useCareProxy } from "@/store/CareProxyContext";
-import { demoConnections, demoEmergencySettingsByOwner, demoProviders } from "@/data/mock";
+import { useAuth } from "@/auth/AuthContext";
+import type { CareProvider, EmergencySettings, Connection } from "@/types/sharing";
+import {
+  fetchProviders,
+  createProvider as apiCreateProvider,
+  resetProviderPin as apiResetProviderPin,
+  removeProviderPin as apiRemoveProviderPin,
+  revokeProvider as apiRevokeProvider,
+  deleteProvider as apiDeleteProvider,
+  fetchEmergencySettings,
+  updateEmergencySettings as apiUpdateEmergency,
+  regenerateEmergencyToken as apiRegenerateToken,
+  type CreateProviderParams,
+  type CreateProviderResult,
+} from "@/services/sharing";
+import { defaultEmergencySettings } from "@/lib/emergency";
+import { apiErrorMessage } from "@/services/api";
 
 interface SharingContextValue {
   providers: CareProvider[];
   connections: Connection[];
-  /** The emergency card of the record currently on screen. */
   emergency: EmergencySettings;
+  isLoading: boolean;
+  error: string | null;
 
-  addProvider: (provider: CareProvider) => void;
-  updateProvider: (id: string, patch: Partial<CareProvider>) => void;
-  removeProvider: (id: string) => void;
+  // Provider operations
+  addProvider: (params: CreateProviderParams) => Promise<CreateProviderResult>;
+  resetProviderPin: (id: string, pin: string) => Promise<void>;
+  removeProviderPin: (id: string) => Promise<void>;
+  revokeProvider: (id: string) => Promise<void>;
+  removeProvider: (id: string) => Promise<void>;
 
+  // Emergency operations
+  updateEmergency: (patch: Partial<EmergencySettings>) => Promise<void>;
+  regenerateToken: () => Promise<EmergencySettings>;
+
+  // Connections (local mock — no real backend integration)
   isConnected: (sourceId: string) => boolean;
   connect: (sourceId: string) => void;
   disconnect: (sourceId: string) => void;
   syncConnection: (sourceId: string) => void;
-
-  /** Writes to the signed-in user's own card — the only one they may change. */
-  updateEmergency: (patch: Partial<EmergencySettings>) => void;
 }
 
 const SharingContext = createContext<SharingContextValue | null>(null);
 
-/** Every emergency-settings write stamps `updatedAt`, so "Last updated" is always true. */
-function withStamp(patch: Partial<EmergencySettings>): Partial<EmergencySettings> {
-  return { ...patch, updatedAt: new Date().toISOString() };
-}
-
 export function SharingProvider({ children }: { children: ReactNode }) {
-  const { activeOwnerId, selfId } = useCareProxy();
-  const [providers, setProviders] = usePersistentState<CareProvider[]>(
-    "sharing.providers",
-    () => demoProviders,
-  );
-  const [connections, setConnections] = usePersistentState<Connection[]>(
-    "sharing.connections",
-    () => demoConnections,
-  );
-  const [emergencyByOwner, setEmergencyByOwner] = usePersistentState<
-    Record<string, EmergencySettings>
-  >("sharing.emergency", () => demoEmergencySettingsByOwner);
+  const { isAuthed } = useAuth();
 
-  // A record that has never had a card gets one the moment it's opened, and it is
-  // written straight away: the token shown must be the token the public view will
-  // validate, or the QR on screen would lead nowhere.
+  const [providers, setProviders] = useState<CareProvider[]>([]);
+  const [emergency, setEmergency] = useState<EmergencySettings>(defaultEmergencySettings);
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ---------------------------------------------------------------------------
+  // Load on auth
+  // ---------------------------------------------------------------------------
   useEffect(() => {
-    setEmergencyByOwner((prev) =>
-      prev[activeOwnerId] ? prev : { ...prev, [activeOwnerId]: defaultEmergencySettings() },
-    );
-  }, [activeOwnerId, setEmergencyByOwner]);
+    if (!isAuthed) {
+      setProviders([]);
+      setEmergency(defaultEmergencySettings());
+      return;
+    }
+    setIsLoading(true);
+    Promise.all([fetchProviders(), fetchEmergencySettings()])
+      .then(([provs, settings]) => {
+        setProviders(provs);
+        setEmergency(settings);
+      })
+      .catch((err) => setError(apiErrorMessage(err)))
+      .finally(() => setIsLoading(false));
+  }, [isAuthed]);
 
-  // Until that write lands, a stable stand-in — recomputed only when the owner (or
-  // the persisted map) changes, so the code on screen doesn't churn between renders.
-  const emergency = useMemo(
-    () => emergencyByOwner[activeOwnerId] ?? defaultEmergencySettings(),
-    [emergencyByOwner, activeOwnerId],
+  // ---------------------------------------------------------------------------
+  // Provider operations
+  // ---------------------------------------------------------------------------
+
+  const addProvider = useCallback(
+    async (params: CreateProviderParams): Promise<CreateProviderResult> => {
+      const result = await apiCreateProvider(params);
+      setProviders((prev) => [result.provider, ...prev]);
+      return result;
+    },
+    [],
   );
 
-  // New grants go to the front so a just-created share is visible without scrolling.
-  const addProvider = useCallback((provider: CareProvider) => {
-    setProviders((prev) => [provider, ...prev]);
+  const resetProviderPin = useCallback(async (id: string, pin: string) => {
+    const updated = await apiResetProviderPin(id, pin);
+    setProviders((prev) => prev.map((p) => (p.id === id ? updated : p)));
   }, []);
 
-  const updateProvider = useCallback((id: string, patch: Partial<CareProvider>) => {
-    setProviders((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  const removeProviderPin = useCallback(async (id: string) => {
+    const updated = await apiRemoveProviderPin(id);
+    setProviders((prev) => prev.map((p) => (p.id === id ? updated : p)));
   }, []);
 
-  const removeProvider = useCallback((id: string) => {
+  const revokeProvider = useCallback(async (id: string) => {
+    const updated = await apiRevokeProvider(id);
+    setProviders((prev) => prev.map((p) => (p.id === id ? updated : p)));
+  }, []);
+
+  const removeProvider = useCallback(async (id: string) => {
+    await apiDeleteProvider(id);
     setProviders((prev) => prev.filter((p) => p.id !== id));
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Emergency operations
+  // ---------------------------------------------------------------------------
+
+  const updateEmergency = useCallback(async (patch: Partial<EmergencySettings>) => {
+    // Map frontend camelCase to backend snake_case
+    const backendPatch: Record<string, unknown> = {};
+    if (patch.pinEnabled !== undefined)     backendPatch.pin_enabled = patch.pinEnabled;
+    if (patch.pin !== undefined && patch.pin) backendPatch.pin = patch.pin;
+    if (!patch.pinEnabled && patch.pinEnabled !== undefined) {
+      backendPatch.pin_enabled = false;
+    }
+    if (patch.showBloodType !== undefined)  backendPatch.show_blood_type = patch.showBloodType;
+    if (patch.showAllergies !== undefined)  backendPatch.show_allergies = patch.showAllergies;
+    if (patch.showMedications !== undefined) backendPatch.show_medications = patch.showMedications;
+    if (patch.showConditions !== undefined) backendPatch.show_conditions = patch.showConditions;
+    if (patch.showContacts !== undefined)   backendPatch.show_contacts = patch.showContacts;
+    if (patch.showNote !== undefined)       backendPatch.show_note = patch.showNote;
+    if (patch.note !== undefined)           backendPatch.note = patch.note;
+
+    const updated = await apiUpdateEmergency(backendPatch as never);
+    // Preserve the token we have (backend doesn't return it on PATCH)
+    setEmergency((prev) => ({ ...updated, token: prev.token }));
+  }, []);
+
+  const regenerateToken = useCallback(async (): Promise<EmergencySettings> => {
+    const updated = await apiRegenerateToken();
+    setEmergency(updated);
+    return updated;
+  }, []);
+
+  // ---------------------------------------------------------------------------
+  // Connections (local mock)
+  // ---------------------------------------------------------------------------
 
   const isConnected = useCallback(
     (sourceId: string) => connections.some((c) => c.sourceId === sourceId),
@@ -113,45 +179,34 @@ export function SharingProvider({ children }: { children: ReactNode }) {
 
   const syncConnection = useCallback((sourceId: string) => {
     const now = new Date().toISOString();
-    setConnections((prev) => prev.map((c) => (c.sourceId === sourceId ? { ...c, lastSync: now } : c)));
+    setConnections((prev) =>
+      prev.map((c) => (c.sourceId === sourceId ? { ...c, lastSync: now } : c)),
+    );
   }, []);
-
-  const updateEmergency = useCallback(
-    (patch: Partial<EmergencySettings>) => {
-      setEmergencyByOwner((prev) => ({
-        ...prev,
-        [selfId]: { ...emergencySettingsFor(prev, selfId), ...withStamp(patch) },
-      }));
-    },
-    [selfId, setEmergencyByOwner],
-  );
 
   const value = useMemo<SharingContextValue>(
     () => ({
       providers,
       connections,
       emergency,
+      isLoading,
+      error,
       addProvider,
-      updateProvider,
+      resetProviderPin,
+      removeProviderPin,
+      revokeProvider,
       removeProvider,
+      updateEmergency,
+      regenerateToken,
       isConnected,
       connect,
       disconnect,
       syncConnection,
-      updateEmergency,
     }),
     [
-      providers,
-      connections,
-      emergency,
-      addProvider,
-      updateProvider,
-      removeProvider,
-      isConnected,
-      connect,
-      disconnect,
-      syncConnection,
-      updateEmergency,
+      providers, connections, emergency, isLoading, error,
+      addProvider, resetProviderPin, removeProviderPin, revokeProvider, removeProvider, updateEmergency, regenerateToken,
+      isConnected, connect, disconnect, syncConnection,
     ],
   );
 

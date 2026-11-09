@@ -232,6 +232,24 @@ p {
   min-height: 44px;
 }
 
+/* …but a switch is a switch: it is already a large target at 44×24, and stretching
+   it to the 44px minimum turned the track into a circle. Keep its own shape and
+   give it a slightly bigger track and thumb for older hands. */
+[data-mode="elderly"] button[role="switch"] {
+  min-height: 0;
+  width: 3rem;
+  height: 1.75rem;
+}
+
+[data-mode="elderly"] button[role="switch"] > span {
+  width: 1.375rem;
+  height: 1.375rem;
+}
+
+[data-mode="elderly"] button[role="switch"][aria-checked="true"] > span {
+  transform: translateX(1.5rem);
+}
+
 /* Mode banner entrance — settles in rather than snapping. */
 @keyframes mhl-banner-in {
   from {
@@ -246,6 +264,103 @@ p {
 
 .mhl-mode-banner {
   animation: mhl-banner-in 300ms var(--ease-mhl) both;
+}
+
+/* ------------------------------------------------- mode transition beat -- */
+/* A mode switch re-sorts the home screen. This overlay covers the reflow in the
+   arriving mode's own colour: the mark pops, the name and its one line rise in
+   order, a ring breathes out, and a thin rule slides to read as "sorting". */
+@keyframes mhl-trans-in {
+  from {
+    opacity: 0.001;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes mhl-trans-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes mhl-trans-pop {
+  from {
+    opacity: 0.001;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes mhl-trans-rise {
+  from {
+    opacity: 0.001;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mhl-trans-ring {
+  0% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+
+@keyframes mhl-trans-slide {
+  from {
+    transform: translateX(-110%);
+  }
+  to {
+    transform: translateX(240%);
+  }
+}
+
+.mhl-trans {
+  animation: mhl-trans-in 300ms var(--ease-mhl) both;
+}
+
+.mhl-trans[data-phase="out"] {
+  animation: mhl-trans-out 400ms var(--ease-mhl) both;
+}
+
+.mhl-trans-mark {
+  animation: mhl-trans-pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.16) both;
+}
+
+.mhl-trans-line {
+  animation: mhl-trans-rise 460ms var(--ease-mhl) both;
+}
+
+.mhl-trans-line-2 {
+  animation-delay: 70ms;
+}
+
+.mhl-trans-line-3 {
+  animation-delay: 150ms;
+}
+
+.mhl-trans-ring {
+  animation: mhl-trans-ring 1500ms ease-out 280ms infinite;
+}
+
+.mhl-trans-bar {
+  animation: mhl-trans-slide 1150ms ease-in-out infinite;
 }
 
 @keyframes mhl-rise {
@@ -310,9 +425,11 @@ p {
     background: var(--color-mhl-sunk);
   }
 
+  /* A quiet card link is text, so hover changes the text — not a halo. A shadow
+     under a two-word link reads as a stray pill and, in Elderly mode, as a box the
+     user never asked for. */
   .mhl-dash .mhl-cardlink:hover {
-    border-color: var(--color-mhl-faint);
-    box-shadow: 0 8px 22px -14px oklch(0.45 0.05 60);
+    color: var(--color-mhl-accent-strong);
   }
 
   .mhl-dash .mhl-chip:hover {
@@ -409,32 +526,56 @@ p {
 /* ---- per-mode theme: same tokens, retinted accent + background ---- */
 /* Normal / pregnancy / critical share the warm coral system; elderly goes sage. */
 [data-mode="elderly"] {
-  --color-mhl-bg: oklch(0.95 0.018 140);
-  --color-mhl-surface: oklch(0.995 0.006 140);
-  --color-mhl-sunk: oklch(0.955 0.02 140);
-  --color-mhl-rule: oklch(0.885 0.02 140);
-  --color-mhl-accent: oklch(0.445 0.1 155);
-  --color-mhl-accent-strong: oklch(0.375 0.095 155);
-  --color-mhl-accent-lo: oklch(0.94 0.045 155);
+  /* The sage reference: a light grey-green rail, a near-white paper, and a
+     deep forest accent dark enough to carry white text on the filled buttons. */
+  --color-mhl-bg: oklch(0.972 0.008 140);
+  --color-mhl-surface: oklch(0.997 0.004 135);
+  --color-mhl-rail: oklch(0.962 0.01 135);
+  --color-mhl-sunk: oklch(0.958 0.014 135);
+  --color-mhl-rule: oklch(0.9 0.016 140);
+  --color-mhl-accent: oklch(0.43 0.07 155);
+  --color-mhl-accent-strong: oklch(0.36 0.062 155);
+  --color-mhl-accent-lo: oklch(0.935 0.032 152);
+  --color-mhl-accent-mid: oklch(0.83 0.06 152);
 }
 [data-mode="pregnancy"] {
-  --color-mhl-bg: oklch(0.947 0.022 60);
-  --color-mhl-accent: oklch(0.55 0.145 28);
-  --color-mhl-accent-strong: oklch(0.48 0.14 28);
-  --color-mhl-accent-lo: oklch(0.955 0.032 30);
+  /* The peach reference: a warm blush paper, a terracotta accent. */
+  --color-mhl-bg: oklch(0.962 0.013 45);
+  --color-mhl-surface: oklch(0.998 0.005 50);
+  --color-mhl-rail: oklch(0.995 0.004 50);
+  --color-mhl-sunk: oklch(0.958 0.016 48);
+  --color-mhl-rule: oklch(0.915 0.016 45);
+  --color-mhl-accent: oklch(0.54 0.115 33);
+  --color-mhl-accent-strong: oklch(0.47 0.11 33);
+  --color-mhl-accent-lo: oklch(0.945 0.035 35);
+  --color-mhl-accent-mid: oklch(0.83 0.08 38);
 }
 [data-mode="critical"] {
-  --color-mhl-bg: oklch(0.945 0.023 60);
-  --color-mhl-accent: oklch(0.52 0.165 25);
-  --color-mhl-accent-strong: oklch(0.45 0.155 25);
+  /* The rose reference: a faint pink paper, a deep clinical red. */
+  --color-mhl-bg: oklch(0.962 0.012 25);
+  --color-mhl-surface: oklch(0.998 0.005 25);
+  --color-mhl-rail: oklch(0.988 0.006 25);
+  --color-mhl-sunk: oklch(0.955 0.016 25);
+  --color-mhl-rule: oklch(0.912 0.016 25);
+  --color-mhl-accent: oklch(0.46 0.155 23);
+  --color-mhl-accent-strong: oklch(0.395 0.145 23);
+  --color-mhl-accent-lo: oklch(0.945 0.035 22);
+  --color-mhl-accent-mid: oklch(0.83 0.09 25);
 }
 
-/* Emergency card surfaces per mode */
+/* Emergency card surfaces per mode — the references invert to a dark tint of
+   the mode's own accent (forest for Elderly, charcoal-rose elsewhere). */
+.mhl-emerg-card {
+  background: oklch(0.195 0.025 40);
+}
 [data-mode="elderly"] .mhl-emerg-card {
   background: oklch(0.235 0.05 155);
 }
-.mhl-emerg-card {
-  background: oklch(0.195 0.025 40);
+[data-mode="critical"] .mhl-emerg-card {
+  background: oklch(0.19 0.018 25);
+}
+[data-mode="pregnancy"] .mhl-emerg-card {
+  background: oklch(0.195 0.02 35);
 }
 
 /* Sidebar illustration wash */

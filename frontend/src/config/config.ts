@@ -9,6 +9,15 @@ export const API_BASE_URL: string =
   (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
 
 /**
+ * Google OAuth client ID for Sign in with Google. Google Identity Services
+ * needs it to render its button and to mint the ID token the backend verifies.
+ * When it is unset the auth pages say so instead of mounting a provider with
+ * an empty client ID (which fails at runtime).
+ */
+export const GOOGLE_CLIENT_ID: string | undefined =
+  (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim() || undefined;
+
+/**
  * The origin absolute links should point at — currently only the emergency URL a
  * responder scans off a printed card. Left unset it falls back to the origin the app
  * is being served from, which is right for a phone scanning a card printed at home;
