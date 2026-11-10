@@ -1,3 +1,5 @@
+import { RecordSearch } from "@/components/search/RecordSearch";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/auth/AuthContext";
@@ -41,7 +43,6 @@ import {
 } from "@/components/dashboard/parts";
 import {
   AllergyIcon,
-  BellIcon,
   CalendarIcon,
   ChevronRightIcon,
   ClockIcon,
@@ -52,7 +53,6 @@ import {
   MoonIcon,
   PlusIcon,
   PillIcon,
-  SearchIcon,
   SunIcon,
   VitalsIcon,
 } from "@/components/icons";
@@ -200,23 +200,8 @@ export default function Dashboard() {
           </div>
 
           <div className="flex w-full flex-none flex-wrap items-center gap-2 sm:w-auto sm:flex-nowrap sm:justify-end">
-            <label className="hidden min-h-11 w-52 min-w-0 cursor-text items-center gap-2 rounded-[0.7rem] border border-mhl-rule bg-mhl-surface px-3.5 text-mhl-faint transition-colors focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/30 sm:flex lg:w-60">
-              <span className="sr-only">Search your records</span>
-              <SearchIcon size={17} />
-              <input
-                type="search"
-                placeholder="Search your records…"
-                className="min-w-0 flex-1 bg-transparent text-mhl-fine text-mhl-ink outline-none placeholder:text-mhl-faint"
-              />
-            </label>
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="relative grid h-11 w-11 flex-none place-items-center rounded-full text-mhl-muted transition-colors hover:bg-mhl-sunk hover:text-mhl-ink"
-            >
-              <BellIcon size={21} />
-              <span className="absolute right-2.5 top-2.5 h-[0.45rem] w-[0.45rem] rounded-full bg-mhl-accent shadow-[0_0_0_2px_var(--color-mhl-bg)]" />
-            </button>
+            <RecordSearch className="order-last w-full sm:order-none sm:w-52 lg:w-60" />
+            <NotificationBell className="h-11 w-11" />
             {/* The reference's top-right corner: search, bell, the person. */}
             <Link
               to="/app/profile"
