@@ -32,5 +32,7 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 # No throttling in dev
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
-# Debug toolbar
-DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda request: True}
+# Debug toolbar: on for Django's own pages (admin, browsable views), never on
+# the API. It injects itself into any HTML response, which would end up inside
+# downloaded files such as the clinical summary export.
+DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda request: not request.path.startswith("/api/")}
