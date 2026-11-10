@@ -136,6 +136,8 @@ export function apiFieldErrors(err: unknown): Record<string, string> {
 
 /** Extract a user-friendly error message from an AxiosError. */
 export function apiErrorMessage(err: unknown): string {
+  // Errors raised on purpose by the app carry a message meant for the person.
+  if (err instanceof Error && err.name === "DocumentCheckCancelled") return err.message;
   if (!axios.isAxiosError(err)) return "An unexpected error occurred.";
   const data = err.response?.data as Record<string, unknown> | undefined;
   const status = err.response?.status;

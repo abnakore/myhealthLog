@@ -14,8 +14,8 @@ Key design decisions:
 
   3. Scope guardrail: questions outside the scope of health or requiring acute
      clinical diagnosis trigger a disclaimer directing the user to a qualified
-     professional.  The disclaimer wording is hard-coded so it is not something
-     Gemini can choose to omit.
+     professional.  The exact disclaimer wording is given in the system prompt;
+     it is an instruction to the model, not text appended by this code.
 
   4. This service does NOT store conversation history server-side.  The
      frontend sends the conversation history with every request.  This keeps the
@@ -162,7 +162,7 @@ def _build_personal_context(user) -> str:
 
     flags = _safety_flags(user, active_meds, allergies, recent_vitals, labs)
     if flags:
-        lines.append("SAFETY FLAGS (computed by fixed clinical rules — always address these when relevant):")
+        lines.append("SAFETY FLAGS (from official drug sources and guideline thresholds; always address these when relevant):")
         lines.extend(f"  - {f}" for f in flags)
 
     if not lines:
@@ -170,66 +170,49 @@ def _build_personal_context(user) -> str:
     return "\n".join(lines)
 
 
-# The drug classes and allergy aliases live in apps.core.clinical_rules so the
-# Copilot and the record review apply exactly the same rules.
-from apps.core.clinical_rules import ALLERGY_ALIASES as _ALIASES  # noqa: E402
-from apps.core.clinical_rules import DRUG_CLASSES as _DRUG_CLASSES  # noqa: E402
-from apps.core.clinical_rules import med_class as _med_class  # noqa: E402
-
-
 def _safety_flags(user, meds, allergies, vitals, labs) -> list[str]:
-    import re
+    """
+    What the deterministic checks found, for the AI to respect.
+
+    Medicines: the stored record review of each current medicine, whose checks
+    come from official sources (RxNorm, MED-RT, FDA labels; see
+    apps.records.review). Readings: the latest of each kind against published
+    guideline thresholds (apps.core.clinical_rules.reading_band).
+    """
+    from apps.core import clinical_rules as rules
+    from apps.records.models import RecordReview
 
     flags: list[str] = []
-    allergy_classes = {}
-    for a in allergies:
-        for word in re.split(r"[^a-z]+", a.substance.lower()):
-            if word in _ALIASES:
-                allergy_classes.setdefault(_ALIASES[word], a.substance)
-    for m in meds:
-        cls = _med_class(m.name)
-        for a in allergies:
-            if a.substance.lower() in m.name.lower():
-                flags.append(f"Currently listed medicine {m.name} matches the {a.substance} allergy.")
-        if cls and cls in allergy_classes:
-            flags.append(
-                f"{m.name} is a {cls}; the patient is allergic to {allergy_classes[cls]}. Tell them to confirm with the prescriber urgently."
-            )
-    for cls, substance in allergy_classes.items():
-        flags.append(f"Never suggest any {cls} ({', '.join(_DRUG_CLASSES.get(cls, [])[:4])}…): allergy to {substance}.")
+    reviews = RecordReview.objects.filter(user=user, record_type="medication", record_id__in=[m.pk for m in meds])
+    for review in reviews:
+        for f in review.findings or []:
+            if f.get("level") in ("critical", "warning"):
+                flags.append(f"{f['title']}: {f['detail']} (source: {f.get('source') or f.get('rule')})")
 
-    kidney = any(re.search(r"kidney|renal|ckd|nephr", c.name.lower()) for c in user.conditions.exclude(status="RESOLVED"))
-    kidney = kidney or any(f["metric"].lower().startswith(("egfr", "creatinine")) for f in labs)
-    if kidney:
-        flags.append("Reduced kidney function on record: NSAIDs (ibuprofen, diclofenac, naproxen) should be avoided; paracetamol is usually the safer painkiller. Metformin dosing depends on kidney function.")
-
-    latest_bp = next((v for v in vitals if v.vital_type == "BLOOD_PRESSURE"), None)
-    if latest_bp is not None:
-        sys, dia = float(latest_bp.value), float(latest_bp.value2 or 0)
-        if sys >= 180 or dia >= 120:
-            flags.append(f"Latest BP {sys:g}/{dia:g} is in the hypertensive-crisis range: advise urgent medical review, especially with headache, chest pain, vision change or confusion. NSAIDs can raise BP further.")
-        elif sys >= 140 or dia >= 90:
-            flags.append(f"Latest BP {sys:g}/{dia:g} is high: NSAIDs and decongestants can raise it further.")
     try:
         from apps.contexts.focus import current_pregnancy, pregnancy_weeks
-        from apps.core.clinical_rules import medication_findings
 
         preg = current_pregnancy(user)
     except Exception:
         preg = None
+    diabetic = user.conditions.exclude(status="RESOLVED").filter(name__icontains="diabet").exists()
+    seen: set[str] = set()
+    for v in vitals:
+        if v.vital_type in seen:
+            continue
+        seen.add(v.vital_type)
+        band = rules.reading_band(v.vital_type, float(v.value), float(v.value2) if v.value2 is not None else None,
+                                  v.unit, pregnant=preg is not None, diabetic=diabetic)
+        if band and band.level in ("critical", "warning"):
+            flags.append(f"Latest reading: {band.title}. {band.detail} (source: {band.source})")
     if preg is not None:
         weeks = pregnancy_weeks(preg.pregnancy_data)
         flags.append(
             "The patient is pregnant" + (f" (about {weeks} weeks)" if weeks is not None else "")
-            + ": check every medicine, supplement and reading against pregnancy, and suggest asking the doctor or midwife."
+            + ": consider pregnancy for every medicine, supplement and reading, and suggest asking the doctor or "
+            "midwife."
         )
-        for m in meds:
-            for f in medication_findings(m, allergies=[], conditions=[], pregnant=True, pregnancy_weeks=weeks):
-                if f.rule.startswith("pregnancy."):
-                    flags.append(f"{f.title}: {f.detail}")
-    if any(f["metric"].lower().startswith("potassium") and f["status"] in ("high", "critical") for f in labs):
-        flags.append("High potassium on record: avoid potassium supplements/salt substitutes; ACE inhibitors and NSAIDs can raise potassium.")
-    return flags
+    return list(dict.fromkeys(flags))
 
 
 class CopilotService:

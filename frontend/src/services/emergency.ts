@@ -5,73 +5,6 @@
 import { api } from "./api";
 
 // ---------------------------------------------------------------------------
-// AI Dynamic Summary (authenticated)
-// ---------------------------------------------------------------------------
-
-export interface AiEmergencyOverview {
-  patient_name: string;
-  age: number | null;
-  gender: string | null;
-  blood_type: string | null;
-  genotype: string | null;
-  overall_triage_status: "stable" | "warning" | "critical";
-  ai_paramedic_note: string;
-}
-
-export interface AiEmergencyContact {
-  name: string;
-  relation: string;
-  phone: string;
-}
-
-export interface AiPrioritizedItem {
-  name?: string;
-  reaction?: string;
-  severity?: string;
-  since?: string;
-  dose?: string;
-  frequency?: string;
-  metric?: string;
-  value?: string;
-  recorded?: string;
-  notes?: string;
-  title?: string;
-  type?: string;
-  date?: string;
-  [key: string]: string | undefined;
-}
-
-export interface AiPrioritizedSection {
-  priority_rank: number;
-  module_type:
-    | "critical_allergies"
-    | "active_conditions"
-    | "critical_medications"
-    | "vital_signs"
-    | "critical_documents";
-  title: string;
-  urgency_level: "critical" | "warning" | "info";
-  items: AiPrioritizedItem[];
-}
-
-export interface AiDynamicSummary {
-  emergency_overview: AiEmergencyOverview;
-  core_essentials: {
-    emergency_contacts: AiEmergencyContact[];
-  };
-  ai_prioritized_sections: AiPrioritizedSection[];
-}
-
-export async function fetchAiSummary(): Promise<AiDynamicSummary> {
-  const res = await api.get<AiDynamicSummary>("/v1/emergency/dynamic-ai-summary/");
-  return res.data;
-}
-
-export async function invalidateAiSummary(): Promise<void> {
-  await api.post("/v1/emergency/dynamic-ai-summary/invalidate/");
-}
-
-// ---------------------------------------------------------------------------
 // Public Emergency Card (unauthenticated)
 // ---------------------------------------------------------------------------
 
@@ -124,6 +57,19 @@ export interface EmergencySummary {
   /** The owner's ranked care focus (pregnancy and conditions; elderly care is
       left out on the server). Empty when conditions are hidden on the card. */
   careFocus?: Array<{ kind: "pregnancy" | "condition"; label: string; rank: number; reason: string }>;
+  /** Serious findings of the automatic check of each current medicine (allergy
+      clashes, contraindications, interactions from official drug sources). */
+  medicineFlags?: MedicineFlag[];
+}
+
+/** One serious finding about a current medicine (backend apps/emergency/services.medicine_flags). */
+export interface MedicineFlag {
+  medication: string;
+  level: "critical" | "warning";
+  title: string;
+  detail: string;
+  rule: string;
+  source: string;
 }
 
 export interface StaticEmergencyCard {

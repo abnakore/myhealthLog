@@ -2,9 +2,10 @@
  * RecordReviewPanel: what the automatic review found for this record.
  *
  * Three parts, in the order the backend produces them (apps/records/review.py):
- *   1. Safety checks from fixed rules: allergy clashes, medicine cautions for the
- *      person's conditions and pregnancy, readings in a danger band or that look
- *      like a typing mistake. Each one names the rule behind it.
+ *   1. Safety checks: allergy clashes, contraindications and interactions from
+ *      official drug sources (RxNorm, MED-RT, the FDA label, quoted), and
+ *      readings outside published guideline thresholds or that look like a
+ *      typing mistake. Each one names its source and rule.
  *   2. Differences between the form and the attached document, with a one-tap
  *      "use the document's value" when the document has a clear value.
  *   3. A short AI note, clearly labelled, which explains but never overrides 1.
@@ -140,7 +141,8 @@ export function RecordReviewPanel({
         <div>
           <h2 id="review-title" className="text-mhl-card font-bold text-mhl-ink">Record check</h2>
           <p className="mt-0.5 text-mhl-fine text-mhl-muted">
-            Safety rules first, then a short AI note. This is information, not medical advice.
+            Checks against official drug sources and guidelines, then a short AI note. This is information, not
+            medical advice.
           </p>
         </div>
         {canEdit && (
@@ -164,7 +166,7 @@ export function RecordReviewPanel({
 
       {!none && !pending && findings.length === 0 && mismatches.length === 0 && (
         <p className="mt-4 flex items-center gap-2 text-mhl-fine font-semibold text-mhl-good">
-          <CheckIcon size={16} /> No problems found by the safety rules.
+          <CheckIcon size={16} /> No problems found by the safety checks.
         </p>
       )}
 
@@ -181,7 +183,14 @@ export function RecordReviewPanel({
                   <span className="text-mhl-body font-semibold text-mhl-ink">{f.title}</span>
                 </div>
                 <p className="mt-1 text-mhl-fine text-mhl-ink">{f.detail}</p>
-                <p className="mt-1 text-[0.7rem] text-mhl-faint">Rule: {f.rule}</p>
+                {typeof f.data?.quote === "string" && (
+                  <blockquote className="mt-1.5 border-l-2 border-mhl-rule pl-2.5 text-mhl-fine italic text-mhl-muted">
+                    &ldquo;{f.data.quote}&rdquo;
+                  </blockquote>
+                )}
+                <p className="mt-1 text-[0.7rem] text-mhl-faint">
+                  Source: {f.source || "Fixed check"} · rule {f.rule}
+                </p>
               </li>
             );
           })}
@@ -204,7 +213,7 @@ export function RecordReviewPanel({
                   <span className="text-mhl-muted">
                     Document: <b className="text-mhl-ink">{m.document}</b>
                   </span>
-                  {canEdit && m.suggestion && onApply && (
+                  {canEdit && m.apply && onApply && (
                     <Button size="md" disabled={applying === m.field} onClick={() => void apply(m)}>
                       {applying === m.field ? "Updating..." : `Use ${m.suggestion}`}
                     </Button>

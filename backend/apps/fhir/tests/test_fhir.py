@@ -77,7 +77,7 @@ class TestFHIRExport:
 
         bundle = response.json()
         assert bundle["resourceType"] == "Bundle"
-        assert bundle["type"] == "collection"
+        assert bundle["type"] == "transaction"
         assert len(bundle["entry"]) > 0
 
         # Should contain a Patient resource.
@@ -106,6 +106,61 @@ class TestFHIRExport:
         )
         assert condition["code"]["coding"][0]["code"] == "E11.9"
         assert condition["code"]["coding"][0]["system"] == "http://hl7.org/fhir/sid/icd-10"
+
+
+@pytest.mark.django_db
+class TestFHIRStandard:
+    """The export follows the FHIR R4 structure and the standard code systems."""
+
+    def _bundle(self, client):
+        return client.get("/api/v1/export/fhir/").json()
+
+    def test_bundle_is_valid_for_the_fhir_resources_library(self, auth_client):
+        from fhir.resources.R4B.bundle import Bundle
+
+        Bundle.model_validate(self._bundle(auth_client))  # raises if not valid FHIR structure
+
+    def test_every_entry_can_be_imported_by_a_fhir_server(self, auth_client):
+        bundle = self._bundle(auth_client)
+        full_urls = {e["fullUrl"] for e in bundle["entry"]}
+        for e in bundle["entry"]:
+            assert e["request"] == {"method": "POST", "url": e["resource"]["resourceType"]}
+            assert e["fullUrl"].startswith("urn:uuid:")
+            # Every reference points at a resource inside the same bundle.
+            for key in ("subject", "patient"):
+                if key in e["resource"]:
+                    assert e["resource"][key]["reference"] in full_urls
+
+    def test_standard_codes(self, auth_client, user_with_records):
+        VitalReading.objects.create(user=user_with_records, vital_type="BLOOD_PRESSURE", value=120, value2=80,
+                                    unit="mmHg", measured_at=timezone.now())
+        res = [e["resource"] for e in self._bundle(auth_client)["entry"]]
+        cond = next(r for r in res if r["resourceType"] == "Condition")
+        assert cond["clinicalStatus"]["coding"][0]["system"] == "http://terminology.hl7.org/CodeSystem/condition-clinical"
+        allergy = next(r for r in res if r["resourceType"] == "AllergyIntolerance")
+        assert allergy["clinicalStatus"]["coding"][0]["system"] == (
+            "http://terminology.hl7.org/CodeSystem/allergyintolerance-clinical")
+        blood = next(r for r in res if r.get("code", {}).get("text") == "Blood group")
+        assert blood["code"]["coding"][0]["code"] == "882-1"
+        bp = next(r for r in res if r.get("component"))
+        assert [c["code"]["coding"][0]["code"] for c in bp["component"]] == ["8480-6", "8462-4"]
+        assert bp["component"][0]["valueQuantity"]["code"] == "mm[Hg]"
+        assert bp["category"][0]["coding"][0]["code"] == "vital-signs"
+
+    def test_immunization_dose_number(self, auth_client, user_with_records):
+        from apps.records.models import Immunization
+
+        Immunization.objects.create(user=user_with_records, vaccine="Hepatitis B", administered_on="2025-01-01",
+                                    dose_number=2)
+        imm = next(e["resource"] for e in self._bundle(auth_client)["entry"]
+                   if e["resource"]["resourceType"] == "Immunization")
+        assert imm["protocolApplied"] == [{"doseNumberPositiveInt": 2}]
+
+    def test_user_without_profile_details_still_exports(self, api_client, db):
+        user = User.objects.create_user(email="bare@example.com", password="StrongPass123!", name="Bare")
+        api_client.force_authenticate(user=user)
+        bundle = api_client.get("/api/v1/export/fhir/").json()
+        assert bundle["entry"][0]["resource"]["resourceType"] == "Patient"
 
 
 @pytest.mark.django_db

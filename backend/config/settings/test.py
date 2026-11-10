@@ -47,3 +47,6 @@ FILE_X_ACCEL_PREFIX = ""
 
 # Tests never call Gemini from the record review.
 RECORD_REVIEW_AI_ENABLED = False
+
+# Tests never call the public drug services; they patch apps.core.drug_knowledge.
+DRUG_LOOKUP_ENABLED = False

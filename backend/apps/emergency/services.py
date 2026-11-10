@@ -1,38 +1,38 @@
 """
-Emergency services for myHealthLog.
+Emergency service for myHealthLog.
 
-Two independent services:
-
-1. StaticEmergencyService
-   Compile the classic "first 60 seconds" card from a user's record.
-   This is what the public token endpoint returns — filtered by the user's
-   EmergencySettings toggles.  No AI involved.
-
-2. AIDynamicSummaryService
-   Ask Gemini to analyse the full record and produce a clinically-prioritised
-   JSON summary for first responders.  The result is cached in Redis so the
-   AI is not called on every page load.  The cache is invalidated when the
-   user's record changes (see records signals in a later phase).
+StaticEmergencyService compiles the "first 60 seconds" card from a user's
+record. This is what the public token endpoint returns, filtered by the user's
+EmergencySettings toggles. No AI decides anything here: what a responder sees
+is the record itself, ordered by the person's care focus and fixed rules.
 """
 
-import json
 import logging
 from datetime import date
 from typing import Any
 
-from django.conf import settings
-from django.core.cache import cache
-
-from apps.core.exceptions import AIProcessingError, ServiceUnavailableError
-
 logger = logging.getLogger(__name__)
 
-# Cache key prefix — scoped per user so we never leak one user's summary to another.
-_CACHE_PREFIX = "emergency_ai_summary_v1:"
 
+def medicine_flags(user) -> list[dict[str, Any]]:
+    """Serious findings of the stored review of each current medicine."""
+    from apps.records.models import RecordReview
 
-def _cache_key(user_id: str) -> str:
-    return f"{_CACHE_PREFIX}{user_id}"
+    meds = {m.pk: m.name for m in user.medications.filter(active=True)}
+    out = []
+    for review in RecordReview.objects.filter(user=user, record_type="medication", record_id__in=list(meds)):
+        for f in review.findings or []:
+            if f.get("level") in ("critical", "warning"):
+                out.append({
+                    "medication": meds.get(review.record_id, ""),
+                    "level": f["level"],
+                    "title": f.get("title", ""),
+                    "detail": f.get("detail", ""),
+                    "rule": f.get("rule", ""),
+                    "source": f.get("source", ""),
+                })
+    out.sort(key=lambda f: 0 if f["level"] == "critical" else 1)
+    return out
 
 
 def _age_from_dob(dob: date | None) -> int | None:
@@ -269,6 +269,8 @@ class StaticEmergencyService:
             "labFindings": lab_findings,
             "pregnant": pregnant,
             "careFocus": care_focus,
+            # Medicine safety findings from the record review (official drug sources).
+            "medicineFlags": medicine_flags(user) if settings_obj.show_medications else [],
         }
 
     @staticmethod
@@ -317,164 +319,3 @@ class StaticEmergencyService:
                 seen.add(key)
                 unique.append(f)
         return unique[:limit]
-
-
-# ---------------------------------------------------------------------------
-# AI dynamic summary (Gemini + Redis cache)
-# ---------------------------------------------------------------------------
-
-AI_SUMMARY_PROMPT = """
-You are a clinical AI assistant for a personal health record system.
-Your task is to analyse a patient's health data and produce a structured JSON
-summary optimised for emergency first responders.
-
-PATIENT DATA (JSON):
-{patient_data}
-
-INSTRUCTIONS:
-1. Analyse every section of the patient data thoroughly.
-2. Identify the most life-threatening or clinically urgent items first.
-3. Produce a JSON response that EXACTLY matches the following schema.
-   Return ONLY the JSON — no markdown, no explanation, no fences.
-
-REQUIRED JSON SCHEMA:
-{{
-  "emergency_overview": {{
-    "patient_name": "string",
-    "age": <integer or null>,
-    "gender": "string or null",
-    "blood_type": "string or null",
-    "genotype": "string or null",
-    "overall_triage_status": "stable" | "warning" | "critical",
-    "ai_paramedic_note": "A concise 1-2 sentence emergency directive for first responders."
-  }},
-  "core_essentials": {{
-    "emergency_contacts": [
-      {{ "name": "string", "relation": "string", "phone": "string" }}
-    ]
-  }},
-  "ai_prioritized_sections": [
-    {{
-      "priority_rank": <integer, 1 = highest urgency>,
-      "module_type": "critical_allergies" | "active_conditions" | "critical_medications" | "vital_signs" | "critical_documents",
-      "title": "string",
-      "urgency_level": "critical" | "warning" | "info",
-      "items": [
-        {{
-          // For critical_allergies: {{ "name": str, "severity": str, "reaction": str }}
-          // For active_conditions:  {{ "name": str, "since": str, "severity": str }}
-          // For critical_medications: {{ "name": str, "dose": str, "frequency": str }}
-          // For vital_signs:        {{ "metric": str, "value": str, "recorded": str, "notes": str }}
-          // For critical_documents: {{ "title": str, "type": str, "date": str }}
-        }}
-      ]
-    }}
-  ]
-}}
-
-RULES:
-- Rank sections by clinical urgency (anaphylactic allergies = highest, stable vitals = lowest).
-- Omit any module_type that has no relevant data.
-- overall_triage_status: "critical" if any SEVERE/ANAPHYLAXIS allergy or unstable vital;
-  "warning" if active serious conditions or abnormal vitals; "stable" otherwise.
-- ai_paramedic_note: Address first responders directly. Be concise and specific.
-- priority_rank starts at 1.
-"""
-
-
-class AIDynamicSummaryService:
-    """
-    Produce an AI-prioritised emergency summary for a given user.
-
-    The result is cached in Redis for EMERGENCY_AI_SUMMARY_CACHE_TTL seconds
-    (default 1 hour).  Call invalidate() whenever the user's record changes to
-    force a fresh AI analysis on the next request.
-    """
-
-    @staticmethod
-    def _build_patient_data(user) -> dict[str, Any]:
-        """Compile a safe, structured snapshot of the user's record."""
-        from apps.profiles.serializers import HealthProfileReadSerializer
-        from apps.records.serializers import (
-            AllergyReadSerializer,
-            ConditionReadSerializer,
-            MedicationReadSerializer,
-            VitalReadingReadSerializer,
-        )
-
-        try:
-            profile_data = HealthProfileReadSerializer(user.health_profile).data
-        except Exception:
-            profile_data = {"full_name": user.name or user.email}
-
-        return {
-            "profile": profile_data,
-            "allergies": AllergyReadSerializer(user.allergies.all(), many=True).data,
-            "conditions": ConditionReadSerializer(user.conditions.all(), many=True).data,
-            "medications": MedicationReadSerializer(
-                user.medications.filter(active=True), many=True
-            ).data,
-            "vitals": VitalReadingReadSerializer(
-                user.vital_readings.order_by("-measured_at")[:50], many=True
-            ).data,
-        }
-
-    @classmethod
-    def get_or_generate(cls, user) -> dict[str, Any]:
-        """
-        Return a cached AI summary or generate a fresh one.
-
-        Cache hit  → return immediately (no Gemini call).
-        Cache miss → call Gemini, parse response, cache result, return.
-        """
-        cache_key = _cache_key(str(user.id))
-        cached = cache.get(cache_key)
-        if cached is not None:
-            logger.debug("AI emergency summary cache hit for user %s", user.id)
-            return cached
-
-        logger.info("AI emergency summary cache miss for user %s — calling Gemini", user.id)
-        summary = cls._generate(user)
-        ttl = getattr(settings, "EMERGENCY_AI_SUMMARY_CACHE_TTL", 3600)
-        cache.set(cache_key, summary, ttl)
-        return summary
-
-    @classmethod
-    def _generate(cls, user) -> dict[str, Any]:
-        """Call Gemini and parse the structured JSON response."""
-        if not settings.GEMINI_API_KEY:
-            raise ServiceUnavailableError(
-                "AI summarisation is not configured on this server."
-            )
-
-        from apps.core import ai
-
-        patient_data = cls._build_patient_data(user)
-        prompt = AI_SUMMARY_PROMPT.format(
-            patient_data=json.dumps(patient_data, default=str, indent=2)
-        )
-        try:
-            summary = ai.generate_json([{"role": "user", "parts": [{"text": prompt}]}])
-        except AIProcessingError:
-            raise
-        except ServiceUnavailableError as exc:
-            logger.warning("AI emergency summary failed for user %s: %s", user.id, exc)
-            raise ServiceUnavailableError("AI service returned an error. Please try again.") from exc
-
-        if not isinstance(summary, dict):
-            raise AIProcessingError("The AI summary is not in the expected format.")
-
-        # Validate top-level keys.
-        required_keys = {"emergency_overview", "core_essentials", "ai_prioritized_sections"}
-        if not required_keys.issubset(summary.keys()):
-            raise AIProcessingError(
-                "The AI summary is missing required sections. Please try again."
-            )
-
-        return summary
-
-    @staticmethod
-    def invalidate(user_id: str) -> None:
-        """Invalidate the cached AI summary for a user."""
-        cache.delete(_cache_key(user_id))
-        logger.debug("AI emergency summary cache invalidated for user %s", user_id)

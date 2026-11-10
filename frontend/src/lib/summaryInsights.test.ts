@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { allergyConflict, readingBand, summaryInsights, type InsightInput } from "./summaryInsights";
+import { readingBand, summaryInsights, type InsightInput } from "./summaryInsights";
 
 const base: InsightInput = {
   allergies: [],
@@ -10,26 +10,21 @@ const base: InsightInput = {
   contactCount: 1,
 };
 
-describe("allergyConflict", () => {
-  it("matches a medicine in an allergic class", () => {
-    expect(allergyConflict("Amoxicillin 500 mg", "Penicillin")).toMatch(/penicillin/);
-    expect(allergyConflict("Septrin", "Sulfa drugs")).toMatch(/sulfonamide/);
-    expect(allergyConflict("Ibuprofen", "NSAIDs")).toMatch(/nsaid/);
-  });
-
-  it("matches the substance itself", () => {
-    expect(allergyConflict("Penicillin V", "penicillin")).not.toBeNull();
-  });
-
-  it("does not flag unrelated medicines", () => {
-    expect(allergyConflict("Metformin", "Penicillin")).toBeNull();
-    expect(allergyConflict("Paracetamol", "Peanuts")).toBeNull();
-  });
-});
-
 describe("readingBand", () => {
-  it("flags a hypertensive crisis as critical", () => {
+  it("flags blood pressure above 180/120 as critical (ACC/AHA)", () => {
     expect(readingBand({ vitalType: "BLOOD_PRESSURE", value: 182, value2: 110 })?.level).toBe("critical");
+    expect(readingBand({ vitalType: "BLOOD_PRESSURE", value: 180, value2: 110 })?.level).toBe("warning");
+  });
+  it("uses the pregnancy thresholds when pregnant (ACOG)", () => {
+    const r = { vitalType: "BLOOD_PRESSURE", value: 162, value2: 100 };
+    expect(readingBand(r)?.level).toBe("warning");
+    expect(readingBand(r, { pregnant: true })?.level).toBe("critical");
+  });
+  it("uses the NEWS2 bands for pulse, breathing and temperature", () => {
+    expect(readingBand({ vitalType: "PULSE", value: 131 })?.level).toBe("critical");
+    expect(readingBand({ vitalType: "PULSE", value: 115 })?.level).toBe("warning");
+    expect(readingBand({ vitalType: "RESPIRATORY_RATE", value: 22 })?.level).toBe("warning");
+    expect(readingBand({ vitalType: "TEMPERATURE", value: 38.5, unit: "°C" })?.level).toBe("info");
   });
   it("flags stage-2 range as a warning and leaves normal alone", () => {
     expect(readingBand({ vitalType: "BLOOD_PRESSURE", value: 150, value2: 95 })?.level).toBe("warning");
@@ -40,37 +35,35 @@ describe("readingBand", () => {
     expect(readingBand({ vitalType: "BLOOD_GLUCOSE", value: 100, unit: "mg/dL" })).toBeNull();
   });
   it("flags low oxygen", () => {
-    expect(readingBand({ vitalType: "SPO2", value: 88 })?.level).toBe("critical");
+    expect(readingBand({ vitalType: "SPO2", value: 91 })?.level).toBe("critical");
+    expect(readingBand({ vitalType: "SPO2", value: 93 })?.level).toBe("warning");
+    expect(readingBand({ vitalType: "SPO2", value: 95 })).toBeNull();
   });
 });
 
 describe("summaryInsights", () => {
-  it("puts anaphylaxis and allergy conflicts before everything else", () => {
+  it("puts anaphylaxis and medicine findings before everything else", () => {
     const insights = summaryInsights({
       ...base,
       allergies: [{ substance: "Penicillin", severity: "ANAPHYLAXIS", reactions: ["Throat swelling"] }],
       medications: [{ name: "Amoxicillin", active: true }],
+      medicineFlags: [{ medication: "Amoxicillin", level: "critical",
+        title: "Amoxicillin is in the same family as your Penicillin allergy", detail: "Class 'Penicillins'." }],
       readings: [{ vitalType: "BLOOD_PRESSURE", value: 150, value2: 92 }],
     });
-    expect(insights[0].level).toBe("critical");
-    expect(insights.slice(0, 2).map((i) => i.title).join(" ")).toMatch(/Anaphylaxis.*Amoxicillin|Amoxicillin.*Anaphylaxis/);
+    expect(insights.slice(0, 2).every((i) => i.level === "critical")).toBe(true);
+    expect(insights.slice(0, 2).map((i) => i.title).join(" ")).toMatch(/Anaphylaxis.*Amoxicillin/);
     expect(insights.find((i) => i.section === "readings")?.level).toBe("warning");
   });
 
-  it("flags medicines unsafe in pregnancy only when pregnant", () => {
-    const meds = [{ name: "Lisinopril 10 mg", active: true }];
-    expect(summaryInsights({ ...base, medications: meds }).some((i) => i.title.includes("pregnancy"))).toBe(false);
-    const pregnant = summaryInsights({ ...base, medications: meds, pregnant: true });
-    expect(pregnant[0]).toMatchObject({ level: "critical", section: "medications" });
-  });
-
-  it("raises medicine–condition cautions", () => {
+  it("has no medicine rules of its own", () => {
     const insights = summaryInsights({
       ...base,
-      medications: [{ name: "Diclofenac", active: true }, { name: "Metformin", active: true }],
-      conditions: [{ name: "Chronic kidney disease", status: "ACTIVE" }],
+      allergies: [{ substance: "Penicillin", severity: "MILD" }],
+      medications: [{ name: "Amoxicillin", active: true }, { name: "Lisinopril", active: true }],
+      pregnant: true,
     });
-    expect(insights.filter((i) => i.section === "medications")).toHaveLength(2);
+    expect(insights.some((i) => i.section === "medications")).toBe(false);
   });
 
   it("surfaces abnormal lab results, critical first", () => {
@@ -90,12 +83,12 @@ describe("summaryInsights", () => {
     expect(summaryInsights({ ...input, publicView: true }).some((i) => i.level === "info")).toBe(false);
   });
 
-  it("ignores stopped medicines", () => {
+  it("ignores findings about stopped medicines", () => {
     const insights = summaryInsights({
       ...base,
-      allergies: [{ substance: "Penicillin", severity: "MILD" }],
       medications: [{ name: "Amoxicillin", active: false }],
+      medicineFlags: [{ medication: "Amoxicillin", level: "critical", title: "Clash", detail: "" }],
     });
-    expect(insights.some((i) => i.title.includes("Amoxicillin"))).toBe(false);
+    expect(insights.some((i) => i.section === "medications")).toBe(false);
   });
 });

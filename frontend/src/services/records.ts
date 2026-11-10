@@ -6,6 +6,8 @@
  * frontend's camelCase types from @/types/health.
  */
 import { api, buildFormData, hasFile } from "./api";
+import { confirmAgainstDocument } from "./documentCheck";
+import type { MedicineFlag } from "./emergency";
 import type {
   AiExtractionResult,
   Allergy,
@@ -81,6 +83,8 @@ async function sendRecord<T>(
 ): Promise<T> {
   if (extra.removeFile && !extra.file) payload.remove_file = true;
   if (extra.file) {
+    // Compare the file with the form first; the person confirms any difference.
+    payload = await confirmAgainstDocument(url, payload, extra.file);
     const fd = buildFormData({ ...payload, file: extra.file });
     const res = await api[method]<T>(url, fd, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -491,9 +495,9 @@ export async function createDocument(
     findings: d.findings ?? "",
     provider: d.provider ?? "",
     condition_ids: d.conditionIds ?? [],
-    file: d.file,
   };
-  const fd = buildFormData(payload);
+  const checked = await confirmAgainstDocument("/v1/records/documents/", payload, d.file);
+  const fd = buildFormData({ ...checked, file: d.file });
   const res = await api.post<BackendDocument>("/v1/records/documents/", fd, {
     headers: { "Content-Type": "multipart/form-data" },
   });
@@ -516,8 +520,8 @@ export async function updateDocument(
   if (d.provider !== undefined)     payload.provider = d.provider ?? "";
   if (d.conditionIds !== undefined) payload.condition_ids = d.conditionIds ?? [];
   if (d.file) {
-    payload.file = d.file;
-    const fd = buildFormData(payload);
+    const checked = await confirmAgainstDocument(`/v1/records/documents/${id}/`, payload, d.file);
+    const fd = buildFormData({ ...checked, file: d.file });
     const res = await api.patch<BackendDocument>(`/v1/records/documents/${id}/`, fd, {
       headers: { "Content-Type": "multipart/form-data" },
     });
@@ -753,6 +757,8 @@ export interface ReviewFinding {
   title: string;
   detail: string;
   data?: Record<string, unknown>;
+  /** Where the fact behind the finding comes from (MED-RT, FDA label, a guideline). */
+  source?: string;
 }
 
 /** A difference between what was typed and what the attached document says. */
@@ -761,6 +767,8 @@ export interface ReviewMismatch {
   form: string;
   document: string;
   suggestion: string | null;
+  /** The exact backend field changes that make the form match the document. */
+  apply?: Record<string, unknown> | null;
   detail: string;
 }
 
@@ -780,5 +788,16 @@ export async function fetchRecordReview(routeKey: string, id: string): Promise<R
 
 export async function rerunRecordReview(routeKey: string, id: string): Promise<RecordReview> {
   const res = await api.post<RecordReview>(`/v1/records/${routeKey}/${id}/review/`);
+  return res.data;
+}
+
+/** Change a saved record to the document's value (from a review mismatch). */
+export async function applyReviewFix(routeKey: string, id: string, apply: Record<string, unknown>): Promise<void> {
+  await api.patch(`/v1/records/${routeKey}/${id}/`, apply);
+}
+
+/** Serious findings of the check of each current medicine (official drug sources). */
+export async function fetchMedicineFlags(): Promise<MedicineFlag[]> {
+  const res = await api.get<MedicineFlag[]>("/v1/records/medications/safety-flags/");
   return res.data;
 }

@@ -11,6 +11,7 @@ import { ContextsProvider } from "@/store/ContextsContext";
 import { RecordsProvider } from "@/store/RecordsContext";
 import { SharingProvider } from "@/store/SharingContext";
 import { NotificationsProvider } from "@/store/NotificationsContext";
+import { DocumentCheckHost } from "@/components/records/DocumentCheckHost";
 import "./index.css";
 
 // The app reads the Google Client ID from VITE_GOOGLE_CLIENT_ID (frontend/.env,
@@ -31,6 +32,7 @@ createRoot(document.getElementById("root")!).render(
                     <SharingProvider>
                       <NotificationsProvider>
                         <App />
+                        <DocumentCheckHost />
                       </NotificationsProvider>
                     </SharingProvider>
                   </ContextsProvider>
@@ -48,6 +50,7 @@ createRoot(document.getElementById("root")!).render(
                   <SharingProvider>
                     <NotificationsProvider>
                       <App />
+                      <DocumentCheckHost />
                     </NotificationsProvider>
                   </SharingProvider>
                 </ContextsProvider>

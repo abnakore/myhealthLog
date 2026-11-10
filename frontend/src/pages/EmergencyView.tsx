@@ -171,6 +171,7 @@ function SummaryPage({ code, card }: { code: string; card: StaticEmergencyCard }
     labFindings: summary?.labFindings ?? [],
     pregnant: summary?.pregnant ?? false,
     focusOrder: (summary?.careFocus ?? []).filter((f) => f.kind === "condition").map((f) => f.label),
+    medicineFlags: summary?.medicineFlags ?? [],
   };
 
   const meta = [

@@ -12,10 +12,19 @@
  *   info      — gaps that slow care down (no blood type, no emergency contact,
  *               a visit coming up, a visit left "scheduled" in the past)
  *
- * It is deliberately rule-based and transparent — every flag says which rule
- * raised it — so it is auditable by a clinician.
- * The thresholds are standard adult screening bands; they flag for review and
- * never diagnose.
+ * It is deliberately rule-based and transparent, so it is auditable.
+ *
+ * Medicines: this file has no medicine knowledge of its own. Allergy clashes,
+ * contraindications and interactions come from the backend record check, which
+ * uses official sources (RxNorm, MED-RT and FDA labels through the US National
+ * Library of Medicine and openFDA). They arrive here as `medicineFlags`.
+ *
+ * Readings: the bands below are the same published thresholds the backend uses
+ * (backend apps/core/clinical_rules.py), each cited where it is applied:
+ *   ACC/AHA 2017 (blood pressure), ACOG Practice Bulletin 222 (blood pressure in
+ *   pregnancy), NEWS2 2017 (pulse, breathing, oxygen, temperature, low blood
+ *   pressure), ADA Standards of Care 2025 (low glucose), WHO 2006 (high glucose).
+ * They flag for review and never diagnose.
  *
  * Both the signed-in summary and the public emergency view call this with the
  * same data, so a first responder sees exactly the flags the owner sees.
@@ -63,6 +72,14 @@ export interface InsightLabFinding {
   source: string;
   date?: string | null;
 }
+/** A serious finding about a current medicine, from the backend record check. */
+export interface InsightMedicineFlag {
+  medication: string;
+  level: "critical" | "warning";
+  title: string;
+  detail: string;
+  source?: string;
+}
 export interface InsightAppointment {
   title: string;
   scheduledFor: string;
@@ -75,150 +92,14 @@ export interface InsightInput {
   medications: InsightMedication[];
   readings: InsightReading[];
   labFindings?: InsightLabFinding[];
+  /** Medicine findings from the backend record check (official drug sources). */
+  medicineFlags?: InsightMedicineFlag[];
   appointments?: InsightAppointment[];
   bloodType?: string | null;
   contactCount?: number;
   pregnant?: boolean;
   /** Skip profile-gap flags (the public view cannot fix them). */
   publicView?: boolean;
-}
-
-/* ---------------------------------------------------------- drug classes -- */
-
-/** An allergy to the class name covers every medicine in it. */
-const DRUG_CLASSES: Record<string, string[]> = {
-  penicillin: [
-    "penicillin", "amoxicillin", "amoxil", "ampicillin", "augmentin", "co-amoxiclav",
-    "flucloxacillin", "cloxacillin", "piperacillin", "ampiclox", "benzylpenicillin",
-  ],
-  cephalosporin: ["cef", "cephalexin", "cefalexin", "ceftriaxone", "cefuroxime", "cefixime", "cefpodoxime"],
-  sulfonamide: ["sulfa", "sulfamethoxazole", "co-trimoxazole", "septrin", "bactrim", "sulfasalazine", "sulfadoxine", "fansidar"],
-  nsaid: ["ibuprofen", "diclofenac", "naproxen", "aspirin", "ketoprofen", "piroxicam", "meloxicam", "celecoxib", "indomethacin", "mefenamic"],
-  opioid: ["codeine", "morphine", "tramadol", "pethidine", "oxycodone", "hydrocodone", "fentanyl"],
-  quinolone: ["ciprofloxacin", "levofloxacin", "ofloxacin", "moxifloxacin", "norfloxacin"],
-  macrolide: ["erythromycin", "azithromycin", "clarithromycin"],
-  tetracycline: ["tetracycline", "doxycycline", "minocycline"],
-};
-
-/** Words in an allergy's name that point at a class. */
-const CLASS_ALIASES: Record<string, string> = {
-  penicillin: "penicillin",
-  penicillins: "penicillin",
-  "beta-lactam": "penicillin",
-  amoxicillin: "penicillin",
-  cephalosporin: "cephalosporin",
-  cephalosporins: "cephalosporin",
-  sulfa: "sulfonamide",
-  sulpha: "sulfonamide",
-  sulfonamide: "sulfonamide",
-  sulfonamides: "sulfonamide",
-  nsaid: "nsaid",
-  nsaids: "nsaid",
-  aspirin: "nsaid",
-  ibuprofen: "nsaid",
-  opioid: "opioid",
-  opioids: "opioid",
-  codeine: "opioid",
-  morphine: "opioid",
-  quinolone: "quinolone",
-  quinolones: "quinolone",
-  fluoroquinolone: "quinolone",
-  macrolide: "macrolide",
-  tetracycline: "tetracycline",
-};
-
-const norm = (s: string) => s.toLowerCase().trim();
-
-function classOfMedicine(name: string): string | null {
-  const n = norm(name);
-  for (const [cls, members] of Object.entries(DRUG_CLASSES)) {
-    if (members.some((m) => n.includes(m))) return cls;
-  }
-  return null;
-}
-
-function allergyClasses(substance: string): string[] {
-  const words = norm(substance).split(/[^a-z-]+/).filter(Boolean);
-  const classes = new Set<string>();
-  for (const w of words) if (CLASS_ALIASES[w]) classes.add(CLASS_ALIASES[w]);
-  return [...classes];
-}
-
-/** Does taking `medicine` risk a reaction to `allergy`? Returns the reason or null. */
-export function allergyConflict(medicine: string, allergy: string): string | null {
-  const med = norm(medicine);
-  const sub = norm(allergy);
-  if (!med || !sub) return null;
-  const firstWord = med.split(/\s+/)[0];
-  if (sub.length >= 4 && (med.includes(sub) || (firstWord.length >= 4 && sub.includes(firstWord)))) {
-    return `${medicine} is the substance on the allergy list`;
-  }
-  const medClass = classOfMedicine(medicine);
-  if (medClass && allergyClasses(allergy).includes(medClass)) {
-    return `${medicine} is a ${medClass} and the record lists a ${allergy} allergy`;
-  }
-  return null;
-}
-
-/* ------------------------------------------------- medicine × condition -- */
-
-const KIDNEY = /kidney|renal|ckd|nephr/;
-const ULCER = /ulcer|gastritis|gi bleed/;
-const HEART_FAILURE = /heart failure|cardiac failure/;
-const ASTHMA = /asthma/;
-
-const ACE_ARB = ["lisinopril", "enalapril", "ramipril", "captopril", "perindopril", "losartan", "valsartan", "telmisartan", "candesartan", "irbesartan"];
-const STATINS = ["atorvastatin", "simvastatin", "rosuvastatin", "pravastatin", "lovastatin"];
-const PREGNANCY_AVOID = ["warfarin", "isotretinoin", "methotrexate", "valproate", "sodium valproate", "misoprostol", "doxycycline", "tetracycline"];
-
-function has(list: string[], name: string) {
-  const n = norm(name);
-  return list.some((m) => n.includes(m));
-}
-
-function medicineConditionCautions(meds: InsightMedication[], conditions: InsightCondition[], pregnant: boolean): Insight[] {
-  const out: Insight[] = [];
-  const open = conditions.filter((c) => c.status !== "RESOLVED").map((c) => norm(c.name));
-  const anyCond = (re: RegExp) => open.some((c) => re.test(c));
-  const onWarfarin = meds.some((m) => norm(m.name).includes("warfarin"));
-
-  for (const m of meds) {
-    const cls = classOfMedicine(m.name);
-    if (cls === "nsaid") {
-      if (anyCond(KIDNEY)) out.push(caution(m, "NSAIDs can worsen kidney function. The record lists kidney disease."));
-      if (anyCond(ULCER)) out.push(caution(m, "NSAIDs raise the risk of stomach bleeding. The record lists an ulcer/gastritis."));
-      if (anyCond(HEART_FAILURE)) out.push(caution(m, "NSAIDs can worsen heart failure."));
-      if (anyCond(ASTHMA)) out.push(caution(m, "NSAIDs can trigger bronchospasm in some people with asthma."));
-      if (onWarfarin && !norm(m.name).includes("warfarin")) {
-        out.push(caution(m, "Taken with warfarin, NSAIDs raise the bleeding risk."));
-      }
-    }
-    if (norm(m.name).includes("metformin") && anyCond(KIDNEY)) {
-      out.push(caution(m, "Metformin dosing depends on kidney function. The record lists kidney disease."));
-    }
-    if (pregnant) {
-      if (has(ACE_ARB, m.name)) {
-        out.push({
-          level: "critical",
-          section: "medications",
-          title: `${m.name} during pregnancy`,
-          detail: "ACE inhibitors and ARBs are generally avoided in pregnancy. Review with the prescriber.",
-        });
-      } else if (has(STATINS, m.name) || has(PREGNANCY_AVOID, m.name)) {
-        out.push({
-          level: "critical",
-          section: "medications",
-          title: `${m.name} during pregnancy`,
-          detail: "This medicine is usually avoided in pregnancy. Review with the prescriber.",
-        });
-      }
-    }
-  }
-  return out;
-}
-
-function caution(m: InsightMedication, detail: string): Insight {
-  return { level: "warning", section: "medications", title: `Check ${m.name}`, detail };
 }
 
 /* -------------------------------------------------------------- readings -- */
@@ -233,46 +114,51 @@ function temperatureC(r: InsightReading): number {
   return (r.unit ?? "").toUpperCase().includes("F") ? ((r.value - 32) * 5) / 9 : r.value;
 }
 
-/** Standard adult screening bands. */
-export function readingBand(r: InsightReading): Band {
+/** Guideline thresholds; the same values as backend clinical_rules.reading_band. */
+export function readingBand(r: InsightReading, opts: { pregnant?: boolean } = {}): Band {
   switch (r.vitalType) {
     case "BLOOD_PRESSURE": {
       const sys = r.value;
       const dia = r.value2 ?? 0;
-      if (sys >= 180 || dia >= 120) return { level: "critical", note: "in the hypertensive-crisis range (≥180/120)" };
-      if (sys < 90) return { level: "warning", note: "low (systolic under 90)" };
-      if (sys >= 140 || dia >= 90) return { level: "warning", note: "high (≥140/90)" };
+      if (opts.pregnant) {
+        // ACOG: severe from 160/110; hypertension from 140/90.
+        if (sys >= 160 || dia >= 110) return { level: "critical", note: "in the severe range for pregnancy (160/110 or more)" };
+        if (sys >= 140 || dia >= 90) return { level: "warning", note: "high for pregnancy (140/90 or more)" };
+      }
+      // ACC/AHA: above 180/120 is severe; 140/90 or more is stage 2. NEWS2: systolic 90 or less, 91 to 100.
+      if (sys > 180 || dia > 120) return { level: "critical", note: "very high (above 180/120)" };
+      if (sys <= 90) return { level: "critical", note: "very low (systolic 90 or less)" };
+      if (sys <= 100) return { level: "warning", note: "low (systolic 91 to 100)" };
+      if (sys >= 140 || dia >= 90) return { level: "warning", note: "high (140/90 or more)" };
       return null;
     }
-    case "SPO2":
-      if (r.value < 90) return { level: "critical", note: "dangerously low oxygen (under 90%)" };
-      if (r.value < 94) return { level: "warning", note: "below the normal range (under 94%)" };
+    case "SPO2": // NEWS2 scale 1
+      if (r.value <= 91) return { level: "critical", note: "dangerously low oxygen (91% or less)" };
+      if (r.value <= 93) return { level: "warning", note: "low oxygen (92 to 93%)" };
       return null;
-    case "PULSE":
-      if (r.value > 150 || r.value < 40) return { level: "critical", note: "far outside the normal heart rate" };
-      if (r.value > 110 || r.value < 50) return { level: "warning", note: "outside the normal heart rate (50–110)" };
+    case "PULSE": // NEWS2
+      if (r.value <= 40 || r.value >= 131) return { level: "critical", note: "far outside the normal heart rate" };
+      if (r.value >= 111) return { level: "warning", note: "a fast heart rate (111 to 130)" };
       return null;
-    case "RESPIRATORY_RATE":
-      if (r.value > 30 || r.value < 8) return { level: "critical", note: "far outside the normal breathing rate" };
-      if (r.value > 24 || r.value < 10) return { level: "warning", note: "outside the normal breathing rate (10–24)" };
+    case "RESPIRATORY_RATE": // NEWS2
+      if (r.value <= 8 || r.value >= 25) return { level: "critical", note: "far outside the normal breathing rate" };
+      if (r.value >= 21) return { level: "warning", note: "fast breathing (21 to 24)" };
       return null;
-    case "TEMPERATURE": {
+    case "TEMPERATURE": { // NEWS2
       const c = temperatureC(r);
-      if (c >= 40 || c < 35) return { level: "critical", note: c >= 40 ? "a very high fever (≥40 °C)" : "hypothermic (under 35 °C)" };
-      if (c >= 38) return { level: "warning", note: "a fever (≥38 °C)" };
+      if (c <= 35) return { level: "critical", note: "very low (35 °C or less)" };
+      if (c >= 39.1) return { level: "warning", note: "a high fever (39.1 °C or more)" };
+      if (c >= 38.1) return { level: "info", note: "a fever (38.1 to 39 °C)" };
       return null;
     }
     case "BLOOD_GLUCOSE": {
       const g = glucoseMmol(r);
-      if (g < 3.0) return { level: "critical", note: "severe hypoglycaemia (under 3.0 mmol/L)" };
-      if (g > 16.7) return { level: "critical", note: "very high (over 16.7 mmol/L)" };
-      if (g < 3.9) return { level: "warning", note: "low (under 3.9 mmol/L)" };
-      if (g > 11.0) return { level: "warning", note: "high (over 11 mmol/L)" };
+      // ADA: level 2 hypoglycaemia under 3.0, level 1 under 3.9. WHO: 11.1 or more is in the diabetic range.
+      if (g < 3.0) return { level: "critical", note: "severe low blood sugar (under 3.0 mmol/L)" };
+      if (g < 3.9) return { level: "warning", note: "low blood sugar (under 3.9 mmol/L)" };
+      if (g >= 11.1) return { level: "warning", note: "high (11.1 mmol/L or more)" };
       return null;
     }
-    case "PAIN":
-      if (r.value >= 7) return { level: "warning", note: "severe pain (7/10 or more)" };
-      return null;
     default:
       return null;
   }
@@ -305,7 +191,7 @@ export function summaryInsights(input: InsightInput): Insight[] {
   const out: Insight[] = [];
   const activeMeds = input.medications.filter((m) => m.active !== false);
 
-  // 1. Allergies that can kill, and medicines the person should not be taking.
+  // 1. Allergies that can kill.
   for (const a of input.allergies) {
     if (a.severity === "ANAPHYLAXIS" || a.severity === "SEVERE") {
       out.push({
@@ -316,26 +202,15 @@ export function summaryInsights(input: InsightInput): Insight[] {
       });
     }
   }
-  for (const m of activeMeds) {
-    for (const a of input.allergies) {
-      const why = allergyConflict(m.name, a.substance);
-      if (why) {
-        out.push({
-          level: "critical",
-          section: "medications",
-          title: `Possible allergy conflict: ${m.name}`,
-          detail: `${why}. Confirm with the prescriber.`,
-        });
-      }
-    }
+  // 2. Medicine findings from the backend record check (official drug sources).
+  for (const f of input.medicineFlags ?? []) {
+    if (!activeMeds.some((m) => m.name === f.medication)) continue;
+    out.push({ level: f.level, section: "medications", title: f.title, detail: f.detail });
   }
-
-  // 2. Medicine × condition / pregnancy cautions.
-  out.push(...medicineConditionCautions(activeMeds, input.conditions, Boolean(input.pregnant)));
 
   // 3. Latest readings in a danger or abnormal band.
   for (const r of input.readings) {
-    const band = readingBand(r);
+    const band = readingBand(r, { pregnant: input.pregnant });
     if (band) {
       out.push({
         level: band.level,

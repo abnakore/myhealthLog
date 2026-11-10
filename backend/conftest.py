@@ -62,3 +62,13 @@ def _no_real_gemini(monkeypatch):
         raise requests.ConnectionError("Network calls to Gemini are disabled in tests.")
 
     monkeypatch.setattr("apps.core.ai.requests.post", _refuse)
+
+
+@pytest.fixture(autouse=True)
+def _clear_cache():
+    """File readings and drug facts are cached; tests must not see each other's."""
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()

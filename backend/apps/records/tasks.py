@@ -43,6 +43,7 @@ Return ONE JSON object with exactly these keys:
   ],
   "medications_mentioned": [{{"name": "string", "dosage": "string", "frequency": "string"}}],
   "conditions_mentioned": ["condition name"],
+  "allergies_mentioned": [{{"substance": "string", "reaction": "string", "severity": "mild | moderate | severe | anaphylaxis | null"}}],
   "follow_up": ["any instruction, referral or next step written on the document"],
   "provider": "clinic / lab / hospital name or null",
   "ordering_clinician": "name or null"
@@ -57,7 +58,7 @@ Rules:
 Respond with the JSON object only.
 """
 
-_LIST_KEYS = ("key_findings", "medications_mentioned", "conditions_mentioned", "follow_up")
+_LIST_KEYS = ("key_findings", "medications_mentioned", "conditions_mentioned", "allergies_mentioned", "follow_up")
 _STATUS_ORDER = {"critical": 0, "high": 1, "low": 2, "normal": 4}
 
 
@@ -123,6 +124,20 @@ def normalise_extraction(raw: Any) -> dict[str, Any]:
             )
     out["medications_mentioned"] = meds
     out["conditions_mentioned"] = [str(c).strip() for c in out["conditions_mentioned"] if str(c).strip()]
+    allergies = []
+    for a in out["allergies_mentioned"]:
+        if isinstance(a, str):
+            a = {"substance": a}
+        if isinstance(a, dict) and str(a.get("substance") or "").strip():
+            sev = str(a.get("severity") or "").strip().lower()
+            allergies.append(
+                {
+                    "substance": str(a["substance"]).strip(),
+                    "reaction": str(a.get("reaction") or "").strip(),
+                    "severity": sev if sev in ("mild", "moderate", "severe", "anaphylaxis") else "",
+                }
+            )
+    out["allergies_mentioned"] = allergies
     out["follow_up"] = [str(c).strip() for c in out["follow_up"] if str(c).strip()]
 
     if out["date"]:
@@ -134,21 +149,47 @@ def normalise_extraction(raw: Any) -> dict[str, Any]:
     return out
 
 
-def _run_extraction(file_field, mime_type: str, context: str = "") -> dict[str, Any]:
+def extract_bytes(file_bytes: bytes, mime_type: str, context: str = "") -> dict[str, Any]:
+    """
+    Read one file with the AI and return the normalised extraction.
+
+    The result is cached by the file's SHA-256 for two hours: the check made
+    before saving (so the person can confirm differences) and the extraction
+    run after saving read the same file, and the second one reuses the first.
+    """
+    import hashlib
+
+    from django.core.cache import cache
+
     from apps.core import ai
 
-    file_field.open("rb")
+    key = "extraction:v2:" + hashlib.sha256(file_bytes).hexdigest()
     try:
-        file_bytes = file_field.read()
-    finally:
-        file_field.close()
-
+        hit = cache.get(key)
+    except Exception:
+        hit = None
+    if hit is not None:
+        return hit
     prompt = EXTRACTION_PROMPT.format(context=context)
     raw = ai.generate_json(
         [{"role": "user", "parts": [{"text": prompt}, ai.file_part(file_bytes, mime_type)]}],
         timeout=getattr(settings, "GEMINI_TIMEOUT_SECONDS", 40) + 20,
     )
-    return normalise_extraction(raw)
+    result = normalise_extraction(raw)
+    try:
+        cache.set(key, result, 2 * 60 * 60)
+    except Exception:
+        pass
+    return result
+
+
+def _run_extraction(file_field, mime_type: str, context: str = "") -> dict[str, Any]:
+    file_field.open("rb")
+    try:
+        file_bytes = file_field.read()
+    finally:
+        file_field.close()
+    return extract_bytes(file_bytes, mime_type, context)
 
 
 def _notify(user, ok: bool, record_type: str, record_id: str, name: str) -> None:

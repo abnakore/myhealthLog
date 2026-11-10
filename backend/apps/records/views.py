@@ -183,6 +183,9 @@ def _queue_attachment_extraction(record_type: str | None, instance) -> None:
     transaction.on_commit(_send)
 
 
+# Record kinds whose attached file can be compared with the form.
+_COMPARABLE = {"medication", "allergy", "condition", "vital", "document", "appointment"}
+
 # Record kinds the automatic review understands (see apps/records/review.py).
 _REVIEWABLE = {"medication", "allergy", "condition", "vital", "document", "appointment"}
 
@@ -205,16 +208,6 @@ def _queue_review(viewset_class_name: str, instance) -> None:
             logger.exception("Failed to queue review for %s %s", record_type, record_id)
 
     transaction.on_commit(_send)
-
-
-def _invalidate_summaries(owner) -> None:
-    """A changed record makes any cached AI summary of it stale."""
-    try:
-        from apps.emergency.services import AIDynamicSummaryService
-
-        AIDynamicSummaryService.invalidate(str(owner.id))
-    except Exception:
-        logger.debug("Could not invalidate AI summary for %s", getattr(owner, "id", owner))
 
 
 class BaseRecordViewSet(viewsets.ModelViewSet):
@@ -307,7 +300,6 @@ class BaseRecordViewSet(viewsets.ModelViewSet):
         )
         _queue_attachment_extraction(self.attachment_type, instance)
         _queue_review(self.__class__.__name__, instance)
-        _invalidate_summaries(owner)
         _notify_record(
             owner,
             "RECORD_ADDED",
@@ -328,7 +320,6 @@ class BaseRecordViewSet(viewsets.ModelViewSet):
         )
         _queue_attachment_extraction(self.attachment_type, instance)
         _queue_review(self.__class__.__name__, instance)
-        _invalidate_summaries(owner)
         _notify_record(
             owner,
             "RECORD_UPDATED",
@@ -350,10 +341,74 @@ class BaseRecordViewSet(viewsets.ModelViewSet):
         record_type = _RECORD_TYPE_KEYS.get(self.__class__.__name__)
         record_id = instance.id
         instance.delete()
-        _invalidate_summaries(owner)
         from .models import RecordReview
 
         RecordReview.objects.filter(record_type=record_type, record_id=record_id).delete()
+
+    # -------------------------------------------------------------- check before save
+
+    def _check_document(self, request, instance=None):
+        """
+        Read the attached file now and compare it with the form, before saving,
+        so the person can confirm or correct each difference.
+
+        Body: the same multipart form the create/update would send, with `file`.
+        Returns {"status": "DONE" | "UNAVAILABLE", "mismatches": [...], "summary": str}.
+        UNAVAILABLE means the AI could not read the file; the client then saves as
+        usual and the background review compares it later.
+        """
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from apps.core import ai
+        from apps.core.validators import (
+            validate_document_content,
+            validate_document_extension,
+            validate_file_size,
+        )
+
+        from .review import check_against_document
+        from .tasks import extract_bytes
+
+        self.get_active_owner(require_write=True)
+        record_type = _RECORD_TYPE_KEYS.get(self.__class__.__name__)
+        upload = request.FILES.get("file")
+        if record_type not in _COMPARABLE or upload is None:
+            return Response({"detail": "Attach a file to compare it with the form."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            validate_file_size(upload)
+            validate_document_extension(upload)
+            validate_document_content(upload)
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.messages[0]}, status=status.HTTP_400_BAD_REQUEST)
+
+        unavailable = {"status": "UNAVAILABLE", "mismatches": [], "summary": ""}
+        if not ai.is_configured():
+            return Response(unavailable)
+        values = {}
+        if instance is not None:
+            values = {f.attname: getattr(instance, f.attname) for f in instance._meta.concrete_fields}
+        values.update({k: request.data.get(k) for k in request.data.keys() if k != "file"})
+        try:
+            extraction = extract_bytes(upload.read(), getattr(upload, "content_type", "") or "application/pdf",
+                                       f" as supporting evidence for their {record_type} record")
+        except Exception as exc:
+            logger.warning("Pre-save document check failed for %s: %s", record_type, exc)
+            return Response(unavailable)
+        return Response({
+            "status": "DONE",
+            "mismatches": check_against_document(record_type, values, extraction),
+            "summary": extraction.get("summary") or "",
+        })
+
+    @action(detail=False, methods=["post"], url_path="check-document")
+    def check_document(self, request):
+        """POST /api/v1/records/<kind>/check-document/ : compare a new record's file with its form."""
+        return self._check_document(request)
+
+    @action(detail=True, methods=["post"], url_path="check-document")
+    def check_document_existing(self, request, pk=None):
+        """POST /api/v1/records/<kind>/<id>/check-document/ : the same, for an edit."""
+        return self._check_document(request, self.get_object())
 
     @action(detail=True, methods=["get", "post"], url_path="review")
     def review(self, request, pk=None):
@@ -459,6 +514,18 @@ class MedicationViewSet(BaseRecordViewSet):
     ordering_fields = ["created_at", "start_date", "name"]
     filterset_fields = ["active"]
 
+    @action(detail=False, methods=["get"], url_path="safety-flags")
+    def safety_flags(self, request):
+        """
+        GET /api/v1/records/medications/safety-flags/
+
+        The serious findings of the stored review of every current medicine
+        (allergy clashes, contraindications, interactions from official sources).
+        The Medical Summary page shows these instead of running its own rules.
+        """
+        from apps.emergency.services import medicine_flags
+
+        return Response(medicine_flags(self.get_active_owner()))
 
 
 # ---------------------------------------------------------------------------
@@ -525,7 +592,6 @@ class HealthDocumentViewSet(BaseRecordViewSet):
         _notify_record(
             owner, "RECORD_ADDED", instance, self.__class__.__name__, actor=self.request.user
         )
-        _invalidate_summaries(owner)
         # Trigger AI extraction asynchronously (non-blocking).
         transaction.on_commit(
             lambda: self._trigger_extraction(str(instance.id))

@@ -313,6 +313,10 @@ GEMINI_TIMEOUT_SECONDS = config("GEMINI_TIMEOUT_SECONDS", default=40, cast=int)
 # rule checks. The rule checks and document comparison always run.
 RECORD_REVIEW_AI_ENABLED = config("RECORD_REVIEW_AI_ENABLED", default=True, cast=bool)
 
+# Whether medicine checks look drugs up in the public NLM (RxNorm, RxClass) and
+# openFDA services (apps.core.drug_knowledge). Off, medicine checks are skipped.
+DRUG_LOOKUP_ENABLED = config("DRUG_LOOKUP_ENABLED", default=True, cast=bool)
+
 # ---------------------------------------------------------------------------
 # File uploads
 # ---------------------------------------------------------------------------
@@ -329,10 +333,6 @@ FILE_X_ACCEL_PREFIX = config("FILE_X_ACCEL_PREFIX", default="")
 # ---------------------------------------------------------------------------
 # Emergency & Sharing
 # ---------------------------------------------------------------------------
-# How long the AI dynamic emergency summary is cached in Redis (seconds)
-EMERGENCY_AI_SUMMARY_CACHE_TTL = config(
-    "EMERGENCY_AI_SUMMARY_CACHE_TTL", default=3600, cast=int
-)
 
 # ---------------------------------------------------------------------------
 # Frontend origin (for constructing absolute emergency links)

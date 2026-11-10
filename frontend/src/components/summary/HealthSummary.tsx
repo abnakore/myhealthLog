@@ -33,6 +33,7 @@ import {
   summaryInsights,
   type Insight,
   type InsightLabFinding,
+  type InsightMedicineFlag,
 } from "@/lib/summaryInsights";
 import {
   AllergyIcon,
@@ -132,6 +133,8 @@ export interface MedicalSummaryData {
   /** Condition names in the owner's care focus, highest rank first. They lead
       the conditions list; the rest keep the usual severity order. */
   focusOrder?: string[];
+  /** Serious findings of the backend check of each current medicine. */
+  medicineFlags?: InsightMedicineFlag[];
 }
 
 export type SummarySections = Partial<
@@ -341,6 +344,7 @@ export function HealthSummary({
     medications: visible.medications ? activeMeds : [],
     readings: visible.readings ? data.readings.map(toInsightReading) : [],
     labFindings: data.labFindings ?? [],
+    medicineFlags: visible.medications ? (data.medicineFlags ?? []) : [],
     appointments: data.appointments,
     bloodType: profile.bloodType,
     contactCount: profile.emergencyContacts.length,

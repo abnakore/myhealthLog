@@ -4,16 +4,12 @@ Emergency views.
 Public (no auth required):
   GET  /api/v1/emergency/card/<token>/       — resolve an emergency token and return the card
   POST /api/v1/emergency/card/<token>/verify-pin/ — verify PIN before revealing card
-
-Authenticated:
-  GET  /api/v1/emergency/dynamic-ai-summary/ — AI-prioritised summary (cached in Redis)
-  POST /api/v1/emergency/dynamic-ai-summary/invalidate/ — force cache invalidation
 """
 
 import logging
 
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
@@ -22,7 +18,7 @@ from apps.core.exceptions import BusinessRuleError, NotFoundError
 from apps.core.utils import hash_token
 from apps.sharing.models import EmergencySettings
 
-from .services import AIDynamicSummaryService, StaticEmergencyService
+from .services import StaticEmergencyService
 
 logger = logging.getLogger(__name__)
 
@@ -105,51 +101,3 @@ class EmergencyPinVerifyView(APIView):
             raise BusinessRuleError("Incorrect PIN.")
 
         return Response(StaticEmergencyService.compile(user, settings_obj))
-
-
-# ---------------------------------------------------------------------------
-# Authenticated: AI dynamic summary
-# ---------------------------------------------------------------------------
-
-
-class AIDynamicSummaryView(APIView):
-    """
-    GET /api/v1/emergency/dynamic-ai-summary/
-
-    Return the AI-prioritised emergency summary for the authenticated user.
-
-    The summary is cached in Redis for EMERGENCY_AI_SUMMARY_CACHE_TTL seconds
-    (default 1 hour).  The AI is not called on every request.
-
-    Response schema:
-    {
-      "emergency_overview": { ... },
-      "core_essentials": { "emergency_contacts": [...] },
-      "ai_prioritized_sections": [ { "priority_rank": int, "module_type": str, ... } ]
-    }
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        summary = AIDynamicSummaryService.get_or_generate(request.user)
-        return Response(summary)
-
-
-class AIDynamicSummaryInvalidateView(APIView):
-    """
-    POST /api/v1/emergency/dynamic-ai-summary/invalidate/
-
-    Force the AI summary cache to be cleared for the authenticated user.
-    The next GET will trigger a fresh AI analysis.
-
-    Called automatically by record change signals in production.
-    Exposed as an API endpoint so the frontend can trigger it manually
-    (e.g. after the user saves significant changes to their record).
-    """
-
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        AIDynamicSummaryService.invalidate(str(request.user.id))
-        return Response({"detail": "AI summary cache cleared. A fresh summary will be generated on the next request."})

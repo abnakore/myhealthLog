@@ -32,7 +32,7 @@ import { Confetti } from "@/components/ui/Confetti";
 import { RecordFields, RecordNotes, RecordTitle } from "./RecordDetailView";
 import { RecordEditModal } from "./RecordEditModal";
 import { RecordReviewPanel } from "./RecordReviewPanel";
-import type { ReviewMismatch } from "@/services/records";
+import { applyReviewFix, type ReviewMismatch } from "@/services/records";
 import { documentKindFor, findKind, findKindByRoute, type RecordKind } from "./registry";
 import {
   medicationToDraft,
@@ -659,17 +659,12 @@ export default function RecordViewPage() {
     }
   };
 
-  // "Use the document's value" from the record check: patch only that field.
+  // "Use the document's value" from the record check: patch exactly the fields
+  // the backend named, then reload so every page shows the corrected record.
   const applySuggestion = async (m: ReviewMismatch) => {
-    if (!m.suggestion) return;
-    if (kind.collectionKey === "medications" && (m.field === "dosage" || m.field === "frequency")) {
-      await store.updateItem("medications", record.id, { [m.field]: m.suggestion } as never);
-    } else if (kind.collectionKey === "vitals" && m.field === "value") {
-      const [v, v2] = m.suggestion.split("/").map(Number);
-      const patch: Record<string, number> = { value: v };
-      if (v2 !== undefined && !Number.isNaN(v2)) patch.value2 = v2;
-      await store.updateItem("vitals", record.id, patch as never);
-    }
+    if (!m.apply || !apiPath) return;
+    await applyReviewFix(apiPath, record.id, m.apply);
+    await store.refresh();
   };
 
   const retry = async () => {
