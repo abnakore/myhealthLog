@@ -150,6 +150,16 @@ def _build_personal_context(user) -> str:
                 f"  - {f['metric']}: {f['value']} {f['unit']}{ref} — {f['status'].upper()}, {f.get('date') or 'date unknown'}"
             )
 
+    try:
+        from apps.contexts.focus import focus_summary_lines, ranked_focus
+
+        focus = ranked_focus(user)
+    except Exception:
+        focus = []
+    if focus:
+        lines.append("CARE FOCUS (ranked by fixed rules, highest priority first; weigh answers in this order):")
+        lines.extend(f"  {line}" for line in focus_summary_lines(focus))
+
     flags = _safety_flags(user, active_meds, allergies, recent_vitals, labs)
     if flags:
         lines.append("SAFETY FLAGS (computed by fixed clinical rules — always address these when relevant):")
@@ -160,28 +170,11 @@ def _build_personal_context(user) -> str:
     return "\n".join(lines)
 
 
-# Medicine classes an allergy name can point at (kept in step with the
-# frontend rule engine in src/lib/summaryInsights.ts).
-_DRUG_CLASSES = {
-    "penicillin": ["penicillin", "amoxicillin", "ampicillin", "augmentin", "co-amoxiclav", "flucloxacillin", "cloxacillin", "ampiclox"],
-    "sulfonamide": ["sulfamethoxazole", "co-trimoxazole", "septrin", "bactrim", "sulfasalazine", "fansidar"],
-    "nsaid": ["ibuprofen", "diclofenac", "naproxen", "aspirin", "ketoprofen", "piroxicam", "meloxicam", "celecoxib", "indomethacin"],
-    "opioid": ["codeine", "morphine", "tramadol", "pethidine", "oxycodone"],
-    "cephalosporin": ["ceftriaxone", "cefuroxime", "cefalexin", "cephalexin", "cefixime"],
-    "quinolone": ["ciprofloxacin", "levofloxacin", "ofloxacin"],
-}
-_ALIASES = {"penicillin": "penicillin", "penicillins": "penicillin", "sulfa": "sulfonamide", "sulpha": "sulfonamide",
-            "sulfonamide": "sulfonamide", "nsaid": "nsaid", "nsaids": "nsaid", "aspirin": "nsaid", "ibuprofen": "nsaid",
-            "codeine": "opioid", "opioid": "opioid", "morphine": "opioid", "cephalosporin": "cephalosporin",
-            "quinolone": "quinolone", "ciprofloxacin": "quinolone"}
-
-
-def _med_class(name: str):
-    n = name.lower()
-    for cls, members in _DRUG_CLASSES.items():
-        if any(m in n for m in members):
-            return cls
-    return None
+# The drug classes and allergy aliases live in apps.core.clinical_rules so the
+# Copilot and the record review apply exactly the same rules.
+from apps.core.clinical_rules import ALLERGY_ALIASES as _ALIASES  # noqa: E402
+from apps.core.clinical_rules import DRUG_CLASSES as _DRUG_CLASSES  # noqa: E402
+from apps.core.clinical_rules import med_class as _med_class  # noqa: E402
 
 
 def _safety_flags(user, meds, allergies, vitals, labs) -> list[str]:
@@ -217,6 +210,23 @@ def _safety_flags(user, meds, allergies, vitals, labs) -> list[str]:
             flags.append(f"Latest BP {sys:g}/{dia:g} is in the hypertensive-crisis range: advise urgent medical review, especially with headache, chest pain, vision change or confusion. NSAIDs can raise BP further.")
         elif sys >= 140 or dia >= 90:
             flags.append(f"Latest BP {sys:g}/{dia:g} is high: NSAIDs and decongestants can raise it further.")
+    try:
+        from apps.contexts.focus import current_pregnancy, pregnancy_weeks
+        from apps.core.clinical_rules import medication_findings
+
+        preg = current_pregnancy(user)
+    except Exception:
+        preg = None
+    if preg is not None:
+        weeks = pregnancy_weeks(preg.pregnancy_data)
+        flags.append(
+            "The patient is pregnant" + (f" (about {weeks} weeks)" if weeks is not None else "")
+            + ": check every medicine, supplement and reading against pregnancy, and suggest asking the doctor or midwife."
+        )
+        for m in meds:
+            for f in medication_findings(m, allergies=[], conditions=[], pregnant=True, pregnancy_weeks=weeks):
+                if f.rule.startswith("pregnancy."):
+                    flags.append(f"{f.title}: {f.detail}")
     if any(f["metric"].lower().startswith("potassium") and f["status"] in ("high", "critical") for f in labs):
         flags.append("High potassium on record: avoid potassium supplements/salt substitutes; ACE inhibitors and NSAIDs can raise potassium.")
     return flags

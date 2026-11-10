@@ -10,8 +10,10 @@ import { APP_MODES, type AppMode } from "@/lib/appModes";
 import { useAppMode } from "@/store/AppModeContext";
 import { useContexts } from "@/store/ContextsContext";
 import { useRecords } from "@/store/RecordsContext";
-import { CheckIcon, ChevronDownIcon } from "@/components/icons";
+import { CheckIcon, ChevronDownIcon, HeartPulseIcon } from "@/components/icons";
 import { CriticalConditionModal } from "./CriticalConditionModal";
+import { CareFocusModal } from "./CareFocusModal";
+import { useCareFocus } from "@/store/careFocusStore";
 
 export function ModeSwitcher({ compact = false }: { compact?: boolean }) {
   const { mode, meta, setMode, setCriticalConditionId } = useAppMode();
@@ -20,6 +22,8 @@ export function ModeSwitcher({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [criticalOpen, setCriticalOpen] = useState(false);
   const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
+  const [focusOpen, setFocusOpen] = useState(false);
+  const { ranked } = useCareFocus();
   const wrapRef = useRef<HTMLDivElement>(null);
   const Icon = meta.Icon;
   const hasPreg = contexts.some((c) => c.kind === "LIFE_STAGE");
@@ -144,11 +148,28 @@ export function ModeSwitcher({ compact = false }: { compact?: boolean }) {
               </button>
             );
           })}
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => { setOpen(false); setFocusOpen(true); }}
+            className="mt-1 flex w-full items-center gap-2.5 rounded-[0.6rem] border-t border-mhl-rule px-2.5 py-2 text-left transition-colors duration-150 hover:bg-mhl-sunk"
+          >
+            <span className="grid h-8 w-8 flex-none place-items-center rounded-full bg-mhl-sunk text-mhl-muted">
+              <HeartPulseIcon size={17} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-mhl-fine font-bold text-mhl-ink">Focus on several at once</span>
+              <span className="block truncate text-[0.72rem] text-mhl-muted">
+                {ranked.length > 1 ? `${ranked.length} in focus: ${ranked.map((r) => r.label).join(", ")}` : "For example pregnancy and diabetes together"}
+              </span>
+            </span>
+          </button>
           <p className="px-2.5 pb-1.5 pt-2 text-[0.72rem] leading-snug text-mhl-faint">
-            Switching changes focus only — your full record stays untouched.
+            Switching changes focus only. Your full record stays untouched.
           </p>
         </div>
       )}
+      <CareFocusModal open={focusOpen} onClose={() => setFocusOpen(false)} />
       <CriticalConditionModal
         open={criticalOpen}
         mode={pendingMode ?? "critical"}

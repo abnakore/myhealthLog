@@ -743,3 +743,42 @@ export async function deleteVital(id: string): Promise<void> {
 
 // Re-export the hasFile helper so callers can use it without a separate import
 export { hasFile };
+
+/* ------------------------------------------------------------------ review -- */
+
+/** One rule finding from the automatic record review (backend apps/records/review.py). */
+export interface ReviewFinding {
+  level: "critical" | "warning" | "info";
+  rule: string;
+  title: string;
+  detail: string;
+  data?: Record<string, unknown>;
+}
+
+/** A difference between what was typed and what the attached document says. */
+export interface ReviewMismatch {
+  field: string;
+  form: string;
+  document: string;
+  suggestion: string | null;
+  detail: string;
+}
+
+export interface RecordReview {
+  status: "NONE" | "PENDING" | "DONE" | "FAILED";
+  findings: ReviewFinding[];
+  mismatches: ReviewMismatch[];
+  aiInsight: { summary: string; points: string[]; urgency: "none" | "routine" | "soon" | "urgent" } | null;
+  aiStatus?: "DONE" | "SKIPPED" | "FAILED" | "";
+  updatedAt?: string;
+}
+
+export async function fetchRecordReview(routeKey: string, id: string): Promise<RecordReview> {
+  const res = await api.get<RecordReview>(`/v1/records/${routeKey}/${id}/review/`);
+  return res.data;
+}
+
+export async function rerunRecordReview(routeKey: string, id: string): Promise<RecordReview> {
+  const res = await api.post<RecordReview>(`/v1/records/${routeKey}/${id}/review/`);
+  return res.data;
+}

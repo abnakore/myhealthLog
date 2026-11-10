@@ -17,6 +17,8 @@ Design decisions:
 """
 
 
+import uuid
+
 from django.conf import settings
 from django.db import models
 
@@ -502,3 +504,55 @@ class VitalReading(AttachmentMixin, BaseModel):
     def __str__(self) -> str:
         display = f"{self.value}{' / ' + str(self.value2) if self.value2 else ''} {self.unit}"
         return f"{self.vital_type}: {display} at {self.measured_at} — {self.user_id}"
+
+
+# ---------------------------------------------------------------------------
+# Record review
+# ---------------------------------------------------------------------------
+
+
+class RecordReview(models.Model):
+    """
+    The latest automatic review of one record: rule findings, differences
+    between the form and its attached document, and a short AI insight.
+
+    One row per record (updated in place on every save), so the record page
+    can always show the current state. Reviews are informational; they never
+    block or change the record itself.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        DONE = "DONE", "Done"
+        FAILED = "FAILED", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="record_reviews",
+    )
+    record_type = models.CharField(max_length=20)
+    record_id = models.UUIDField()
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    # [{"level", "rule", "title", "detail", "data"}], most serious first
+    findings = models.JSONField(default=list, blank=True)
+    # [{"field", "form", "document", "suggestion", "detail"}]
+    mismatches = models.JSONField(default=list, blank=True)
+    # {"summary", "points", "urgency"} or null
+    ai_insight = models.JSONField(null=True, blank=True)
+    # DONE | SKIPPED | FAILED
+    ai_status = models.CharField(max_length=10, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Record Review"
+        verbose_name_plural = "Record Reviews"
+        constraints = [
+            models.UniqueConstraint(fields=["record_type", "record_id"], name="one_review_per_record"),
+        ]
+        indexes = [models.Index(fields=["user", "-updated_at"])]
+
+    def __str__(self) -> str:
+        return f"Review of {self.record_type} {self.record_id} ({self.status})"

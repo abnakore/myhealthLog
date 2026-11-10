@@ -230,6 +230,7 @@ def extract_document_with_ai(self, document_id: str) -> None:
     doc.save(update_fields=["ai_extraction", "ai_extraction_status", "title", "document_date"])
     logger.info("AI extraction complete for document %s", document_id)
     _notify(doc.user, True, "document", str(doc.id), doc.title or "Document")
+    _review_after_extraction("document", str(doc.id))
 
 
 # Record kinds that can carry an attachment, keyed by the frontend's record_type.
@@ -300,3 +301,28 @@ def extract_attachment_with_ai(self, record_type: str, record_id: str) -> None:
     record.save(update_fields=["ai_extraction", "ai_extraction_status"])
     logger.info("AI extraction complete for %s %s", record_type, record_id)
     _notify(record.user, True, record_type, str(record.id), name)
+    _review_after_extraction(record_type, str(record.id))
+
+
+@shared_task(acks_late=True, soft_time_limit=120, time_limit=150, name="records.review_record")
+def review_record_task(record_type: str, record_id: str) -> None:
+    """Run the automatic review of one record (rules, document comparison, AI insight)."""
+    from apps.records.review import review_record
+
+    try:
+        review_record(record_type, record_id)
+    except Exception:
+        logger.exception("Record review failed for %s %s", record_type, record_id)
+        from apps.records.models import RecordReview
+
+        RecordReview.objects.filter(record_type=record_type, record_id=record_id).update(status="FAILED")
+
+
+def _review_after_extraction(record_type: str, record_id: str) -> None:
+    """The document has just been read, so compare it with the form."""
+    try:
+        from apps.records.review import review_record
+
+        review_record(record_type, record_id)
+    except Exception:
+        logger.exception("Review after extraction failed for %s %s", record_type, record_id)

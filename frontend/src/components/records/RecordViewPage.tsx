@@ -31,6 +31,8 @@ import { Tag } from "@/components/ui/Tag";
 import { Confetti } from "@/components/ui/Confetti";
 import { RecordFields, RecordNotes, RecordTitle } from "./RecordDetailView";
 import { RecordEditModal } from "./RecordEditModal";
+import { RecordReviewPanel } from "./RecordReviewPanel";
+import type { ReviewMismatch } from "@/services/records";
 import { documentKindFor, findKind, findKindByRoute, type RecordKind } from "./registry";
 import {
   medicationToDraft,
@@ -171,7 +173,7 @@ function FileCard({
       <div className="flex flex-col items-center gap-3 rounded-mhl border border-dashed border-mhl-rule bg-mhl-sunk px-4 py-8 text-center">
         <p className="text-mhl-body text-mhl-muted">
           {file.fileName
-            ? "The file isn't available — it may have been removed from the server."
+            ? "The file isn't available. It may have been removed from the server."
             : "No supporting document is attached to this record."}
         </p>
         {onAttach && (
@@ -327,7 +329,7 @@ function AiAnalysisCard({
 
       {!file.fileUrl && !file.fileName && (
         <p className="text-mhl-fine text-mhl-muted">
-          Attach a supporting document — a prescription, a lab report, a clinic letter — and AI will
+          Attach a supporting document, such as a prescription, a lab report or a clinic letter, and AI will
           read it and list what it found here.
         </p>
       )}
@@ -335,7 +337,7 @@ function AiAnalysisCard({
       {(status === "PENDING" || status === "PROCESSING") && (
         <div className="flex items-center gap-3 rounded-mhl-sm bg-mhl-accent-lo px-4 py-3 text-mhl-fine text-mhl-ink">
           <Spinner size={16} />
-          Reading the attached file — this usually takes under a minute. This page updates by itself.
+          Reading the attached file. This usually takes under a minute. This page updates by itself.
         </div>
       )}
 
@@ -657,6 +659,19 @@ export default function RecordViewPage() {
     }
   };
 
+  // "Use the document's value" from the record check: patch only that field.
+  const applySuggestion = async (m: ReviewMismatch) => {
+    if (!m.suggestion) return;
+    if (kind.collectionKey === "medications" && (m.field === "dosage" || m.field === "frequency")) {
+      await store.updateItem("medications", record.id, { [m.field]: m.suggestion } as never);
+    } else if (kind.collectionKey === "vitals" && m.field === "value") {
+      const [v, v2] = m.suggestion.split("/").map(Number);
+      const patch: Record<string, number> = { value: v };
+      if (v2 !== undefined && !Number.isNaN(v2)) patch.value2 = v2;
+      await store.updateItem("vitals", record.id, patch as never);
+    }
+  };
+
   const retry = async () => {
     if (!apiPath) return;
     setRetrying(true);
@@ -720,6 +735,16 @@ export default function RecordViewPage() {
       )}
 
       <DetailsCard record={record} relatedConditions={relatedConditions} />
+
+      {apiPath && apiPath !== "appointments" && (
+        <RecordReviewPanel
+          routeKey={apiPath}
+          recordId={record.id}
+          basis={`${basis}|${JSON.stringify(record)}`}
+          canEdit={canEdit}
+          onApply={applySuggestion}
+        />
+      )}
 
       {canEdit && (
         <RecordEditModal

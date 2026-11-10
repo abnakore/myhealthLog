@@ -231,6 +231,23 @@ class StaticEmergencyService:
                 for ctx in user.health_contexts.filter(kind="LIFE_STAGE", key="pregnancy")
             )
 
+        # The person's ranked care focus decides which conditions a responder
+        # reads first (pregnancy, then severe active conditions, and so on).
+        care_focus = []
+        if settings_obj.show_conditions:
+            try:
+                from apps.contexts.focus import ranked_focus
+
+                care_focus = [
+                    {"kind": f["kind"], "label": f["label"], "rank": f["rank"], "reason": f["reason"]}
+                    for f in ranked_focus(user)
+                    if f["kind"] != "elderly"
+                ]
+            except Exception:
+                logger.exception("Could not rank care focus for the emergency summary of %s", user.id)
+            order = {f["label"].lower(): f["rank"] for f in care_focus if f["kind"] == "condition"}
+            conditions.sort(key=lambda c: order.get(c["name"].lower(), len(order) + 1))
+
         appointments = [
             {
                 "title": a.title,
@@ -251,6 +268,7 @@ class StaticEmergencyService:
             "appointments": appointments,
             "labFindings": lab_findings,
             "pregnant": pregnant,
+            "careFocus": care_focus,
         }
 
     @staticmethod

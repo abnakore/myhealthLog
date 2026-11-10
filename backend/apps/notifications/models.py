@@ -36,6 +36,7 @@ class Notification(models.Model):
         # Documents / AI
         DOCUMENT_EXTRACTED  = "DOCUMENT_EXTRACTED",  "Document processed"
         DOCUMENT_EXTRACT_FAILED = "DOCUMENT_EXTRACT_FAILED", "Document processing failed"
+        RECORD_REVIEW       = "RECORD_REVIEW",       "Record needs a check"
         # Provider sharing
         PROVIDER_CREATED    = "PROVIDER_CREATED",    "Care provider access granted"
         PROVIDER_NOTE_ADDED = "PROVIDER_NOTE_ADDED", "Care provider added a note"

@@ -86,6 +86,10 @@ class HealthProfile(TimeStampedModel):
         blank=True,
         validators=[validate_file_size, validate_image_extension],
     )
+    # Conditions and life stages the person wants the app to focus on, as
+    # references: [{"kind": "pregnancy"}, {"kind": "condition", "id": "<uuid>"},
+    # {"kind": "elderly"}]. Ranked on read by apps.contexts.focus.
+    care_focus = models.JSONField(default=list, blank=True)
 
     class Meta:
         verbose_name = "Health Profile"

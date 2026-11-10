@@ -69,7 +69,7 @@ export function CriticalConditionModal({ open, mode, onClose, onDone }: {
         >
           <p className="text-mhl-body text-mhl-muted">
             {pregnancy
-              ? "Your pregnancy profile is already on file — entering mode opens it."
+              ? "Your pregnancy profile is already on file. Entering the mode opens it."
               : "Next, add your dates so the dashboard can show how far along you are."}
           </p>
         </Modal>
@@ -112,7 +112,7 @@ export function CriticalConditionModal({ open, mode, onClose, onDone }: {
       open={open}
       onClose={onClose}
       title="Which condition needs the focus?"
-      description="Critical mode brings one condition — its treatment, schedule and numbers — to the front of everything."
+      description="Critical mode brings one condition, with its treatment, schedule and numbers, to the front of everything. To focus on several at once, use Focus on several at once in the mode menu."
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>Cancel</Button>

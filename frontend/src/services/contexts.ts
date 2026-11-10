@@ -4,6 +4,7 @@
  */
 import { api } from "./api";
 import type { HealthContext, PregnancyContext } from "@/types/context";
+import type { FocusRef, RankedFocus } from "@/lib/careFocus";
 
 interface BackendContext {
   id: string;
@@ -66,4 +67,19 @@ export async function updateContext(id: string, ctx: Partial<HealthContext>): Pr
 
 export async function deleteContext(id: string): Promise<void> {
   await api.delete(`/v1/contexts/${id}/`);
+}
+
+/* -------------------------------------------------------------- care focus -- */
+
+
+/** GET /v1/contexts/focus/: the stored focus references and the server's ranking. */
+export async function fetchCareFocus(): Promise<{ focus: FocusRef[]; ranked: RankedFocus[] }> {
+  const res = await api.get<{ focus: FocusRef[]; ranked: RankedFocus[] }>("/v1/contexts/focus/");
+  return res.data;
+}
+
+/** PUT /v1/contexts/focus/: replace the focus list; the server validates and re-ranks it. */
+export async function saveCareFocus(focus: FocusRef[]): Promise<{ focus: FocusRef[]; ranked: RankedFocus[] }> {
+  const res = await api.put<{ focus: FocusRef[]; ranked: RankedFocus[] }>("/v1/contexts/focus/", { focus });
+  return res.data;
 }

@@ -309,6 +309,9 @@ GEMINI_FALLBACK_MODELS = config(
 )
 # Hard per-request timeout so a slow model can never hang a worker or a request.
 GEMINI_TIMEOUT_SECONDS = config("GEMINI_TIMEOUT_SECONDS", default=40, cast=int)
+# Whether the automatic record review asks Gemini for a short insight after the
+# rule checks. The rule checks and document comparison always run.
+RECORD_REVIEW_AI_ENABLED = config("RECORD_REVIEW_AI_ENABLED", default=True, cast=bool)
 
 # ---------------------------------------------------------------------------
 # File uploads

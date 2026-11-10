@@ -1,5 +1,7 @@
-from rest_framework import viewsets
+from rest_framework import serializers, viewsets
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.core.pagination import StandardResultsSetPagination
 from apps.sharing.proxy import resolve_active_owner
@@ -75,3 +77,46 @@ class HealthContextViewSet(viewsets.ModelViewSet):
             )
         except Exception:
             pass
+
+
+class CareFocusView(APIView):
+    """
+    The person's care focus: several conditions and life stages at once, ranked.
+
+    GET /api/v1/contexts/focus/  -> {"focus": [refs], "ranked": [ranked items]}
+    PUT /api/v1/contexts/focus/  body {"focus": [{"kind": "pregnancy"}, {"kind": "condition", "id": "..."}]}
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _profile(owner):
+        from apps.profiles.models import HealthProfile
+
+        profile, _ = HealthProfile.objects.get_or_create(user=owner, defaults={"full_name": owner.name or ""})
+        return profile
+
+    def _payload(self, owner, profile):
+        from .focus import ranked_focus
+
+        return {"focus": profile.care_focus or [], "ranked": ranked_focus(owner, profile.care_focus or [])}
+
+    def get(self, request):
+        owner = resolve_active_owner(request)
+        return Response(self._payload(owner, self._profile(owner)))
+
+    def put(self, request):
+        from .focus import clean_focus
+
+        owner = resolve_active_owner(request, require_write=True)
+        try:
+            focus = clean_focus(request.data.get("focus"))
+        except ValueError as exc:
+            raise serializers.ValidationError({"focus": str(exc)}) from exc
+        own_ids = {str(i) for i in owner.conditions.values_list("id", flat=True)}
+        if any(f["kind"] == "condition" and f["id"] not in own_ids for f in focus):
+            raise serializers.ValidationError({"focus": "That condition is not in this record."})
+        profile = self._profile(owner)
+        profile.care_focus = focus
+        profile.save(update_fields=["care_focus", "updated_at"])
+        return Response(self._payload(owner, profile))

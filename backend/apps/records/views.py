@@ -183,6 +183,30 @@ def _queue_attachment_extraction(record_type: str | None, instance) -> None:
     transaction.on_commit(_send)
 
 
+# Record kinds the automatic review understands (see apps/records/review.py).
+_REVIEWABLE = {"medication", "allergy", "condition", "vital", "document", "appointment"}
+
+
+def _queue_review(viewset_class_name: str, instance) -> None:
+    """After the transaction commits, review the saved record in the worker."""
+    record_type = _RECORD_TYPE_KEYS.get(viewset_class_name)
+    if record_type not in _REVIEWABLE:
+        return
+    record_id = str(instance.id)
+
+    def _send():
+        try:
+            from .models import RecordReview
+            from .tasks import review_record_task
+
+            RecordReview.objects.filter(record_type=record_type, record_id=record_id).update(status="PENDING")
+            review_record_task.delay(record_type, record_id)
+        except Exception:
+            logger.exception("Failed to queue review for %s %s", record_type, record_id)
+
+    transaction.on_commit(_send)
+
+
 def _invalidate_summaries(owner) -> None:
     """A changed record makes any cached AI summary of it stale."""
     try:
@@ -282,6 +306,7 @@ class BaseRecordViewSet(viewsets.ModelViewSet):
             self.request.user.id,
         )
         _queue_attachment_extraction(self.attachment_type, instance)
+        _queue_review(self.__class__.__name__, instance)
         _invalidate_summaries(owner)
         _notify_record(
             owner,
@@ -302,6 +327,7 @@ class BaseRecordViewSet(viewsets.ModelViewSet):
             owner.id,
         )
         _queue_attachment_extraction(self.attachment_type, instance)
+        _queue_review(self.__class__.__name__, instance)
         _invalidate_summaries(owner)
         _notify_record(
             owner,
@@ -321,8 +347,40 @@ class BaseRecordViewSet(viewsets.ModelViewSet):
             self.__class__.__name__,
             actor=self.request.user,
         )
+        record_type = _RECORD_TYPE_KEYS.get(self.__class__.__name__)
+        record_id = instance.id
         instance.delete()
         _invalidate_summaries(owner)
+        from .models import RecordReview
+
+        RecordReview.objects.filter(record_type=record_type, record_id=record_id).delete()
+
+    @action(detail=True, methods=["get", "post"], url_path="review")
+    def review(self, request, pk=None):
+        """
+        The latest automatic review of this record.
+
+        GET  /api/v1/records/<kind>/<id>/review/  -> the review, or {"status": "NONE"}
+        POST /api/v1/records/<kind>/<id>/review/  -> run it again
+        """
+        from .models import RecordReview
+
+        record = self.get_object()
+        record_type = _RECORD_TYPE_KEYS.get(self.__class__.__name__)
+        if request.method == "POST":
+            self.get_active_owner(require_write=True)
+            _queue_review(self.__class__.__name__, record)
+        review = RecordReview.objects.filter(record_type=record_type, record_id=record.pk).first()
+        if review is None:
+            return Response({"status": "NONE", "findings": [], "mismatches": [], "aiInsight": None})
+        return Response({
+            "status": review.status,
+            "findings": review.findings,
+            "mismatches": review.mismatches,
+            "aiInsight": review.ai_insight,
+            "aiStatus": review.ai_status,
+            "updatedAt": review.updated_at,
+        })
 
     @action(detail=True, methods=["post"], url_path="retry-extraction")
     def retry_extraction(self, request, pk=None):

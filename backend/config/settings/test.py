@@ -44,3 +44,6 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
 
 # Files are streamed by Django in tests (no Nginx in front).
 FILE_X_ACCEL_PREFIX = ""
+
+# Tests never call Gemini from the record review.
+RECORD_REVIEW_AI_ENABLED = False

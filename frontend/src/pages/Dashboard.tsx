@@ -27,6 +27,7 @@ import { ModeSupportBanner } from "@/components/modes/ModeSupportBanner";
 import { ElderlyDash } from "@/components/dashboard/ElderlyDash";
 import { CriticalDash } from "@/components/dashboard/CriticalDash";
 import { PregnancyDash } from "@/components/dashboard/PregnancyDash";
+import { FocusStrip } from "@/components/dashboard/FocusStrip";
 import {
   Disc,
   CardHead,
@@ -259,7 +260,7 @@ export default function Dashboard() {
                 : "Life-threatening allergies on file"}
             </h2>
             <p className="mt-1 text-[0.9rem] leading-relaxed text-mhl-ink [text-wrap:pretty]">
-              <b>{critical.map((a) => a.substance).join(", ")}</b> — this is shown on{" "}
+              <b>{critical.map((a) => a.substance).join(", ")}</b> is shown on{" "}
               {isProxyView ? "their" : "your"} emergency card.{" "}
               <Link
                 to="/app/allergies"
@@ -271,6 +272,9 @@ export default function Dashboard() {
           </div>
         </section>
       )}
+
+      {/* Every condition and life stage in focus, in rule order. */}
+      <FocusStrip canEdit={canEdit} />
 
       {/* ========================= MODE BODIES ======================== */}
       {/* Each mode lays its own cards, mirroring its reference; the record
@@ -351,8 +355,8 @@ export default function Dashboard() {
                 <StripCell
                   icon={<DropIcon size={20} />}
                   label="Blood type"
-                  value={profile.bloodType ?? "—"}
-                  sub={`Genotype ${profile.genotype ?? "—"}`}
+                  value={profile.bloodType ?? "Not set"}
+                  sub={`Genotype ${profile.genotype ?? "not set"}`}
                 />
               </Link>
               <Link to="/app/allergies" className="min-w-0 transition-colors hover:bg-mhl-sunk">
@@ -383,7 +387,7 @@ export default function Dashboard() {
                 <StripCell
                   icon={<CalendarIcon size={20} />}
                   label="Last visit"
-                  value={lastVisit ? formatDate(lastVisit.scheduledFor) : "—"}
+                  value={lastVisit ? formatDate(lastVisit.scheduledFor) : "None yet"}
                   sub={lastVisit ? lastVisit.title : "No visits yet"}
                 />
               </Link>
@@ -462,7 +466,7 @@ export default function Dashboard() {
                     <EmptyState
                       icon={<VitalsIcon size={22} />}
                       title="No measurements yet"
-                      description="Add a reading and this card becomes the shape of your numbers — one row each, with the trend behind it."
+                      description="Add a reading and this card becomes the shape of your numbers: one row each, with the trend behind it."
                       action={
                         canEdit ? (
                           <Link to="/app/measurements" className={buttonStyles("primary", "md")}>
