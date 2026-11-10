@@ -39,7 +39,8 @@ const PAGES: { title: string; to: string; words: string }[] = [
   { title: "Emergency access", to: "/app/emergency", words: "emergency card qr code pin responder" },
   { title: "Care providers", to: "/app/providers", words: "doctor lab share access link provider" },
   { title: "Care proxy", to: "/app/proxy", words: "family proxy caregiver" },
-  { title: "Condition profiles", to: "/app/contexts", words: "condition aware profile pregnancy diabetes" },
+  { title: "Pregnancy", to: "/app/pregnancy", words: "pregnancy pregnant antenatal due date trimester baby" },
+  { title: "Condition profiles", to: "/app/contexts", words: "condition aware profile diabetes" },
   { title: "Medical summary", to: "/app/summary", words: "summary overview immunisations vaccines" },
   { title: "Timeline", to: "/app/timeline", words: "history timeline" },
   { title: "Copilot", to: "/app/copilot", words: "copilot ask question assistant" },
@@ -135,8 +136,8 @@ export function RecordSearch({ className }: { className?: string }) {
   }
 
   return (
-    <div className={cn("relative min-w-0", className)}>
-      <label className="flex min-h-11 w-full cursor-text items-center gap-2 rounded-[0.7rem] border border-mhl-rule bg-mhl-surface px-3.5 text-mhl-faint transition-colors focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/30">
+    <div className={cn("relative z-40 min-w-0", className)}>
+      <label className="mhl-focus-frame flex min-h-11 w-full cursor-text items-center gap-2 rounded-[0.7rem] border border-mhl-rule bg-mhl-surface px-3.5 text-mhl-faint transition-colors focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/30">
         <span className="sr-only">Search your records</span>
         <SearchIcon size={17} />
         <input

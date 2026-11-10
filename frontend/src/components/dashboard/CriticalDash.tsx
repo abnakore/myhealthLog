@@ -9,6 +9,7 @@
  * one illness.
  */
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/cn";
 import type { ReactNode } from "react";
 import type { Appointment, Condition, Medication } from "@/types/health";
 import { CONDITION_STATUS_LABELS, SEVERITY_LABELS } from "@/types/health";
@@ -48,6 +49,7 @@ import {
   VitalsIcon,
 } from "@/components/icons";
 import { LeafBranchArt } from "@/components/ui/Motifs";
+import { MODE_ART } from "@/lib/modeArt";
 
 /** The family's icon — a lung-ish mark for respiratory, a drop for metabolic… */
 export function FamilyIcon({ family, size = 22 }: { family: string; size?: number }) {
@@ -123,19 +125,32 @@ export interface CriticalDashProps {
   trustedContacts: string[];
   canEdit: boolean;
   onChangeFocus: () => void;
+  /** Whatever else is in focus (another condition, elderly care). */
+  alsoInFocus?: ReactNode;
 }
 
-export function CriticalDash({
+/**
+ * One condition in focus: its banner (in the record's own words) and the four
+ * facts about right now. Critical mode leads with it; when several things are
+ * in focus, every other condition gets one too, so none is reduced to a chip.
+ */
+export function ConditionPanel({
   condition,
   meds,
   groups,
   appointments,
-  activity,
-  trustedContacts,
   onChangeFocus,
-}: CriticalDashProps) {
+  alsoInFocus = false,
+}: {
+  condition: Condition;
+  meds: Medication[];
+  groups: VitalGroup[];
+  appointments: Appointment[];
+  onChangeFocus: () => void;
+  /** Shown beside a leading pregnancy or another condition. */
+  alsoInFocus?: boolean;
+}) {
   const guide = guideFor(condition);
-  const readings = conditionReadings(condition, guide, groups);
   const linkedMeds = conditionMedications(condition, meds);
   const followUp = conditionFollowUp(condition, appointments);
   const status = conditionStatus(condition, guide, groups);
@@ -170,10 +185,24 @@ export function CriticalDash({
           <LeafBranchArt className="block h-28 w-36" />
         </div>
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
-          <span className="grid h-16 w-16 flex-none place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent ring-1 ring-mhl-accent/25">
-            <FamilyIcon family={guide.family} size={30} />
-          </span>
+          {guide.family === "respiratory" ? (
+            // The lungs from the critical-condition preview.
+            <img
+              src={MODE_ART.critical.lungs}
+              alt=""
+              className="h-16 w-16 flex-none rounded-full mix-blend-multiply"
+            />
+          ) : (
+            <span className="grid h-16 w-16 flex-none place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent ring-1 ring-mhl-accent/25">
+              <FamilyIcon family={guide.family} size={30} />
+            </span>
+          )}
           <div className="min-w-0 flex-1">
+            {alsoInFocus && (
+              <p className="mb-1 text-[0.76rem] font-bold uppercase tracking-[0.12em] text-mhl-accent">
+                Also in focus
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-2.5">
               <h2 className="text-mhl-answer font-bold tracking-[-0.025em] text-mhl-ink">
                 {condition.name}
@@ -206,7 +235,7 @@ export function CriticalDash({
                 onClick={onChangeFocus}
                 className="mhl-interactive inline-flex min-h-11 items-center rounded-full border border-mhl-rule bg-mhl-surface px-5 py-2.5 text-mhl-body font-semibold text-mhl-muted hover:border-mhl-accent/50 hover:text-mhl-ink"
               >
-                Change focused condition
+                {alsoInFocus ? "Change focus" : "Change focused condition"}
               </button>
             </div>
           </div>
@@ -257,6 +286,35 @@ export function CriticalDash({
         />
       </section>
 
+    </>
+  );
+}
+
+export function CriticalDash({
+  condition,
+  meds,
+  groups,
+  appointments,
+  activity,
+  trustedContacts,
+  onChangeFocus,
+  alsoInFocus,
+}: CriticalDashProps) {
+  const guide = guideFor(condition);
+  const readings = conditionReadings(condition, guide, groups);
+
+  return (
+    <>
+      <ConditionPanel
+        condition={condition}
+        meds={meds}
+        groups={groups}
+        appointments={appointments}
+        onChangeFocus={onChangeFocus}
+      />
+
+      {alsoInFocus}
+
       <div className="mhl-dash__cols">
         <div className="mhl-dash__left flex min-w-0 flex-col gap-5">
           {/* The readings this condition's team watches — linked first. */}
@@ -290,10 +348,20 @@ export function CriticalDash({
             aria-labelledby="careplan-title"
             className="relative min-w-0 overflow-hidden rounded-mhl border border-mhl-rule bg-mhl-surface px-5 pb-5 pt-5 shadow-mhl"
           >
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full bg-mhl-accent-lo/70"
-            />
+            {guide.family === "respiratory" ? (
+              // The care-plan lungs from the critical-condition preview.
+              <img
+                src={MODE_ART.critical.plan}
+                alt=""
+                aria-hidden="true"
+                className="pointer-events-none absolute bottom-3 right-3 hidden h-[5.6rem] w-[5.6rem] mix-blend-multiply sm:block"
+              />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute -bottom-12 -right-12 h-40 w-40 rounded-full bg-mhl-accent-lo/70"
+              />
+            )}
             <div className="relative">
               <CardHead
                 icon={<HeartIcon size={16} />}
@@ -302,7 +370,7 @@ export function CriticalDash({
                 action={<CardOut to="/app/conditions">View details</CardOut>}
               />
               <p className="mt-2 text-mhl-fine text-mhl-muted">Your care plan includes</p>
-              <ul className="mt-2.5 space-y-2">
+              <ul className={cn("mt-2.5 space-y-2", guide.family === "respiratory" && "sm:pr-28")}>
                 {guide.carePlan.map((step) => (
                   <li
                     key={step}

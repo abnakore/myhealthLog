@@ -156,6 +156,16 @@ p {
   border-radius: 2px;
 }
 
+/* A text box inside a frame that already shows focus around the whole field
+   (the search bars, the Copilot composer, tag inputs) draws no second,
+   inner outline of its own; neither does a box that recolours its own border
+   on focus. Plain CSS, because this unlayered rule outranks Tailwind's
+   outline-none utility. */
+.mhl-focus-frame :is(input, textarea, select):focus-visible,
+.mhl-no-ring:focus-visible {
+  outline: none;
+}
+
 ::selection {
   background: var(--color-mhl-accent-lo);
   color: var(--color-mhl-ink);
@@ -214,39 +224,54 @@ p {
   }
 }
 
-/* Elderly mode: larger, calmer, more touchable. Type scales up a step,
-   tap targets hit 48px+, corners soften, and nothing floats or blurs —
-   legibility is the product here. */
-[data-mode="elderly"] .mhl-dash {
+/* Elderly care: larger, calmer, more touchable. Type scales up a step,
+   tap targets hit 44px+, corners soften, and nothing floats or blurs.
+   Keyed on [data-elderly], not the mode, so it applies whenever elderly care
+   is in focus, including alongside pregnancy or a condition. The colours
+   still follow the leading mode ([data-mode]). */
+/* Every text size steps up about a tenth, so the larger type reaches every
+   page and every mode's cards, not only the elderly dashboard. */
+[data-elderly] {
+  --text-mhl-fine: 0.94rem;
+  --text-mhl-body: 1.07rem;
+  --text-mhl-lead: 1.2rem;
+  --text-mhl-card: 1.3rem;
+  --text-mhl-h1: 2.05rem;
+  --text-mhl-title: 1.44rem;
+  --text-mhl-answer: 1.78rem;
+  --text-mhl-figure: 2.2rem;
+}
+
+[data-elderly] .mhl-dash {
   gap: 1.75rem;
   font-size: 1.04rem;
 }
 
-[data-mode="elderly"] .mhl-mode-hero,
-[data-mode="elderly"] .mhl-dash section {
+[data-elderly] .mhl-mode-hero,
+[data-elderly] .mhl-dash section {
   border-radius: 1.5rem;
 }
 
-[data-mode="elderly"] a,
-[data-mode="elderly"] button {
+[data-elderly] a,
+[data-elderly] button {
   min-height: 44px;
 }
 
 /* …but a switch is a switch: it is already a large target at 44×24, and stretching
    it to the 44px minimum turned the track into a circle. Keep its own shape and
    give it a slightly bigger track and thumb for older hands. */
-[data-mode="elderly"] button[role="switch"] {
+[data-elderly] button[role="switch"] {
   min-height: 0;
   width: 3rem;
   height: 1.75rem;
 }
 
-[data-mode="elderly"] button[role="switch"] > span {
+[data-elderly] button[role="switch"] > span {
   width: 1.375rem;
   height: 1.375rem;
 }
 
-[data-mode="elderly"] button[role="switch"][aria-checked="true"] > span {
+[data-elderly] button[role="switch"][aria-checked="true"] > span {
   transform: translateX(1.5rem);
 }
 

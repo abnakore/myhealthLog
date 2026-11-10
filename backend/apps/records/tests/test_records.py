@@ -163,8 +163,14 @@ class TestFileUploads:
                 "frequency": "Twice daily",
                 "start_date": "2026-01-01",
                 "condition_ids": json.dumps([condition_id]),
+                # A real 1x1 PNG: uploads are checked by their bytes, not their name.
                 "file": SimpleUploadedFile(
-                    "script.png", b"\x89PNG\r\n\x1a\n", content_type="image/png"
+                    "script.png",
+                    bytes.fromhex(
+                        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+                        "0000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082"
+                    ),
+                    content_type="image/png",
                 ),
             },
             format="multipart",

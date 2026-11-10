@@ -50,7 +50,8 @@ export function TagInput({
       </label>
       <div
         className={cn(
-          "flex min-h-11 flex-wrap items-center gap-1.5 rounded-mhl-sm border border-mhl-rule bg-mhl-sunk px-2 py-1.5",
+          "mhl-focus-frame flex min-h-11 flex-wrap items-center gap-1.5 rounded-mhl-sm border border-mhl-rule bg-mhl-sunk px-2 py-1.5",
+          "transition-colors focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/30",
         )}
       >
         {value.map((tag) => (
@@ -77,7 +78,7 @@ export function TagInput({
           onBlur={() => commit(draft)}
           placeholder={value.length === 0 ? placeholder : undefined}
           aria-describedby={hint ? `${id}-hint` : undefined}
-          className="min-w-[8rem] flex-1 bg-transparent px-1.5 py-1 text-mhl-body text-mhl-ink placeholder:text-mhl-faint focus-visible:outline-none"
+          className="min-w-[8rem] flex-1 bg-transparent px-1.5 py-1 text-mhl-body text-mhl-ink placeholder:text-mhl-faint"
         />
       </div>
       {hint && (

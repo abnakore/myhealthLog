@@ -3,6 +3,9 @@ import { useRecords } from "@/store/RecordsContext";
 import { useAppMode } from "@/store/AppModeContext";
 import { useCareProxy } from "@/store/CareProxyContext";
 import { useSharing } from "@/store/SharingContext";
+import { useContexts } from "@/store/ContextsContext";
+import { useFocusFacets } from "@/store/careFocusStore";
+import { pregnancyView } from "@/lib/healthContexts";
 import { emergencyUrl, tokenSuffix } from "@/lib/emergency";
 import { formatDate } from "@/lib/format";
 import { isCriticalAllergy, SEX_LABELS } from "@/types/health";
@@ -18,8 +21,26 @@ export function useEmergencyCardInput(): EmergencyCardInput {
   const { activeOwnerName } = useCareProxy();
   const { emergency } = useSharing();
   const { mode } = useAppMode();
+  const { pregnancy } = useContexts();
+  const facets = useFocusFacets();
+  const focusOrder = facets.conditionIds;
 
   return useMemo(() => {
+    // The care focus decides the order a responder reads the conditions in:
+    // the focused ones first, in rank order, then the rest as recorded.
+    const active = conditions.filter((c) => c.status === "ACTIVE");
+    const rank = (id: string) => {
+      const i = focusOrder.indexOf(id);
+      return i === -1 ? focusOrder.length : i;
+    };
+    const ordered = [...active].sort((a, b) => rank(a.id) - rank(b.id));
+    const view = pregnancy ? pregnancyView(pregnancy) : null;
+    const pregnancyLineText =
+      view && (pregnancy?.pregnancy?.status ?? "ONGOING") === "ONGOING"
+        ? ["Pregnant", view.age ? `${view.age.weeks} weeks` : null, view.dueDateLabel ? `due ${view.dueDateLabel}` : null]
+            .filter(Boolean)
+            .join(", ")
+        : undefined;
     const primaryContact = [...profile.emergencyContacts].sort((a, b) => a.priority - b.priority)[0];
     return {
       name: activeOwnerName || profile.fullName,
@@ -35,7 +56,8 @@ export function useEmergencyCardInput(): EmergencyCardInput {
       genotype: profile.genotype,
       allergies: allergies.filter((a) => isCriticalAllergy(a.severity)).map((a) => a.substance),
       medications: medications.filter((m) => m.active).map((m) => m.name),
-      conditions: conditions.filter((c) => c.status === "ACTIVE").map((c) => c.name),
+      conditions: ordered.map((c) => c.name),
+      pregnancy: pregnancyLineText,
       contact: primaryContact
         ? [primaryContact.name, primaryContact.phone].filter(Boolean).join(" · ")
         : undefined,
@@ -53,5 +75,5 @@ export function useEmergencyCardInput(): EmergencyCardInput {
         note: emergency.showNote,
       },
     };
-  }, [profile, allergies, medications, conditions, activeOwnerName, emergency, mode]);
+  }, [profile, allergies, medications, conditions, activeOwnerName, emergency, mode, pregnancy, focusOrder]);
 }

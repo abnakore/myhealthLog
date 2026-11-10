@@ -7,6 +7,7 @@ import type { Appointment } from "@/types/health";
 import type { PregnancyView } from "@/lib/healthContexts";
 import { formatDate } from "@/lib/format";
 import { HeroEyebrow, HeroShell, PortraitArt } from "./ModeHeroShell";
+import { MODE_ART } from "@/lib/modeArt";
 import { CalendarIcon, SproutIcon, VitalsIcon } from "@/components/icons";
 
 export function PregnancyHero({
@@ -121,6 +122,8 @@ export function PregnancyTimeline({ weeks }: { weeks: number | null }) {
       aria-label="Pregnancy timeline"
       className="mhl-lift min-w-0 rounded-mhl border border-mhl-rule bg-mhl-surface px-[1.15rem] pb-5 pt-[1.1rem]"
     >
+      <div className="flex items-center gap-4">
+      <div className="min-w-0 flex-1">
       <h2 className="text-mhl-lead font-bold tracking-[-0.015em] text-mhl-ink">Pregnancy timeline</h2>
       <div className="relative mt-6 px-2 pb-1">
         <div aria-hidden="true" className="absolute left-6 right-6 top-3 h-1 rounded-full bg-mhl-sunk" />
@@ -165,6 +168,15 @@ export function PregnancyTimeline({ weeks }: { weeks: number | null }) {
             );
           })}
         </div>
+      </div>
+      </div>
+      {/* The baby from the pregnancy preview. */}
+      <img
+        src={MODE_ART.pregnancy.fetus}
+        alt=""
+        aria-hidden="true"
+        className="hidden h-24 w-24 flex-none rounded-full mix-blend-multiply sm:block"
+      />
       </div>
     </section>
   );

@@ -8,6 +8,7 @@
  * pregnancy profile on file — nothing is invented.
  */
 import { Link } from "react-router-dom";
+import type { ReactNode } from "react";
 import type { Appointment } from "@/types/health";
 import type { PregnancyView } from "@/lib/healthContexts";
 import type { VitalGroup } from "@/lib/conditionGuide";
@@ -16,7 +17,6 @@ import { formatVitalValue, vitalName } from "@/types/health";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { EmergencyCard } from "@/components/emergency/EmergencyCard";
 import { PregnancyTimeline } from "@/components/modes/PregnancyHero";
-import { WaveArt } from "@/components/ui/Motifs";
 import {
   ActivityCard,
   CardOut,
@@ -33,6 +33,7 @@ import {
   DocumentIcon,
   SproutIcon,
 } from "@/components/icons";
+import { MODE_ART } from "@/lib/modeArt";
 
 /** "Week 24, Day 3" — the headline the hero is built around. A pregnancy that has
     ended says where it stands instead of counting weeks that no longer apply. */
@@ -104,8 +105,10 @@ export interface PregnancyDashProps {
   keyReadings: VitalGroup[];
   activity: ActivityItem[];
   trustedContacts: string[];
-  /** Opens the dates form — the home screen no longer carries the mode banner. */
+  /** Opens the dates form; the home screen no longer carries the mode banner. */
   onEditDates?: () => void;
+  /** Whatever else is in focus (a condition, elderly care), after the timeline. */
+  alsoInFocus?: ReactNode;
 }
 
 export function PregnancyDash({
@@ -117,6 +120,7 @@ export function PregnancyDash({
   activity,
   trustedContacts,
   onEditDates,
+  alsoInFocus,
 }: PregnancyDashProps) {
   const ongoing = view?.statusLabel === "Ongoing";
   const pct =
@@ -144,13 +148,18 @@ export function PregnancyDash({
           aria-hidden="true"
           className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-mhl-accent/10"
         />
-        <div
+        {/* The figure from the pregnancy preview. */}
+        <img
+          src={MODE_ART.pregnancy.hero}
+          alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute -right-3 bottom-2 hidden text-mhl-accent/25 sm:block"
-        >
-          <WaveArt className="block h-28 w-44" />
-        </div>
-        <div className="relative">
+          className="pointer-events-none absolute bottom-0 right-4 hidden h-[11.1rem] w-auto mix-blend-multiply lg:block"
+          style={{
+            maskImage: "linear-gradient(to right, transparent, #000 22%)",
+            WebkitMaskImage: "linear-gradient(to right, transparent, #000 22%)",
+          }}
+        />
+        <div className="relative lg:pr-[14.5rem]">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="flex items-center gap-2 text-mhl-fine font-bold uppercase tracking-[0.08em] text-mhl-accent">
               <SproutIcon size={15} />
@@ -292,6 +301,8 @@ export function PregnancyDash({
           <PregnancyTimeline weeks={weeks} />
         </div>
       )}
+
+      {alsoInFocus}
 
       <div className="mhl-dash__cols">
         <div className="mhl-dash__left flex min-w-0 flex-col gap-5">

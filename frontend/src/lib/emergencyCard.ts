@@ -47,8 +47,11 @@ export interface EmergencyCardInput {
   allergies: string[];
   /** Active medicines. */
   medications: string[];
-  /** Ongoing conditions. */
+  /** Ongoing conditions, the ones in the care focus first. */
   conditions: string[];
+  /** "Pregnant, 24 weeks, due 12 Jan 2027" while a pregnancy is ongoing. It
+      travels with the conditions switch, as on the public summary. */
+  pregnancy?: string;
   /** "Ibrahim Yusuf · 0803 555 7788" */
   contact?: string;
   note?: string;
@@ -205,6 +208,11 @@ export function buildEmergencyCardSvg(input: EmergencyCardInput): string {
       label: "Blood & genotype",
       value: `${input.bloodType || "Not recorded"} · ${input.genotype || "Not recorded"}`,
     });
+  }
+  // Pregnancy changes which medicines and doses are safe, so a responder reads
+  // it before anything else they might give.
+  if (input.show.conditions && input.pregnancy) {
+    facts.push({ label: "Pregnancy", value: input.pregnancy, tone: "alert" });
   }
   if (input.show.allergies) {
     facts.push({

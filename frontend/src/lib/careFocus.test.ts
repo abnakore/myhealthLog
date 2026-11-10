@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conditionScore, primaryMode, rankFocus, toggleFocus } from "./careFocus";
+import { conditionScore, focusAgreesWithMode, focusFacets, primaryMode, rankFocus, refsForMode, toggleFocus } from "./careFocus";
 
 const conditions = [
   { id: "a", name: "Asthma", status: "ACTIVE", severity: "MILD" },
@@ -54,5 +54,40 @@ describe("care focus ranking", () => {
     const once = toggleFocus([], { kind: "condition", id: "a" });
     expect(once).toEqual([{ kind: "condition", id: "a" }]);
     expect(toggleFocus(once, { kind: "condition", id: "a" })).toEqual([]);
+  });
+});
+
+describe("care focus and the mode", () => {
+  it("maps a single mode to its focus", () => {
+    expect(refsForMode("standard")).toEqual([]);
+    expect(refsForMode("pregnancy")).toEqual([{ kind: "pregnancy" }]);
+    expect(refsForMode("elderly")).toEqual([{ kind: "elderly" }]);
+    expect(refsForMode("critical", "a")).toEqual([{ kind: "condition", id: "a" }]);
+  });
+
+  it("adapts to every item in focus, not only the first", () => {
+    const ranked = rankFocus([{ kind: "elderly" }, { kind: "pregnancy" }, { kind: "condition", id: "a" }], conditions);
+    const f = focusFacets(ranked, "pregnancy", "a");
+    expect(f.primary).toBe("pregnancy");
+    expect(f.pregnancy).toBe(true);
+    expect(f.elderly).toBe(true);
+    expect(f.conditionIds).toEqual(["a"]);
+    expect(f.multi).toBe(true);
+  });
+
+  it("ignores an old focus once a different mode is picked", () => {
+    const ranked = rankFocus([{ kind: "pregnancy" }, { kind: "elderly" }], conditions);
+    expect(focusAgreesWithMode(ranked, "pregnancy", "")).toBe(true);
+    expect(focusAgreesWithMode(ranked, "standard", "")).toBe(false);
+    const f = focusFacets(ranked, "standard", "");
+    expect(f.elderly).toBe(false);
+    expect(f.pregnancy).toBe(false);
+    expect(f.multi).toBe(false);
+  });
+
+  it("checks the focused condition in critical mode", () => {
+    const ranked = rankFocus([{ kind: "condition", id: "d" }, { kind: "condition", id: "a" }], conditions);
+    expect(focusAgreesWithMode(ranked, "critical", "d")).toBe(true);
+    expect(focusAgreesWithMode(ranked, "critical", "a")).toBe(false);
   });
 });

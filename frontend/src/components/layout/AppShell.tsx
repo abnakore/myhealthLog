@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/auth/AuthContext";
@@ -14,7 +14,9 @@ import { ModeSync } from "@/components/modes/ModeSync";
 import { ModeTransition } from "@/components/modes/ModeTransition";
 import { ProfileTransition } from "@/components/modes/ProfileTransition";
 import { CriticalConditionModal } from "@/components/modes/CriticalConditionModal";
-import { BloomArt, HillsArt } from "@/components/ui/Motifs";
+import { CareFocusModal } from "@/components/modes/CareFocusModal";
+import { useFocusFacets } from "@/store/careFocusStore";
+import { guideFor } from "@/lib/conditionGuide";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { NotificationsPanel } from "@/components/notifications/NotificationsPanel";
 import {
@@ -22,6 +24,7 @@ import {
   PlusIcon,
   ChevronRightIcon,
   ConditionIcon,
+  LungsIcon,
   RecordsIcon,
 } from "@/components/icons";
 import { navForMode, type NavItem } from "./nav";
@@ -114,21 +117,13 @@ function TabLink({ item, accent = false, large = false }: { item: NavItem; accen
 
 const ADD_ITEM: NavItem = { to: "/app/add", label: "Add", icon: PlusIcon };
 
-/** The quiet slogan each mode signs its rail with — the reference's parting
-    line, set under that mode's own faint line-art on a soft wash of its colour. */
-function RailTagline({ lines, art }: { lines: string[]; art?: ReactNode }) {
+/** The quiet slogan each mode signs its rail with: the preview's parting line,
+    under that mode's own illustration from the preview. */
+function RailTagline({ lines }: { lines: string[] }) {
   return (
-    <div
-      aria-hidden="true"
-      className="mhl-rail-art mb-4 overflow-hidden rounded-mhl-sm bg-gradient-to-br from-mhl-accent-lo/70 to-transparent px-3.5 pb-3.5 pt-2"
-    >
-      {art && <div className="mb-1 text-mhl-accent/45">{art}</div>}
-      {lines.map((line) => (
-        <p key={line} className="text-[0.86rem] font-semibold leading-snug tracking-[-0.01em] text-mhl-muted">
-          {line}
-        </p>
-      ))}
-    </div>
+    <p aria-hidden="true" className="mhl-rail-art mt-3 px-1 text-[0.72rem] font-normal leading-snug text-mhl-faint">
+      {lines.join(" ")}
+    </p>
   );
 }
 
@@ -139,19 +134,15 @@ const RAIL_TAGLINES: Record<string, string[]> = {
   pregnancy: ["Healthy you.", "Healthy baby.", "Brighter tomorrow."],
 };
 
-/** The line-art above each slogan — hills for Elderly, a bloom for Pregnancy. */
-const RAIL_ART: Record<string, ReactNode> = {
-  elderly: <HillsArt className="block h-[4.2rem] w-full" />,
-  pregnancy: <BloomArt className="block h-[4.2rem] w-full" />,
-};
-
 /** The app frame: a warm rail from `lg` up, a top bar + docked tab bar below it.
     Every screen keeps the same three anchors — where you are, the record's six
     shelves, and who you're signed in as — so navigating never changes shape. */
 export function AppShell() {
   const { user, logout } = useAuth();
-  const { mode, criticalConditionId } = useAppMode();
+  const { mode } = useAppMode();
   const { conditions } = useRecords();
+  const facets = useFocusFacets();
+  const [severalOpen, setSeveralOpen] = useState(false);
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [focusOpen, setFocusOpen] = useState(false);
@@ -163,11 +154,36 @@ export function AppShell() {
   const isDashboard = pathname === "/app" || pathname === "/app/";
   const isDocuments = pathname === "/app/documents";
   const isAddRecord = pathname === "/app/add";
-  const isElderly = mode === "elderly";
+  // Elderly care adapts the screens whenever it is in focus (bigger text and
+  // targets); the four-tab elderly layout is only for elderly care on its own.
+  const isElderly = facets.elderly;
+  const elderlyLayout = isElderly;
 
-  // In Critical mode the focused condition gets its own card at the rail's foot.
-  const focusCondition = conditions.find((c) => c.id === criticalConditionId);
-  const nav = navForMode(mode);
+  // Dialogs render outside this frame, so the page root carries the marker
+  // too: the larger elderly text then reaches them as well.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isElderly) root.setAttribute("data-elderly", "");
+    else root.removeAttribute("data-elderly");
+    return () => root.removeAttribute("data-elderly");
+  }, [isElderly]);
+
+  // Every condition in focus gets its own card at the rail's foot, in rank order.
+  const focusConditions = facets.conditionIds
+    .map((id) => conditions.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c))
+    .slice(0, 3);
+  const nav = navForMode(mode, { elderly: facets.elderly, pregnancy: facets.pregnancy });
+
+  const viewingLine = facets.multi
+    ? `Adapted for ${facets.ranked.map((r) => r.label.toLowerCase()).join(", ")}.`
+    : mode === "critical"
+      ? "Focused on your selected condition."
+      : mode === "pregnancy"
+        ? "Your pregnancy journey is our focus."
+        : mode === "standard"
+          ? "Your complete record, nothing pushed forward."
+          : null;
 
   // "Your records" is a destination of its own on a phone: one tab opens the
   // same six shelves the rail lists, as a sheet. It reads as current when the
@@ -188,6 +204,7 @@ export function AppShell() {
   return (
     <div
       data-mode={mode === "standard" ? "normal" : mode}
+      data-elderly={isElderly ? "" : undefined}
       className={cn("min-h-dvh bg-mhl-bg", isElderly && "text-[1.04rem]")}
     >
       <ModeSync />
@@ -209,20 +226,16 @@ export function AppShell() {
         {/* Only appears when there is a second record to step into — otherwise
             the rail stays the plain, quiet map the home page asks for. */}
         <RecordSwitcher />
-        {mode !== "standard" && (
-          <div className="mt-4">
-            {/* The references name the mechanism: you're viewing X, and why. */}
-            {mode !== "elderly" && (
-              <p className="mb-1.5 px-1 text-[0.78rem] font-medium text-mhl-faint">You're viewing</p>
-            )}
-            <ModeSwitcher />
-            {mode !== "elderly" && (
-              <p className="mt-1.5 px-1 text-[0.74rem] leading-snug text-mhl-faint">
-                {mode === "critical" ? "Focused on your selected condition." : "Your pregnancy journey is our focus."}
-              </p>
-            )}
-          </div>
-        )}
+        {/* The mode dropdown, in every mode: you're viewing X, and why. */}
+        <div className="mt-4">
+          {!elderlyLayout && (
+            <p className="mb-1.5 px-1 text-[0.78rem] font-medium text-mhl-faint">You're viewing</p>
+          )}
+          <ModeSwitcher />
+          {viewingLine && (
+            <p className="mt-1.5 px-1 text-[0.74rem] leading-snug text-mhl-faint">{viewingLine}</p>
+          )}
+        </div>
 
         {/* In Pregnancy and Critical the reference puts the one coral action in
             the rail; in Normal and Elderly it lives on the dashboard instead. */}
@@ -251,33 +264,33 @@ export function AppShell() {
             <RailLink key={item.to + item.label} item={item} large={isElderly} />
           ))}
 
-          {/* Critical mode: the focused condition, one card, one tap to change
-              it — so the thing the mode is about is always in view. */}
-          {mode === "critical" && focusCondition && (
+          {/* Every condition in focus, one card each, one tap to change the
+              focus, so what the app is adapted to is always in view. */}
+          {focusConditions.map((c, i) => (
             <button
+              key={c.id}
               type="button"
-              onClick={() => setFocusOpen(true)}
-              className="mhl-interactive mt-3 flex min-w-0 items-center gap-2.5 rounded-mhl-sm bg-mhl-accent-lo px-3 py-3 text-left transition-colors hover:bg-mhl-accent/20"
+              onClick={() => (facets.multi ? setSeveralOpen(true) : setFocusOpen(true))}
+              className={cn(
+                "mhl-interactive flex min-w-0 items-center gap-2.5 rounded-mhl-sm bg-mhl-accent-lo px-3 py-3 text-left transition-colors hover:bg-mhl-accent/20",
+                i === 0 ? "mt-3" : "mt-1.5",
+              )}
             >
               <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-mhl-accent text-white">
-                <ConditionIcon size={18} />
+                {guideFor(c).family === "respiratory" ? <LungsIcon size={18} /> : <ConditionIcon size={18} />}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-[0.9rem] font-bold text-mhl-ink">
-                  {focusCondition.name}
+                <span className="block truncate text-[0.9rem] font-bold text-mhl-ink">{c.name}</span>
+                <span className="block truncate text-[0.74rem] text-mhl-muted">
+                  {c.status === "ACTIVE" ? "Active condition" : c.status === "IN_REMISSION" ? "In remission" : "Resolved"}
                 </span>
-                <span className="block truncate text-[0.74rem] text-mhl-muted">Active condition</span>
               </span>
               <span className="flex-none text-mhl-faint">
                 <ChevronRightIcon size={16} />
               </span>
             </button>
-          )}
+          ))}
         </nav>
-
-        {RAIL_TAGLINES[mode] && (
-          <RailTagline lines={RAIL_TAGLINES[mode]} art={RAIL_ART[mode]} />
-        )}
 
         <div className="mt-auto flex items-center gap-2.5 border-t border-mhl-rule pt-5">
           <Avatar name={user?.name ?? "You"} photoUrl={user?.photoUrl ?? undefined} size={44} />
@@ -299,6 +312,9 @@ export function AppShell() {
             <LogoutIcon size={19} />
           </button>
         </div>
+
+        {/* The mode's slogan closes the rail, under the person. */}
+        {RAIL_TAGLINES[mode] && <RailTagline lines={RAIL_TAGLINES[mode]} />}
       </aside>
 
       {/* Main column */}
@@ -321,11 +337,9 @@ export function AppShell() {
             </div>
           </div>
           <RecordSwitcher variant="bar" />
-          {mode !== "standard" && (
-            <div className="border-t border-mhl-rule px-4 py-2">
-              <ModeSwitcher compact />
-            </div>
-          )}
+          <div className="border-t border-mhl-rule px-4 py-2">
+            <ModeSwitcher compact />
+          </div>
         </header>
 
         <ProxyBanner />
@@ -355,7 +369,7 @@ export function AppShell() {
       {/* Mobile docked tab bar. The Add tab stays even in a view-only context: it
           lands on the Add page, which explains the access rather than pretending the
           flow doesn't exist. Elderly mode swaps it for four large plain tabs. */}
-      {isElderly ? (
+      {elderlyLayout ? (
         <nav
           className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-mhl-rule bg-mhl-surface/95 backdrop-blur lg:hidden"
           style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
@@ -372,7 +386,7 @@ export function AppShell() {
             style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             aria-label="Primary"
           >
-            <TabLink item={nav.primary[0]} />
+            <TabLink item={nav.primary[0]} large={isElderly} />
             <button
               type="button"
               onClick={() => setRecordsOpen(true)}
@@ -402,8 +416,8 @@ export function AppShell() {
                 Records
               </span>
             </button>
-            <TabLink item={nav.primary[1]} />
-            <TabLink item={nav.primary[2]} />
+            <TabLink item={nav.primary[1]} large={isElderly} />
+            <TabLink item={nav.primary[2]} large={isElderly} />
             <TabLink item={ADD_ITEM} accent />
           </nav>
 
@@ -438,6 +452,7 @@ export function AppShell() {
         </>
       )}
 
+      <CareFocusModal open={severalOpen} onClose={() => setSeveralOpen(false)} />
       <CriticalConditionModal
         open={focusOpen}
         mode="critical"

@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
-import { useAppMode } from "@/store/AppModeContext";
 import { useCareProxy } from "@/store/CareProxyContext";
 import { useSharing } from "@/store/SharingContext";
+import { useFocusFacets } from "@/store/careFocusStore";
 import { emergencyUrl } from "@/lib/emergency";
 import { isCriticalAllergy } from "@/types/health";
 import { ShieldIcon, DownloadIcon, ShareIcon, CheckIcon, LockIcon } from "@/components/icons";
@@ -35,8 +35,12 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   const { profile, allergies, medications, conditions } = useRecords();
   const { isProxyView, activeOwnerName } = useCareProxy();
   const { emergency } = useSharing();
-  const { mode, criticalConditionId } = useAppMode();
-  const focusName = conditions.find((c) => c.id === criticalConditionId)?.name;
+  // The care focus: conditions in it are listed first and named under the list.
+  const facets = useFocusFacets();
+  const focusNames = facets.conditionIds
+    .map((id) => conditions.find((c) => c.id === id))
+    .filter((c) => c?.status === "ACTIVE")
+    .map((c) => c!.name);
   const [copied, setCopied] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const ownerName = activeOwnerName || profile.fullName;
@@ -47,7 +51,6 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   const url = emergencyUrl(token);
   const critical = allergies.filter((a) => isCriticalAllergy(a.severity)).map((a) => a.substance);
   const activeMeds = medications.filter((m) => m.active).map((m) => m.name);
-  const activeConditions = conditions.filter((c) => c.status === "ACTIVE").map((c) => c.name);
   const primaryContact = [...profile.emergencyContacts].sort((a, b) => a.priority - b.priority)[0];
   const note = emergency.note.trim();
 
@@ -127,6 +130,12 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
               </dd>
             </div>
           )}
+          {emergency.showConditions && card.pregnancy && (
+            <div>
+              <dt className="text-[0.78rem] text-mhl-emerg-muted">Pregnancy</dt>
+              <dd className="font-semibold text-mhl-emerg-amber">{card.pregnancy}</dd>
+            </div>
+          )}
           {emergency.showAllergies && (
             <div>
               <dt className="text-[0.78rem] text-mhl-emerg-muted">Critical allergies</dt>
@@ -145,11 +154,11 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
             <div>
               <dt className="text-[0.78rem] text-mhl-emerg-muted">Active conditions</dt>
               <dd className="font-semibold text-mhl-emerg-ink">
-                {activeConditions.length > 0 ? capList(activeConditions) : "None recorded"}
+                {card.conditions.length > 0 ? capList(card.conditions) : "None recorded"}
               </dd>
-              {mode === "critical" && focusName && (
+              {focusNames.length > 0 && (
                 <dd className="mt-1 text-mhl-fine text-mhl-emerg-amber">
-                  {focusName} leads. It is the Critical-mode focus.
+                  In your care focus: {focusNames.join(", ")}. Listed first.
                 </dd>
               )}
             </div>

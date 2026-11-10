@@ -1,5 +1,5 @@
 /**
- * ModeBanner — the legible mechanism (PRODUCT principle 2).
+ * ModeBanner: the legible mechanism (PRODUCT principle 2).
  *
  * Sits under the app header on every screen while a non-normal mode is active:
  * what focus is on, that the full record is unchanged, and the way back.
@@ -14,10 +14,15 @@ import { useRecords } from "@/store/RecordsContext";
 import { pregnancyView } from "@/lib/healthContexts";
 import { ModeSwitchModal } from "@/components/profile/ModeSwitchModal";
 import { CriticalConditionModal } from "@/components/modes/CriticalConditionModal";
-import { HeartPulseIcon, LifebuoyIcon, SproutIcon } from "@/components/icons";
+import { CareFocusModal } from "@/components/modes/CareFocusModal";
+import { useFocusFacets, usePickMode } from "@/store/careFocusStore";
+import { LayersIcon } from "@/components/icons";
 
 export function ModeBanner() {
-  const { mode, meta, setMode, criticalConditionId } = useAppMode();
+  const { mode, meta, criticalConditionId } = useAppMode();
+  const facets = useFocusFacets();
+  const pickMode = usePickMode();
+  const [severalOpen, setSeveralOpen] = useState(false);
   const { contexts, active } = useContexts();
   const { conditions } = useRecords();
   const [switchOpen, setSwitchOpen] = useState(false);
@@ -29,13 +34,15 @@ export function ModeBanner() {
     return null;
   }
 
-  const Icon = mode === "pregnancy" ? SproutIcon : mode === "critical" ? HeartPulseIcon : LifebuoyIcon;
+  const multi = facets.multi;
+  const Icon = multi ? LayersIcon : meta.Icon;
   const focusName = conditions.find((c) => c.id === criticalConditionId)?.name;
   const pregCtx = contexts.find((c) => c.kind === "LIFE_STAGE");
   const pregView = pregCtx ? pregnancyView(pregCtx) : null;
 
-  const detail =
-    mode === "pregnancy"
+  const detail = multi
+    ? facets.ranked.map((r) => r.label).join(" · ")
+    : mode === "pregnancy"
       ? pregView?.ageLabel
         ? `${pregView.ageLabel} along${pregView.dueDateLabel ? ` · due ${pregView.dueDateLabel}` : ""}`
         : "Antenatal visits, key readings and dates lead"
@@ -45,8 +52,10 @@ export function ModeBanner() {
           : "One condition leads: treatment, schedule and numbers first"
         : "Bigger text, fewer choices, medicines first";
 
-  const profileTo = active ? `/app/contexts/${active.id}` : "/app/contexts";
-  const isElderly = mode === "elderly";
+  const profileTo =
+    mode === "pregnancy" ? "/app/pregnancy" : active ? `/app/contexts/${active.id}` : "/app/contexts";
+  // Elderly sizing follows elderly care whenever it is in focus, not only alone.
+  const isElderly = facets.elderly;
 
   return (
     <>
@@ -75,7 +84,7 @@ export function ModeBanner() {
           </span>
           <p className={cn("min-w-0 flex-1 truncate", isElderly && "whitespace-normal")}>
             <span className={cn("font-bold text-mhl-ink", isElderly ? "text-mhl-body" : "text-mhl-fine")}>
-              {meta.pill}
+              {multi ? "Several at once" : meta.pill}
               <span className="font-medium text-mhl-muted"> · {detail}</span>
             </span>
             {!isElderly && (
@@ -92,13 +101,13 @@ export function ModeBanner() {
               View focus
             </Link>
           )}
-          {(mode === "critical" || mode === "pregnancy") && (
+          {(multi || mode === "critical" || mode === "pregnancy") && (
             <button
               type="button"
-              onClick={() => setFocusOpen(true)}
+              onClick={() => (multi ? setSeveralOpen(true) : setFocusOpen(true))}
               className="hidden flex-none rounded-full px-2.5 py-1 text-mhl-fine font-semibold text-mhl-accent hover:bg-mhl-accent/10 sm:block"
             >
-              {mode === "critical" ? "Change focus" : "Edit dates"}
+              {multi || mode === "critical" ? "Change focus" : "Edit dates"}
             </button>
           )}
           <button
@@ -113,7 +122,7 @@ export function ModeBanner() {
           </button>
           <button
             type="button"
-            onClick={() => setMode("standard")}
+            onClick={() => pickMode("standard")}
             className={cn(
               "flex-none rounded-full bg-mhl-surface font-semibold text-mhl-ink hover:bg-mhl-sunk",
               isElderly ? "border border-mhl-rule px-4 py-2.5 text-mhl-body" : "px-2.5 py-1 text-mhl-fine",
@@ -124,6 +133,7 @@ export function ModeBanner() {
         </div>
       </div>
       <ModeSwitchModal open={switchOpen} onClose={() => setSwitchOpen(false)} />
+      <CareFocusModal open={severalOpen} onClose={() => setSeveralOpen(false)} />
       <CriticalConditionModal
         open={focusOpen}
         mode={mode === "pregnancy" ? "pregnancy" : "critical"}

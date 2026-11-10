@@ -248,7 +248,7 @@ export default function Copilot() {
       {/* Input */}
       <form
         onSubmit={handleSubmit}
-        className="mt-3 flex items-end gap-2 rounded-mhl border border-mhl-rule bg-mhl-surface px-3 py-2 shadow-sm focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/20 transition-colors"
+        className="mhl-focus-frame mt-3 flex items-end gap-2 rounded-mhl border border-mhl-rule bg-mhl-surface px-3 py-2 shadow-sm focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/20 transition-colors"
       >
         <textarea
           ref={textareaRef}

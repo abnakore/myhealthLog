@@ -14,7 +14,6 @@ import {
   HeartIcon,
   StethoscopeIcon,
   CopilotIcon,
-  CompassIcon,
 } from "@/components/icons";
 import type { AppMode } from "@/lib/appModes";
 
@@ -44,14 +43,6 @@ const SUMMARY_ITEM: NavItem = {
   icon: StethoscopeIcon,
 };
 
-/** Condition-aware profiles: one reading of the record per condition. Kept in
-    the rail in every mode so it is always one tap away (Profile links it too). */
-const CONTEXTS_ITEM: NavItem = {
-  to: "/app/contexts",
-  label: "Condition profiles",
-  icon: CompassIcon,
-};
-
 /** The record categories. Full list in the desktop rail and in the phone's
     Records sheet; the dashboard's summary cards point into them too. */
 export const recordNav: NavItem[] = [
@@ -61,7 +52,6 @@ export const recordNav: NavItem[] = [
   { to: "/app/conditions", label: "Conditions", icon: ConditionIcon },
   { to: "/app/appointments", label: "Appointments", icon: CalendarIcon },
   { to: "/app/documents", label: "Documents", icon: DocumentIcon },
-  CONTEXTS_ITEM,
   SUMMARY_ITEM,
 ];
 
@@ -69,8 +59,19 @@ export const recordNav: NavItem[] = [
  * A mode reshapes the rail without rewriting the app: same destinations,
  * reordered and renamed around the focus.
  */
-export function navForMode(mode: AppMode): { primary: NavItem[]; record: NavItem[] } {
-  if (mode === "elderly") {
+/** The pregnancy page: the person's own pregnancy, to view and manage. */
+const PREGNANCY_ITEM: NavItem = { to: "/app/pregnancy", label: "Pregnancy", icon: HeartIcon };
+
+/**
+ * `elderly` is true whenever elderly care is in focus, alone or with anything
+ * else: the menu is then the elderly one (fewer, larger doors), with the
+ * pregnancy page added when pregnancy is in focus too.
+ */
+export function navForMode(
+  mode: AppMode,
+  focus: { elderly?: boolean; pregnancy?: boolean } = {},
+): { primary: NavItem[]; record: NavItem[] } {
+  if (mode === "elderly" || focus.elderly) {
     return {
       // Home first, then the three plain doors the reference opens with:
       // records, visits, and the emergency card. Medicines stay one tap away
@@ -80,9 +81,9 @@ export function navForMode(mode: AppMode): { primary: NavItem[]; record: NavItem
         // One plain index that holds every shelf — medicines, allergies, conditions
         // and the rest are one tap from here, not hidden behind a mode switch.
         { to: "/app/records", label: "My Records", icon: RecordsIcon },
+        ...(focus.pregnancy || mode === "pregnancy" ? [PREGNANCY_ITEM] : []),
         { to: "/app/appointments", label: "Appointments", icon: CalendarIcon },
         { to: "/app/emergency", label: "Emergency", icon: ShieldIcon },
-        CONTEXTS_ITEM,
         SUMMARY_ITEM,
       ],
     };
@@ -92,7 +93,7 @@ export function navForMode(mode: AppMode): { primary: NavItem[]; record: NavItem
       primary: primaryNav,
       // The reference's order: the pregnancy profile, then the shelves it leans on.
       record: [
-        { to: "/app/contexts", label: "Pregnancy", icon: HeartIcon },
+        PREGNANCY_ITEM,
         { to: "/app/medications", label: "Medications", icon: PillIcon },
         { to: "/app/measurements", label: "Measurements", icon: VitalsIcon },
         { to: "/app/conditions", label: "Conditions", icon: ConditionIcon },

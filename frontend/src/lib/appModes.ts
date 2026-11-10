@@ -14,7 +14,7 @@
  */
 
 import type { ComponentType } from "react";
-import { CompassIcon, SproutIcon, HeartPulseIcon, LifebuoyIcon } from "@/components/icons";
+import { CompassIcon, PregnantIcon, HeartbeatIcon, ElderlyCoupleIcon } from "@/components/icons";
 
 type ModeIcon = ComponentType<{ size?: number; className?: string; strokeWidth?: number }>;
 
@@ -56,7 +56,7 @@ export const APP_MODES: AppModeMeta[] = [
     blurb: "Brings antenatal visits, weight and blood pressure, and the dates that matter to the front.",
     greeting: "Here's your pregnancy overview.",
     focus: ["Antenatal appointments", "Weight & blood pressure", "Scan & due dates"],
-    Icon: SproutIcon,
+    Icon: PregnantIcon,
   },
   {
     id: "critical",
@@ -66,7 +66,7 @@ export const APP_MODES: AppModeMeta[] = [
     blurb: "Keeps the condition, its treatment, and the readings your team watches one tap away, and primes your emergency card.",
     greeting: "Here's what matters most right now.",
     focus: ["The active condition first", "Treatment & schedule", "The numbers that matter"],
-    Icon: HeartPulseIcon,
+    Icon: HeartbeatIcon,
   },
   {
     id: "elderly",
@@ -76,7 +76,7 @@ export const APP_MODES: AppModeMeta[] = [
     blurb: "Fewer choices and bigger touch targets, with daily medication reminders a carer can help with.",
     greeting: "Here's your health overview, made simple and easy to follow.",
     focus: ["Daily medication reminders", "Larger, simpler screens", "Carer-friendly sharing"],
-    Icon: LifebuoyIcon,
+    Icon: ElderlyCoupleIcon,
   },
 ];
 

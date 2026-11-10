@@ -13,7 +13,7 @@
  *               a visit coming up, a visit left "scheduled" in the past)
  *
  * It is deliberately rule-based and transparent — every flag says which rule
- * raised it — so it is explainable to an examiner and auditable by a clinician.
+ * raised it — so it is auditable by a clinician.
  * The thresholds are standard adult screening bands; they flag for review and
  * never diagnose.
  *

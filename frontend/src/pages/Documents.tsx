@@ -398,7 +398,7 @@ export default function Documents() {
           {/* Search and kind filters. The search box takes the space; the
               filters are pills that stay a fixed size. */}
           <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <label className="flex min-h-11 w-full min-w-0 items-center gap-2 rounded-[0.7rem] border border-mhl-rule bg-mhl-surface px-3.5 text-mhl-faint transition-colors focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/30 sm:w-72 sm:flex-none">
+            <label className="mhl-focus-frame flex min-h-11 w-full min-w-0 items-center gap-2 rounded-[0.7rem] border border-mhl-rule bg-mhl-surface px-3.5 text-mhl-faint transition-colors focus-within:border-mhl-accent/60 focus-within:ring-1 focus-within:ring-mhl-accent/30 sm:w-72 sm:flex-none">
               <span className="sr-only">Search documents</span>
               <SearchIcon size={18} />
               <input

@@ -26,6 +26,8 @@ import { ProfileBasicsFields, LocationFields, ContactFields } from "@/components
 import { RecordEditModal } from "@/components/records/RecordEditModal";
 import { ActionRow } from "@/components/profile/ActionRow";
 import { ModeSwitchModal } from "@/components/profile/ModeSwitchModal";
+import { CareFocusModal } from "@/components/modes/CareFocusModal";
+import { useFocusFacets } from "@/store/careFocusStore";
 import { DataExportModal } from "@/components/profile/DataExportModal";
 import { useContexts } from "@/store/ContextsContext";
 import { PregnancyModal } from "@/components/context/PregnancyModal";
@@ -57,6 +59,8 @@ import {
   TrashIcon,
   UserIcon,
   UsersIcon,
+  LayersIcon,
+  CompassIcon,
 } from "@/components/icons";
 /** A stable empty shell, so the dates form only re-seeds when it opens. */
 const EMPTY_PREGNANCY = emptyPregnancyContext();
@@ -201,6 +205,8 @@ export default function Profile() {
   const [modalError, setModalError] = useState<string | null>(null);
 
   const [modeOpen, setModeOpen] = useState(false);
+  const [severalOpen, setSeveralOpen] = useState(false);
+  const facets = useFocusFacets();
   const [pregOpen, setPregOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -527,13 +533,19 @@ export default function Profile() {
       >
         <div className="mt-4 flex items-start gap-4 rounded-mhl-sm bg-mhl-sunk p-4">
           <span className="grid h-12 w-12 flex-none place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent">
-            <ModeIcon size={24} />
+            {facets.multi ? <LayersIcon size={24} /> : <ModeIcon size={24} />}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-mhl-body font-semibold text-mhl-ink">{modeMeta.label} mode</p>
-            <p className="mt-0.5 text-mhl-fine text-mhl-muted">{modeMeta.blurb}</p>
+            <p className="text-mhl-body font-semibold text-mhl-ink">
+              {facets.multi ? "Several at once" : `${modeMeta.label} mode`}
+            </p>
+            <p className="mt-0.5 text-mhl-fine text-mhl-muted">
+              {facets.multi
+                ? `In this order: ${facets.ranked.map((r) => r.label).join(", ")}. Each one adapts the app.`
+                : modeMeta.blurb}
+            </p>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {modeMeta.focus.map((f) => (
+              {(facets.multi ? facets.ranked.map((r) => r.label) : modeMeta.focus).map((f) => (
                 <span
                   key={f}
                   className="rounded-full bg-mhl-surface px-2.5 py-1 text-[0.75rem] font-medium text-mhl-muted"
@@ -544,6 +556,27 @@ export default function Profile() {
             </div>
           </div>
         </div>
+
+        {canEdit && (
+          <div className="mt-4 border-t border-mhl-rule pt-3.5">
+            <ActionRow
+              icon={<LayersIcon size={20} />}
+              title="Focus on several at once"
+              subtitle={
+                facets.multi
+                  ? `${facets.ranked.length} in focus. Change what is included`
+                  : "For example pregnancy with elderly care, or two conditions"
+              }
+              onClick={() => setSeveralOpen(true)}
+            />
+            <ActionRow
+              icon={<CompassIcon size={20} />}
+              title="Condition profiles"
+              subtitle="One reading of your record for each condition or life stage"
+              to="/app/contexts"
+            />
+          </div>
+        )}
 
         {/* The pregnancy's own dates, editable from here — the rail's mode menu only
             switches modes, it doesn't edit a profile. */}
@@ -677,6 +710,7 @@ export default function Profile() {
       />
 
       <ModeSwitchModal open={modeOpen} onClose={() => setModeOpen(false)} />
+      <CareFocusModal open={severalOpen} onClose={() => setSeveralOpen(false)} />
 
       {pregnancy && pregOpen && (
         <PregnancyModal

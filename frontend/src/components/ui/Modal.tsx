@@ -93,7 +93,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         aria-labelledby={titleId}
         tabIndex={-1}
         className={cn(
-          "relative w-full overflow-y-auto rounded-t-[1.25rem] border border-mhl-rule bg-mhl-surface shadow-lg outline-none sm:m-4 sm:rounded-mhl",
+          "mhl-no-ring relative w-full overflow-y-auto rounded-t-[1.25rem] border border-mhl-rule bg-mhl-surface shadow-lg outline-none sm:m-4 sm:rounded-mhl",
           "max-h-[92vh] transition-all duration-200 ease-mhl",
           size === "lg" ? "sm:max-w-lg" : "sm:max-w-md",
           shown

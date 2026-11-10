@@ -96,7 +96,7 @@ function PinGate({ code, onUnlock }: { code: string; onUnlock: (card: StaticEmer
           }}
           aria-label="Card PIN"
           autoFocus
-          className="mt-4 w-full rounded-mhl-sm border border-mhl-emerg-ink/30 bg-mhl-emerg-ink/10 px-4 py-3 text-center text-mhl-lead font-bold tracking-[0.35em] text-mhl-emerg-ink outline-none focus:border-mhl-emerg-amber"
+          className="mhl-no-ring mt-4 w-full rounded-mhl-sm border border-mhl-emerg-ink/30 bg-mhl-emerg-ink/10 px-4 py-3 text-center text-mhl-lead font-bold tracking-[0.35em] text-mhl-emerg-ink outline-none focus:border-mhl-emerg-amber"
         />
         {error && <p role="alert" className="mt-2 text-mhl-fine text-mhl-danger">{error}</p>}
         <button
@@ -170,6 +170,7 @@ function SummaryPage({ code, card }: { code: string; card: StaticEmergencyCard }
     appointments: summary?.appointments ?? [],
     labFindings: summary?.labFindings ?? [],
     pregnant: summary?.pregnant ?? false,
+    focusOrder: (summary?.careFocus ?? []).filter((f) => f.kind === "condition").map((f) => f.label),
   };
 
   const meta = [
@@ -213,6 +214,22 @@ function SummaryPage({ code, card }: { code: string; card: StaticEmergencyCard }
                 This is the same medical summary {card.name.split(" ")[0] || "the owner"} sees in their
                 record, with the same flags. Only the sections they chose to share are shown.
               </p>
+              {(summary?.careFocus?.length ?? 0) > 0 && (
+                <div className="mt-2 border-t border-mhl-accent/20 pt-2">
+                  <p className="font-semibold text-mhl-ink">Read first: their care focus</p>
+                  <ol className="mt-1 space-y-0.5">
+                    {summary!.careFocus!.map((f) => (
+                      <li key={`${f.kind}:${f.label}`} className="text-mhl-ink">
+                        <b>
+                          {f.rank}. {f.label}
+                        </b>{" "}
+                        <span className="text-mhl-muted">{f.reason}</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="mt-1 text-mhl-muted">The conditions below are listed in this order.</p>
+                </div>
+              )}
               {shows.note && card.note && (
                 <p className="mt-2 border-t border-mhl-accent/20 pt-2 text-mhl-ink">
                   <span className="font-semibold">Note from {card.name.split(" ")[0] || "the owner"}: </span>

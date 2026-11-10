@@ -10,8 +10,8 @@ ranked on read so the order always reflects the current record:
 
   pregnancy                      100  changes which medicines and readings are safe
   active condition, severe        90
-  active condition, no severity   70
   active condition, moderate      75
+  active condition, no severity   70
   active condition, mild          60
   condition in remission          40
   elderly care                    30  shapes the screens rather than the medicine

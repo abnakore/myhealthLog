@@ -129,6 +129,9 @@ export interface MedicalSummaryData {
   labFindings?: InsightLabFinding[];
   /** An ongoing pregnancy changes what is safe to prescribe. */
   pregnant?: boolean;
+  /** Condition names in the owner's care focus, highest rank first. They lead
+      the conditions list; the rest keep the usual severity order. */
+  focusOrder?: string[];
 }
 
 export type SummarySections = Partial<
@@ -316,8 +319,13 @@ export function HealthSummary({
   const activeMeds = data.medications.filter((m) => m.active !== false);
   const openConditions = data.conditions.filter((c) => c.status !== "RESOLVED");
   // What is active and severe leads; resolved history sits at the bottom.
+  const focusRank = (name: string) => {
+    const order = data.focusOrder ?? [];
+    const i = order.findIndex((n) => n.toLowerCase() === name.toLowerCase());
+    return i === -1 ? order.length : i;
+  };
   const orderedConditions = [...data.conditions].sort(
-    (a, b) => conditionPriority(a) - conditionPriority(b),
+    (a, b) => focusRank(a.name) - focusRank(b.name) || conditionPriority(a) - conditionPriority(b),
   );
   // An abnormal reading leads the list instead of hiding behind a normal one.
   const orderedReadings = [...data.readings]

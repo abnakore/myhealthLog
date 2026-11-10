@@ -30,6 +30,10 @@ import { ElderlyDash } from "@/components/dashboard/ElderlyDash";
 import { CriticalDash } from "@/components/dashboard/CriticalDash";
 import { PregnancyDash } from "@/components/dashboard/PregnancyDash";
 import { FocusStrip } from "@/components/dashboard/FocusStrip";
+import { ConditionPanel } from "@/components/dashboard/CriticalDash";
+import { MedScheduleCard } from "@/components/modes/MedScheduleCard";
+import { CareFocusModal } from "@/components/modes/CareFocusModal";
+import { useFocusFacets } from "@/store/careFocusStore";
 import {
   Disc,
   CardHead,
@@ -57,6 +61,12 @@ import {
   VitalsIcon,
 } from "@/components/icons";
 
+/** "a", "a and b", "a, b and c". */
+function joinAnd(items: string[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+}
+
 /** A stable empty shell, so the dates form only re-seeds when it's opened. */
 const EMPTY_PREGNANCY = emptyPregnancyContext();
 
@@ -79,6 +89,10 @@ export default function Dashboard() {
   // all four, and the home screen carries no extra banner about it — the rail
   // names the mode and each mode's own hero states what it brings forward.
   const { pregnancy, updatePregnancy } = useContexts();
+  // Everything in focus. The mode is the top item and picks the layout; every
+  // other item adapts the page too (see focusFacets in lib/careFocus.ts).
+  const facets = useFocusFacets();
+  const [severalOpen, setSeveralOpen] = useState(false);
 
   const firstName = (user?.name ?? profile.fullName).split(" ")[0];
   const greeting = timeGreeting();
@@ -158,13 +172,48 @@ export default function Dashboard() {
 
   // The per-mode sub-line under the greeting: plain in Normal, named after the
   // focus in the others, exactly as the references word it.
+  const alsoLabels = facets.multi
+    ? facets.ranked.slice(1).map((r) => (r.kind === "elderly" ? "elderly care" : r.label))
+    : [];
+  const alsoLine = alsoLabels.length
+    ? ` ${joinAnd(alsoLabels).replace(/^./, (c) => c.toUpperCase())} ${alsoLabels.length === 1 ? "is" : "are"} in focus too.`
+    : "";
   const subline = isProxyView
     ? `Here's where ${activeOwnerName}'s record stands today.`
-    : mode === "critical" && focusCondition
-      ? `Here's your ${focusCondition.name.toLowerCase()} overview and what matters most right now.`
-      : mode === "pregnancy" && pregView?.age
-        ? `You're currently ${pregView.age.weeks} weeks pregnant. Here's your pregnancy overview.`
-        : modeMeta.greeting;
+    : (mode === "critical" && focusCondition
+        ? `Here's your ${focusCondition.name.toLowerCase()} overview and what matters most right now.`
+        : mode === "pregnancy" && pregView?.age
+          ? `You're currently ${pregView.age.weeks} weeks pregnant. Here's your pregnancy overview.`
+          : modeMeta.greeting) + alsoLine;
+
+  // Changing a focused condition: one condition alone uses the condition
+  // picker; a focus on several reopens the "several at once" dialog.
+  const changeFocus = () => (facets.multi ? setSeveralOpen(true) : setFocusOpen(true));
+
+  // What else is in focus, placed right after the leading mode's own hero:
+  // elderly care brings its medication reminders, and every other condition
+  // gets its own panel.
+  const extraConditions = facets.conditionIds
+    .filter((id) => !(mode === "critical" && id === focusCondition?.id))
+    .map((id) => conditions.find((c) => c.id === id))
+    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  const alsoInFocus =
+    (facets.elderly && mode !== "elderly") || extraConditions.length > 0 ? (
+      <>
+        {facets.elderly && mode !== "elderly" && <MedScheduleCard meds={activeMeds} large />}
+        {extraConditions.map((c) => (
+          <ConditionPanel
+            key={c.id}
+            condition={c}
+            meds={medications}
+            groups={vitalGroups}
+            appointments={appointments}
+            onChangeFocus={changeFocus}
+            alsoInFocus
+          />
+        ))}
+      </>
+    ) : null;
 
   // In Pregnancy and Critical the reference puts Add record in the rail (and on
   // mobile's tab bar), so the dashboard header doesn't repeat it.
@@ -177,10 +226,12 @@ export default function Dashboard() {
           search, notifications, the one coral action) sits on the same line at
           the right edge. Critical mode wears a small eyebrow above — the
           reference labels the mode before it greets. */}
-      <header>
+      {/* Its own layer, so the search results open over the cards below
+          (kept under the phone's sticky top bar, which sits at z-30). */}
+      <header className="relative z-20">
         {mode === "critical" && (
           <p className="mb-1.5 text-[0.76rem] font-bold uppercase tracking-[0.14em] text-mhl-accent">
-            Critical condition mode
+            {facets.multi ? "Several in focus" : "Critical condition mode"}
           </p>
         )}
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-start sm:justify-between sm:gap-x-5">
@@ -274,6 +325,7 @@ export default function Dashboard() {
           trustedContacts={trustedContacts}
           canEdit={canEdit}
           activity={activity}
+          alsoInFocus={alsoInFocus}
         />
       )}
 
@@ -286,7 +338,8 @@ export default function Dashboard() {
           activity={activity}
           trustedContacts={trustedContacts}
           canEdit={canEdit}
-          onChangeFocus={() => setFocusOpen(true)}
+          onChangeFocus={changeFocus}
+          alsoInFocus={alsoInFocus}
         />
       )}
 
@@ -309,6 +362,7 @@ export default function Dashboard() {
           activity={activity}
           trustedContacts={trustedContacts}
           onEditDates={() => setDatesOpen(true)}
+          alsoInFocus={alsoInFocus}
         />
       )}
 
@@ -542,7 +596,9 @@ export default function Dashboard() {
         </>
       )}
 
-      {/* Support strip — per-mode care-team banner, mirroring the preview. */}
+      <CareFocusModal open={severalOpen} onClose={() => setSeveralOpen(false)} />
+
+      {/* Support strip: per-mode care-team banner, mirroring the preview. */}
       {mode !== "standard" && <ModeSupportBanner mode={mode} />}
 
       <footer className="flex min-w-0 items-center gap-2 pb-1 pt-1 text-mhl-fine text-mhl-muted">

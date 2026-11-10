@@ -1,5 +1,5 @@
 /**
- * CriticalConditionModal — pick which condition Critical mode focuses on.
+ * CriticalConditionModal: pick which condition Critical mode focuses on.
  * Also handles first-time pregnancy entry (dates step).
  */
 import { useEffect, useState } from "react";
@@ -9,6 +9,7 @@ import { useAppMode } from "@/store/AppModeContext";
 import { useContexts } from "@/store/ContextsContext";
 import { useRecords } from "@/store/RecordsContext";
 import { useCareProxy } from "@/store/CareProxyContext";
+import { usePickMode } from "@/store/careFocusStore";
 import { CONDITION_STATUS_LABELS, type Condition } from "@/types/health";
 import { genId } from "@/lib/id";
 import { conditionFromDraft, emptyConditionDraft, validateCondition } from "@/components/records/model";
@@ -27,7 +28,8 @@ export function CriticalConditionModal({ open, mode, onClose, onDone }: {
   open: boolean; mode: AppMode; onClose: () => void; onDone: () => void;
 }) {
   const isPreg = mode === "pregnancy";
-  const { setMode, setCriticalConditionId, criticalConditionId } = useAppMode();
+  const { criticalConditionId } = useAppMode();
+  const pickMode = usePickMode();
   const { conditions, addItem } = useRecords();
   const { openCondition, openPregnancy, pregnancy, updatePregnancy } = useContexts();
   const { canEdit } = useCareProxy();
@@ -59,7 +61,7 @@ export function CriticalConditionModal({ open, mode, onClose, onDone }: {
             <>
               <Button variant="secondary" onClick={onClose}>Not now</Button>
               <Button onClick={() => {
-                if (pregnancy) { setMode("pregnancy"); onDone(); }
+                if (pregnancy) { pickMode("pregnancy"); onDone(); }
                 else setPregOpen(true);
               }}>
                 {pregnancy ? "Enter pregnancy mode" : "Continue"}
@@ -81,7 +83,7 @@ export function CriticalConditionModal({ open, mode, onClose, onDone }: {
           onSave={async (patch) => {
             const id = await openPregnancy();
             await updatePregnancy(id, patch);
-            setMode("pregnancy");
+            pickMode("pregnancy");
             onDone();
           }}
         />
@@ -91,10 +93,9 @@ export function CriticalConditionModal({ open, mode, onClose, onDone }: {
   }
 /* Critical-mode confirm */
   function confirm(id: string) {
-    setCriticalConditionId(id);
     const c = conditions.find((x) => x.id === id);
     if (c) openCondition(c);
-    setMode("critical");
+    pickMode("critical", id);
     onDone();
   }
 

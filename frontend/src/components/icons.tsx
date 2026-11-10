@@ -472,3 +472,54 @@ export const GoogleIcon = ({ size = 18, ...rest }: SVGProps<SVGSVGElement> & { s
     />
   </svg>
 );
+
+/* ---- mode marks, redrawn from the mode previews ---- */
+
+/** Pregnancy mode: a pregnant figure in profile. */
+export const PregnantIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="11" cy="4.6" r="2.1" />
+    <path d="M10 7.6C8.5 9.8 8.3 13.5 8.9 21" />
+    <path d="M12.1 7.8c1.5.8 1.8 2.1 1.4 3.3 2.6.9 3.9 3 3.5 5-.4 2-2.3 2.9-4.3 2.6L13 21" />
+    <path d="M13.4 13.6c.9.3 1.4 1 1.3 1.8" />
+  </Base>
+);
+
+/** Elderly mode: two people holding hands. */
+export const ElderlyCoupleIcon = (p: IconProps) => (
+  <Base {...p}>
+    <circle cx="7" cy="5" r="2" />
+    <circle cx="17" cy="5" r="2" />
+    <path d="M4.5 15v-3.2A2.5 2.5 0 0 1 7 9.3a2.5 2.5 0 0 1 2.5 2.5V15" />
+    <path d="M14.5 15v-3.2A2.5 2.5 0 0 1 17 9.3a2.5 2.5 0 0 1 2.5 2.5V15" />
+    <path d="M5.8 15v6M8.2 15v6M15.8 15v6M18.2 15v6" />
+    <path d="M9.5 12.6h5" />
+  </Base>
+);
+
+/** Critical condition mode: a heart with a pulse line through it. */
+export const HeartbeatIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.4 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10Z" />
+    <path d="M3 12.5h4.5L9 10l2 5 1.6-3.4H21" />
+  </Base>
+);
+
+/** Lungs, for breathing conditions such as asthma. */
+export const LungsIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="M12 3v8.5" />
+    <path d="m12 11.5-2.5 2M12 11.5l2.5 2" />
+    <path d="M9.5 7.5C7 7.5 4 12 4 17.2c0 1.9 1.4 2.8 3 2.3l2.5-.8V7.5Z" />
+    <path d="M14.5 7.5c2.5 0 5.5 4.5 5.5 9.7 0 1.9-1.4 2.8-3 2.3l-2.5-.8V7.5Z" />
+  </Base>
+);
+
+/** Stacked layers: several things in focus at once. */
+export const LayersIcon = (p: IconProps) => (
+  <Base {...p}>
+    <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+    <path d="m3 12.5 9 5 9-5" />
+    <path d="m3 17 9 5 9-5" />
+  </Base>
+);

@@ -146,7 +146,7 @@ function PinGate({
           type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={8}
           value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, "")); setError(null); }}
           aria-label="Access PIN" autoFocus
-          className="mt-4 w-full rounded-mhl-sm border border-mhl-rule bg-mhl-sunk px-4 py-3 text-center text-mhl-lead font-bold tracking-[0.35em] text-mhl-ink outline-none focus:border-mhl-accent"
+          className="mhl-no-ring mt-4 w-full rounded-mhl-sm border border-mhl-rule bg-mhl-sunk px-4 py-3 text-center text-mhl-lead font-bold tracking-[0.35em] text-mhl-ink outline-none focus:border-mhl-accent"
         />
         {error && <p role="alert" className="mt-2 text-mhl-fine text-mhl-danger">{error}</p>}
         <button type="submit" disabled={busy}

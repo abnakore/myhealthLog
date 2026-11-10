@@ -1,10 +1,11 @@
 /**
- * ModeSupportBanner — the "Need support?" strip from the pregnancy preview,
+ * ModeSupportBanner: the "Need support?" strip from the pregnancy preview,
  * adapted per mode. Warm tint (no gradient — DESIGN.md), one care-team action.
  */
 import { Link } from "react-router-dom";
 import type { AppMode } from "@/lib/appModes";
 import { HeartIcon } from "@/components/icons";
+import { MODE_ART } from "@/lib/modeArt";
 
 const COPY: Record<Exclude<AppMode, "standard">, { title: string; sub: string; cta: string }> = {
   pregnancy: {
@@ -32,9 +33,18 @@ export function ModeSupportBanner({ mode }: { mode: Exclude<AppMode, "standard">
       className="flex min-w-0 flex-col gap-3 rounded-mhl border border-mhl-accent/25 bg-mhl-accent-lo/60 p-5 sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="flex min-w-0 items-center gap-4">
-        <span className="grid h-12 w-12 flex-none place-items-center rounded-mhl-sm bg-mhl-surface text-mhl-accent">
-          <HeartIcon size={22} />
-        </span>
+        {mode === "pregnancy" ? (
+          <img
+            src={MODE_ART.pregnancy.support}
+            alt=""
+            aria-hidden="true"
+            className="h-14 w-14 flex-none rounded-full mix-blend-multiply"
+          />
+        ) : (
+          <span className="grid h-12 w-12 flex-none place-items-center rounded-mhl-sm bg-mhl-surface text-mhl-accent">
+            <HeartIcon size={22} />
+          </span>
+        )}
         <div className="min-w-0">
           <h2 className="text-mhl-body font-bold text-mhl-ink">{c.title}</h2>
           <p className="text-mhl-fine text-mhl-muted">{c.sub}</p>

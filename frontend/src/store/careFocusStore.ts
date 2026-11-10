@@ -8,7 +8,9 @@
  */
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 import { fetchCareFocus, saveCareFocus } from "@/services/contexts";
-import { rankFocus, type FocusRef, type RankedFocus } from "@/lib/careFocus";
+import { focusFacets, rankFocus, refsForMode, type FocusFacets, type FocusRef, type RankedFocus } from "@/lib/careFocus";
+import { useAppMode } from "@/store/AppModeContext";
+import type { AppMode } from "@/lib/appModes";
 import { useCareProxy } from "@/store/CareProxyContext";
 import { useRecords } from "@/store/RecordsContext";
 
@@ -80,4 +82,33 @@ export function useCareFocus(): CareFocusState {
   );
 
   return { refs: entry.refs, ranked, loaded: entry.loaded, save };
+}
+
+/**
+ * What the interface adapts to right now: every item in focus, or the mode
+ * alone when no focus is saved (see focusFacets in lib/careFocus.ts).
+ */
+export function useFocusFacets(): FocusFacets {
+  const { ranked } = useCareFocus();
+  const { mode, criticalConditionId } = useAppMode();
+  return useMemo(() => focusFacets(ranked, mode, criticalConditionId), [ranked, mode, criticalConditionId]);
+}
+
+/**
+ * Pick one mode on its own. The mode and the care focus change together, so a
+ * focus on several things never lingers under a single mode (and picking the
+ * mode already showing, after focusing on several, still narrows it to one).
+ */
+export function usePickMode(): (mode: AppMode, conditionId?: string) => void {
+  const { setMode, setCriticalConditionId } = useAppMode();
+  const { save } = useCareFocus();
+  return useCallback(
+    (mode: AppMode, conditionId?: string) => {
+      if (mode === "critical" && conditionId) setCriticalConditionId(conditionId);
+      // Optimistic: the cached focus changes before the mode does.
+      void save(refsForMode(mode, conditionId)).catch(() => undefined);
+      setMode(mode);
+    },
+    [save, setMode, setCriticalConditionId],
+  );
 }

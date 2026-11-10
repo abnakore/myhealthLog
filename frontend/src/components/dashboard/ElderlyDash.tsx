@@ -7,7 +7,7 @@
  * beneath; the emergency card, care proxy and quiet "what else" doors on the
  * right. Bigger touch targets throughout — legibility is the product here.
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { Appointment, Condition, Medication } from "@/types/health";
 import { formatTime } from "@/lib/format";
@@ -27,12 +27,11 @@ import {
   CalendarIcon,
   ChevronRightIcon,
   DropIcon,
-  HeartIcon,
   HeartPulseIcon,
-  LeafIcon,
   PillIcon,
   UsersIcon,
 } from "@/components/icons";
+import { MODE_ART } from "@/lib/modeArt";
 
 export interface ElderlyDashProps {
   bloodType?: string;
@@ -43,6 +42,8 @@ export interface ElderlyDashProps {
   trustedContacts: string[];
   canEdit: boolean;
   activity: ActivityItem[];
+  /** Whatever else is in focus alongside elderly care. */
+  alsoInFocus?: ReactNode;
 }
 
 /** One upcoming visit, with the big date box the elderly reference leads with. */
@@ -84,6 +85,7 @@ export function ElderlyDash({
   trustedContacts,
   canEdit,
   activity,
+  alsoInFocus,
 }: ElderlyDashProps) {
   const [switchOpen, setSwitchOpen] = useState(false);
   const activeConditions = conditions.filter((c) => c.status === "ACTIVE");
@@ -100,9 +102,13 @@ export function ElderlyDash({
         aria-label="Elderly care mode is active"
         className="mhl-mode-hero flex min-w-0 flex-col gap-4 rounded-mhl border border-mhl-accent/25 bg-mhl-accent-lo/70 px-5 py-5 sm:flex-row sm:items-center sm:gap-5"
       >
-        <span className="grid h-14 w-14 flex-none place-items-center rounded-full bg-mhl-accent text-white">
-          <HeartIcon size={26} strokeWidth={1.9} />
-        </span>
+        {/* The heart-and-hands mark from the elderly preview. */}
+        <img
+          src={MODE_ART.elderly.banner}
+          alt=""
+          aria-hidden="true"
+          className="h-[4.5rem] w-[4.5rem] flex-none rounded-full mix-blend-multiply"
+        />
         <div className="min-w-0 flex-1">
           <h2 className="text-mhl-title font-bold tracking-[-0.02em] text-mhl-ink">
             Elderly care mode is active
@@ -159,6 +165,8 @@ export function ElderlyDash({
           />
         </Link>
       </section>
+
+      {alsoInFocus}
 
       <div className="mhl-dash__cols">
         <div className="mhl-dash__left flex min-w-0 flex-col gap-5">
@@ -250,9 +258,12 @@ export function ElderlyDash({
             aria-labelledby="elderly-else-title"
             className="min-w-0 rounded-mhl border border-mhl-rule bg-mhl-surface px-5 pb-5 pt-5 shadow-mhl"
           >
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent">
-              <LeafIcon size={20} />
-            </span>
+            <img
+              src={MODE_ART.elderly.lotus}
+              alt=""
+              aria-hidden="true"
+              className="h-12 w-12 rounded-full mix-blend-multiply"
+            />
             <h2 id="elderly-else-title" className="mt-3 text-mhl-card font-bold text-mhl-ink">
               What else would you like to do today?
             </h2>

@@ -9,7 +9,7 @@
  */
 import { useMemo, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
-import { hasFocus, primaryMode, rankFocus, toggleFocus, type FocusRef } from "@/lib/careFocus";
+import { hasFocus, primaryMode, rankFocus, toggleFocus, type FocusKind, type FocusRef } from "@/lib/careFocus";
 import { useAppMode } from "@/store/AppModeContext";
 import { useContexts } from "@/store/ContextsContext";
 import { useRecords } from "@/store/RecordsContext";
@@ -18,7 +18,7 @@ import { apiErrorMessage } from "@/services/api";
 import { CONDITION_STATUS_LABELS } from "@/types/health";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { CheckIcon, ConditionIcon, HeartPulseIcon, LifebuoyIcon, SproutIcon } from "@/components/icons";
+import { CheckIcon, ConditionIcon, ElderlyCoupleIcon, HeartPulseIcon, PregnantIcon } from "@/components/icons";
 
 function Option({
   selected, onClick, icon, title, sub,
@@ -60,6 +60,17 @@ function Option({
   );
 }
 
+/** What each item changes on screen, in plain words. */
+function adaptsLine(kind: FocusKind, rank: number): string {
+  if (kind === "pregnancy")
+    return "Adapts: pregnancy layout, week-by-week progress, antenatal visits and readings first.";
+  if (kind === "elderly")
+    return "Adapts: larger text and buttons, a simpler menu and medication reminders on Home.";
+  return rank === 1
+    ? "Adapts: the condition layout, with its status, readings, medicines and care plan."
+    : "Adapts: its own panel on Home with status, readings and medicines.";
+}
+
 export function CareFocusModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { refs, save } = useCareFocus();
   const { setMode, setCriticalConditionId } = useAppMode();
@@ -90,8 +101,11 @@ export function CareFocusModal({ open, onClose }: { open: boolean; onClose: () =
       if (hasFocus(draft, { kind: "pregnancy" }) && !pregnancy) await openPregnancy();
       const ranked = await save(draft);
       const top = ranked[0];
+      // The highest-ranked condition is the one its panel and the rail card name,
+      // even when pregnancy leads the layout.
+      const firstCondition = ranked.find((r) => r.kind === "condition");
+      if (firstCondition) setCriticalConditionId(firstCondition.id);
       if (top?.kind === "condition") {
-        setCriticalConditionId(top.id);
         const c = conditions.find((x) => x.id === top.id);
         if (c) void openCondition(c);
       }
@@ -125,7 +139,7 @@ export function CareFocusModal({ open, onClose }: { open: boolean; onClose: () =
         <Option
           selected={hasFocus(draft, { kind: "pregnancy" })}
           onClick={() => flip({ kind: "pregnancy" })}
-          icon={<SproutIcon size={19} />}
+          icon={<PregnantIcon size={19} />}
           title="Pregnancy"
           sub={pregnancy ? "Your pregnancy profile is on file." : "A pregnancy profile will be created."}
         />
@@ -142,7 +156,7 @@ export function CareFocusModal({ open, onClose }: { open: boolean; onClose: () =
         <Option
           selected={hasFocus(draft, { kind: "elderly" })}
           onClick={() => flip({ kind: "elderly" })}
-          icon={<LifebuoyIcon size={19} />}
+          icon={<ElderlyCoupleIcon size={19} />}
           title="Elderly care"
           sub="Larger text, fewer choices, medication reminders."
         />
@@ -161,13 +175,15 @@ export function CareFocusModal({ open, onClose }: { open: boolean; onClose: () =
                 </span>
                 <span className="min-w-0">
                   <b className="text-mhl-ink">{p.label}</b>
-                  <span className="text-mhl-muted">. {p.reason}</span>
+                  <span className="text-mhl-muted">: {p.reason}</span>
+                  <span className="mt-0.5 block text-mhl-ink">{adaptsLine(p.kind, p.rank)}</span>
                 </span>
               </li>
             ))}
           </ol>
           <p className="mt-2 text-[0.72rem] text-mhl-faint">
-            The first item sets the dashboard layout. The others still appear on it.
+            The first item sets the layout and colours. Every item adapts the app, and the emergency
+            card lists pregnancy and the conditions in this order.
           </p>
         </div>
       )}

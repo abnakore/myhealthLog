@@ -129,3 +129,75 @@ export function toggleFocus(refs: FocusRef[], ref: FocusRef): FocusRef[] {
 export function hasFocus(refs: FocusRef[], ref: FocusRef): boolean {
   return refs.some((r) => r.kind === ref.kind && (r.id ?? "") === (ref.id ?? ""));
 }
+
+/**
+ * The focus a single mode stands for. Picking one mode from the switcher
+ * replaces the whole focus with this, so nothing from an earlier
+ * "several at once" choice is left behind on the dashboard.
+ */
+export function refsForMode(mode: AppMode, conditionId?: string): FocusRef[] {
+  if (mode === "pregnancy") return [{ kind: "pregnancy" }];
+  if (mode === "elderly") return [{ kind: "elderly" }];
+  if (mode === "critical") return conditionId ? [{ kind: "condition", id: conditionId }] : [];
+  return [];
+}
+
+/** Whether the saved focus is the one the current mode came from. */
+export function focusAgreesWithMode(
+  ranked: RankedFocus[],
+  mode: AppMode,
+  criticalConditionId: string,
+): boolean {
+  if (ranked.length === 0) return mode === "standard";
+  if (primaryMode(ranked) !== mode) return false;
+  if (mode === "critical") return ranked[0].id === criticalConditionId;
+  return true;
+}
+
+/**
+ * What the interface adapts to. Every item in focus adapts the screens, not
+ * only the first one:
+ *   pregnancy  the pregnancy hero, antenatal readings and visits
+ *   condition  that condition's own panel: status, readings, medicines, plan
+ *   elderly    larger text and touch targets, a simpler rail, and the
+ *              medication reminders on the home screen
+ * The top item still picks the layout and colours (`primary`).
+ */
+export interface FocusFacets {
+  primary: AppMode;
+  pregnancy: boolean;
+  elderly: boolean;
+  /** Conditions in focus, highest rank first. */
+  conditionIds: string[];
+  /** More than one thing is in focus. */
+  multi: boolean;
+  /** Every item in focus, in rank order. */
+  ranked: RankedFocus[];
+}
+
+export function focusFacets(
+  ranked: RankedFocus[],
+  mode: AppMode,
+  criticalConditionId: string,
+): FocusFacets {
+  if (ranked.length > 0 && focusAgreesWithMode(ranked, mode, criticalConditionId)) {
+    return {
+      primary: mode,
+      pregnancy: ranked.some((r) => r.kind === "pregnancy"),
+      elderly: ranked.some((r) => r.kind === "elderly"),
+      conditionIds: ranked.filter((r) => r.kind === "condition").map((r) => r.id),
+      multi: ranked.length > 1,
+      ranked,
+    };
+  }
+  // No saved focus yet, or it has not caught up with a mode just picked:
+  // the mode alone decides.
+  return {
+    primary: mode,
+    pregnancy: mode === "pregnancy",
+    elderly: mode === "elderly",
+    conditionIds: mode === "critical" && criticalConditionId ? [criticalConditionId] : [],
+    multi: false,
+    ranked: [],
+  };
+}

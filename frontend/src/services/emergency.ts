@@ -121,6 +121,9 @@ export interface EmergencySummary {
     date: string | null;
   }>;
   pregnant?: boolean;
+  /** The owner's ranked care focus (pregnancy and conditions; elderly care is
+      left out on the server). Empty when conditions are hidden on the card. */
+  careFocus?: Array<{ kind: "pregnancy" | "condition"; label: string; rank: number; reason: string }>;
 }
 
 export interface StaticEmergencyCard {
