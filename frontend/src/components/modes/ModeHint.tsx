@@ -36,23 +36,23 @@ export function ModeHint({ page }: { page: ModeHintPage }) {
   if (mode === "pregnancy") {
     text =
       page === "measurements"
-        ? `Weight, blood pressure and blood sugar lead${pregView?.ageLabel ? ` — ${pregView.ageLabel} along` : ""}.`
+        ? `Weight, blood pressure and blood sugar lead${pregView?.ageLabel ? `, ${pregView.ageLabel} along` : ""}.`
         : page === "appointments"
-          ? "Antenatal visits lead — the dates your care team watches."
+          ? "Antenatal visits lead: the dates your care team watches."
           : page === "medications"
-            ? "Every medicine still listed — flag anything new with your care team."
-            : "Read through your pregnancy — the full record is unchanged.";
+            ? "Every medicine still listed. Flag anything new with your care team."
+            : "Read through your pregnancy. The full record is unchanged.";
   } else if (mode === "critical") {
     text = focusName
       ? page === "conditions"
-        ? `${focusName} leads — its treatment, schedule and numbers first.`
-        : `Shown with ${focusName} first — the full record is unchanged.`
-      : "Pick a condition to focus — then its treatment and numbers lead.";
+        ? `${focusName} leads: its treatment, schedule and numbers first.`
+        : `Shown with ${focusName} first. The full record is unchanged.`
+      : "Pick a condition to focus, then its treatment and numbers lead.";
   } else {
     text =
       page === "medications"
-        ? "Your daily doses, largest first — ask your carer if unsure."
-        : "Simpler view, same record — everything is still here.";
+        ? "Your daily doses, largest first. Ask your carer if unsure."
+        : "Simpler view, same record. Everything is still here.";
   }
 
   if (!text) return null;

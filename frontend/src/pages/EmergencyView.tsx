@@ -31,7 +31,7 @@ function tokenSuffix(token: string): string {
 
 function InvalidCode({ message }: { message?: string }) {
   useEffect(() => {
-    document.title = "Emergency view — code not valid";
+    document.title = "Emergency view: code not valid";
   }, []);
   return (
     <main className="mhl-emerg-page grid min-h-dvh place-items-center bg-mhl-emerg px-6 text-mhl-emerg-ink">
@@ -54,7 +54,7 @@ function PinGate({ code, onUnlock }: { code: string; onUnlock: (card: StaticEmer
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    document.title = "Emergency view — enter PIN";
+    document.title = "Emergency view: enter PIN";
   }, []);
 
   async function submit(event: FormEvent) {
@@ -104,7 +104,7 @@ function PinGate({ code, onUnlock }: { code: string; onUnlock: (card: StaticEmer
           disabled={busy}
           className="mt-4 flex w-full min-h-11 items-center justify-center rounded-full bg-mhl-emerg-ink px-6 text-mhl-body font-bold text-mhl-emerg disabled:opacity-50"
         >
-          {busy ? "Verifying…" : "Open card"}
+          {busy ? "Verifying..." : "Open card"}
         </button>
       </form>
     </main>
@@ -123,7 +123,7 @@ function SummaryPage({ code, card }: { code: string; card: StaticEmergencyCard }
   const summary = card.summary;
 
   useEffect(() => {
-    document.title = card.name ? `Medical summary — ${card.name}` : "Medical summary";
+    document.title = card.name ? `Medical summary: ${card.name}` : "Medical summary";
   }, [card.name]);
 
   const readings: SummaryReading[] = (summary?.vitals ?? []).map((v) => ({
@@ -187,7 +187,7 @@ function SummaryPage({ code, card }: { code: string; card: StaticEmergencyCard }
         <HealthSummary
           data={data}
           title="Medical summary"
-          subtitle={`${card.name}${meta ? ` · ${meta}` : ""} — the facts a clinician asks for first.`}
+          subtitle={`${card.name}${meta ? ` · ${meta}` : ""}. The facts a clinician asks for first.`}
           showLinks={false}
           sections={{
             allergies: shows.allergies,

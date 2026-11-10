@@ -85,7 +85,7 @@ export function ModeTransition() {
     shown === "pregnancy" && pregView?.ageLabel
       ? `${pregView.ageLabel} along${pregView.dueDateLabel ? ` · due ${pregView.dueDateLabel}` : ""}`
       : shown === "critical" && focusCondition
-        ? `${focusCondition.name} leads — treatment, schedule and numbers first.`
+        ? `${focusCondition.name} leads: treatment, schedule and numbers first.`
         : meta.tagline;
 
   return (

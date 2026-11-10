@@ -95,7 +95,7 @@ def send_email(
     text = "\n\n".join(paragraphs)
     if button:
         text += f"\n\n{button[0]}: {button[1]}"
-    text += "\n\n— myHealthLog"
+    text += "\n\nmyHealthLog"
     html = _html(heading, paragraphs, button)
 
     def _dispatch():

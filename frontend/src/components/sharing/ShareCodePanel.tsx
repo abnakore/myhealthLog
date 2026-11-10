@@ -108,7 +108,7 @@ export function ShareCodePanel({
           <p className="mt-2 text-mhl-fine text-mhl-muted">
             {pin
               ? "No account is needed. Send the PIN a different way from the link."
-              : "No account is needed — anyone with this link can open what you chose."}
+              : "No account is needed. Anyone with this link can open what you chose."}
           </p>
         </div>
       </div>

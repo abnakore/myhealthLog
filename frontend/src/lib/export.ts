@@ -399,12 +399,12 @@ function focusBlock(focus: SummaryFocus): string {
     : "";
   const rest =
     focus.others && focus.others > 0
-      ? `<p class="muted">Priority view only — ${focus.others} more ${
+      ? `<p class="muted">Priority view only. ${focus.others} more ${
           focus.others === 1 ? "record" : "records"
         } remain on the full record.</p>`
       : "";
   return `<p><strong>${esc(focus.label)}</strong>${
-    focus.detail ? ` — ${esc(focus.detail)}` : ""
+    focus.detail ? ` · ${esc(focus.detail)}` : ""
   }</p>${items}${rest}`;
 }
 
@@ -438,7 +438,7 @@ export function buildClinicalSummary(rec: RecordSnapshot, focus?: SummaryFocus):
         .map(
           (c) =>
             `<li><strong>${esc(c.name)}</strong>${
-              c.severity ? ` — ${esc(SEVERITY_LABELS[c.severity])}` : ""
+              c.severity ? ` · ${esc(SEVERITY_LABELS[c.severity])}` : ""
             }${c.onsetDate ? ` <span class="muted">since ${esc(formatDate(c.onsetDate))}</span>` : ""}</li>`,
         )
         .join("")}</ul>`
@@ -448,7 +448,7 @@ export function buildClinicalSummary(rec: RecordSnapshot, focus?: SummaryFocus):
     ? `<ul>${activeMeds
         .map(
           (m) =>
-            `<li><strong>${esc(m.name)}</strong> ${esc(m.dosage)}<span class="muted"> — ${esc(
+            `<li><strong>${esc(m.name)}</strong> ${esc(m.dosage)}<span class="muted"> · ${esc(
               m.frequency,
             )}</span></li>`,
         )
@@ -461,7 +461,7 @@ export function buildClinicalSummary(rec: RecordSnapshot, focus?: SummaryFocus):
           (a) =>
             `<li><strong>${esc(a.substance)}</strong> <span class="muted">${esc(
               ALLERGY_SEVERITY_LABELS[a.severity],
-            )}${a.reactions?.length ? ` — ${esc(a.reactions.join(", "))}` : ""}</span></li>`,
+            )}${a.reactions?.length ? ` · ${esc(a.reactions.join(", "))}` : ""}</span></li>`,
         )
         .join("")}</ul>`
     : "";
@@ -483,7 +483,7 @@ export function buildClinicalSummary(rec: RecordSnapshot, focus?: SummaryFocus):
         .map(
           (c, i) =>
             `<li><strong>${esc(c.name)}</strong> <span class="muted">${esc(c.relationship)}${
-              c.phone ? ` — ${esc(c.phone)}` : ""
+              c.phone ? ` · ${esc(c.phone)}` : ""
             }</span>${i === 0 ? ' <span class="chip">Primary</span>' : ""}</li>`,
         )
         .join("")}</ul>`
@@ -509,7 +509,7 @@ export function buildClinicalSummary(rec: RecordSnapshot, focus?: SummaryFocus):
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Clinical summary — ${esc(p.fullName)}</title>
+<title>Clinical summary: ${esc(p.fullName)}</title>
 <style>
   :root { color-scheme: light; }
   * { box-sizing: border-box; }

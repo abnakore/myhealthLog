@@ -25,7 +25,7 @@ export function CriticalHero({
   const activeMeds = meds.filter((m) => m.active);
   return (
     <HeroShell
-      eyebrow={`${condition.name} — active condition`}
+      eyebrow={`${condition.name}: active condition`}
       art={
         <PortraitArt
           variant="critical"
@@ -68,7 +68,7 @@ export function CriticalHero({
         <div className="rounded-mhl-sm bg-mhl-sunk p-3.5">
           <p className="text-mhl-fine text-mhl-muted">Next follow-up</p>
           <p className="mt-0.5 truncate text-mhl-body font-bold text-mhl-ink">
-            {nextVisit ? formatShortDate(nextVisit.scheduledFor) : "—"}
+            {nextVisit ? formatShortDate(nextVisit.scheduledFor) : "None booked"}
           </p>
           <p className="truncate text-[0.72rem] text-mhl-faint">
             {nextVisit?.facility ?? "Not booked yet"}

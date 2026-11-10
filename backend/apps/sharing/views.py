@@ -35,6 +35,7 @@ from apps.core.pagination import StandardResultsSetPagination
 from .models import CareProvider, CareProxyGrant, EmergencySettings
 from .serializers import (
     CareProviderCreateSerializer,
+    CareProviderOwnerSerializer,
     CareProviderReadSerializer,
     CareProviderUpdateSerializer,
     CareProxyGrantCreateSerializer,
@@ -110,7 +111,7 @@ class CareProviderListView(APIView):
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(providers, request)
         return paginator.get_paginated_response(
-            CareProviderReadSerializer(page, many=True).data
+            CareProviderOwnerSerializer(page, many=True).data
         )
 
     def post(self, request):
@@ -120,8 +121,7 @@ class CareProviderListView(APIView):
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
 
-        data = CareProviderReadSerializer(instance).data
-        # Attach the raw share code — returned once only.
+        data = CareProviderOwnerSerializer(instance).data
         data["share_code"] = instance._raw_code
         if instance.pin_enabled:
             data["pin_enabled"] = True
@@ -169,7 +169,7 @@ class CareProviderDetailView(APIView):
 
     def get(self, request, pk):
         provider = self._get_provider(request.user, pk)
-        return Response(CareProviderReadSerializer(provider).data)
+        return Response(CareProviderOwnerSerializer(provider).data)
 
     def patch(self, request, pk):
         provider = self._get_provider(request.user, pk)
@@ -178,7 +178,7 @@ class CareProviderDetailView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(CareProviderReadSerializer(provider).data)
+        return Response(CareProviderOwnerSerializer(provider).data)
 
     def delete(self, request, pk):
         provider = self._get_provider(request.user, pk)
@@ -193,7 +193,7 @@ class CareProviderDetailView(APIView):
         provider.status = CareProvider.Status.REVOKED
         provider.save(update_fields=["status"])
         logger.info("Share %s revoked by user %s", pk, request.user.id)
-        return Response(CareProviderReadSerializer(provider).data)
+        return Response(CareProviderOwnerSerializer(provider).data)
 
 
 # ---------------------------------------------------------------------------
@@ -214,12 +214,8 @@ class EmergencySettingsView(APIView):
         return settings_obj, raw_token
 
     def get(self, request):
-        settings_obj, raw_token = self._get_settings(request.user)
-        data = EmergencySettingsSerializer(settings_obj).data
-        if raw_token:
-            # Return the raw token once — it was just created.
-            data["token"] = raw_token
-        return Response(data)
+        settings_obj, _ = self._get_settings(request.user)
+        return Response(EmergencySettingsSerializer(settings_obj).data)
 
     def patch(self, request):
         settings_obj, _ = self._get_settings(request.user)
@@ -233,7 +229,7 @@ class EmergencyTokenRegenerateView(APIView):
     """
     POST /api/v1/sharing/emergency/regenerate/
     Mint a new emergency token.  The old token is invalidated immediately.
-    Returns the new raw token — copy it now, we can't show it again.
+    Returns the new token; the settings page can show it again at any time.
     """
 
     permission_classes = [IsAuthenticated]
@@ -242,12 +238,7 @@ class EmergencyTokenRegenerateView(APIView):
         settings_obj, _ = EmergencySettings.get_or_create_for_user(request.user)
         raw_token = settings_obj.regenerate_token()
         logger.info("Emergency token regenerated for user %s", request.user.id)
-        return Response(
-            {
-                "token": raw_token,
-                **EmergencySettingsSerializer(settings_obj).data,
-            }
-        )
+        return Response({**EmergencySettingsSerializer(settings_obj).data, "token": raw_token})
 
 
 # ---------------------------------------------------------------------------
@@ -562,7 +553,7 @@ class ProviderAccessView(APIView):
                     f"{provider.name}"
                     + (f" ({provider.facility})" if provider.facility else "")
                     + " just opened the parts of your record you shared with them.",
-                    "If you didn't expect this, revoke the code now — it stops working at once.",
+                    "If you didn't expect this, revoke the code now. It stops working at once.",
                 ],
                 ("Review care providers", app_url("/app/providers")),
             )
@@ -674,7 +665,11 @@ def _provider_write_target(scope: str):
     from apps.records import models as m
     from apps.records import serializers as s
 
+    from apps.profiles import models as pm
+    from apps.profiles import serializers as ps
+
     return {
+        "profile": (pm.HealthProfile, ps.HealthProfileWriteSerializer, ps.HealthProfileReadSerializer, "basic info", "/app/profile"),
         "allergies": (m.Allergy, s.AllergyWriteSerializer, s.AllergyReadSerializer, "allergy", "/app/allergies"),
         "medications": (m.Medication, s.MedicationWriteSerializer, s.MedicationReadSerializer, "medication", "/app/medications"),
         "conditions": (m.Condition, s.ConditionWriteSerializer, s.ConditionReadSerializer, "condition", "/app/conditions"),
@@ -715,10 +710,6 @@ class ProviderRecordSaveView(APIView):
             raise BusinessRuleError("This share does not include that part of the record.")
 
         action = serializer.validated_data["action"]
-        if action == "create" and scope == "documents":
-            raise BusinessRuleError(
-                "New documents are added by the record owner. You can add a clinical note instead."
-            )
 
         target = _provider_write_target(scope)
         if target is None:
@@ -726,9 +717,18 @@ class ProviderRecordSaveView(APIView):
         model, write_cls, read_cls, label, link = target
 
         owner = provider.owner
-        payload = serializer.validated_data["data"]
+        payload = dict(serializer.validated_data["data"])
+        # A document arrives as multipart: the record in `data`, the file beside it.
+        upload = request.FILES.get("file")
+        if upload is not None:
+            payload["file"] = upload
 
-        if action == "update":
+        if scope == "profile":
+            # Basic info is one row per person: always an edit, never a new record.
+            action = "update"
+            instance, _ = model.objects.get_or_create(user=owner)
+            write = write_cls(instance, data=payload, partial=True, context={"request": request})
+        elif action == "update":
             record_id = serializer.validated_data.get("id")
             if not record_id:
                 raise BusinessRuleError("Choose the record to change.")
@@ -756,7 +756,9 @@ class ProviderRecordSaveView(APIView):
             kind = "RECORD_ADDED"
             verb = "added"
 
-        article = "an" if label[:1] in "aeiou" else "a"
+        # "an allergy", "a medication"; basic info reads "your basic info".
+        article = "your" if scope == "profile" else ("an" if label[:1] in "aeiou" else "a")
+        where = "" if scope == "profile" else " in your record"
         try:
             from apps.notifications.models import Notification
             from apps.notifications.utils import notify
@@ -764,7 +766,7 @@ class ProviderRecordSaveView(APIView):
             notify(
                 user=owner,
                 kind=kind,
-                title=f"{provider.name} {verb} {article} {label} in your record",
+                title=f"{provider.name} {verb} {article} {label}{where}",
                 body=(
                     f"{provider.name}"
                     + (f" from {provider.facility}" if provider.facility else "")

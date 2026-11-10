@@ -135,7 +135,7 @@ export const demoMedications: Medication[] = [
     endDate: "2018-03-01",
     reason: "Asthma",
     active: false,
-    notes: "No longer in use — asthma settled.",
+    notes: "No longer in use. Asthma settled.",
     source: "SELF_REPORTED",
     conditionIds: ["cn_3"],
   },
@@ -967,7 +967,7 @@ export const demoEmergencySettingsByOwner: Record<string, EmergencySettings> = {
     showConditions: true,
     showContacts: true,
     showNote: true,
-    note: "I take a blood thinner — please check before giving me anything for pain.",
+    note: "I take a blood thinner. Please check before giving me anything for pain.",
     updatedAt: "2026-09-14T17:05:00",
   },
 };
@@ -1080,7 +1080,7 @@ export const demoProxyGrants: CareProxyGrant[] = [
     proxyEmail: "hauwa.bello@example.com",
     permission: "VIEW",
     status: "INVITED",
-    message: "For the weeks I'm travelling — so you can check my medicines and appointments.",
+    message: "For the weeks I'm travelling, so you can check my medicines and appointments.",
     invitedAt: "2026-09-08T19:40:00",
   },
   // Waiting in her account: her father's invitation, view only.

@@ -24,7 +24,7 @@ export function NotificationBell({ className }: Props) {
       onClick={toggle}
       aria-label={
         unreadCount > 0
-          ? `Notifications — ${unreadCount} unread`
+          ? `Notifications, ${unreadCount} unread`
           : "Notifications"
       }
       aria-pressed={panelOpen}

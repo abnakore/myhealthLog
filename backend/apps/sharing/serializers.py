@@ -11,7 +11,6 @@ ProviderAccessSerializer       — what a provider reads when they open the shar
 
 from rest_framework import serializers
 
-from apps.core.utils import hash_token
 from apps.core.validators import validate_pin
 
 from .models import CareProvider, CareProxyGrant, EmergencySettings
@@ -58,6 +57,26 @@ class CareProviderReadSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+class CareProviderOwnerSerializer(CareProviderReadSerializer):
+    """
+    The owner's own view of a share: adds the code and PIN back so the link and
+    QR can be reopened at any time. Never used for the provider-facing window.
+    """
+
+    share_code = serializers.SerializerMethodField()
+    pin = serializers.SerializerMethodField()
+
+    class Meta(CareProviderReadSerializer.Meta):
+        fields = [*CareProviderReadSerializer.Meta.fields, "share_code", "pin"]
+        read_only_fields = fields
+
+    def get_share_code(self, obj):
+        return obj.raw_share_code
+
+    def get_pin(self, obj):
+        return obj.raw_pin
 
 
 class CareProviderCreateSerializer(serializers.Serializer):
@@ -163,11 +182,9 @@ class CareProviderUpdateSerializer(serializers.ModelSerializer):
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if raw_pin:
-            instance.pin_hash = hash_token(raw_pin)
-            instance.pin_enabled = True
+            instance.set_pin(raw_pin)
         elif remove_pin:
-            instance.pin_hash = ""
-            instance.pin_enabled = False
+            instance.set_pin(None)
         instance.save()
         if raw_pin or remove_pin:
             ProviderAccessService.clear_pin_failures(instance)
@@ -181,9 +198,18 @@ class CareProviderUpdateSerializer(serializers.ModelSerializer):
 
 class EmergencySettingsSerializer(serializers.ModelSerializer):
     """
-    Read-only representation of emergency settings.
-    Never exposes token_hash or pin_hash — the raw token is shown once.
+    Read-only representation of the owner's emergency settings. The token and
+    PIN are decrypted for the owner so the card can always be shown and reprinted.
     """
+
+    token = serializers.SerializerMethodField()
+    pin = serializers.SerializerMethodField()
+
+    def get_token(self, obj):
+        return obj.current_token()
+
+    def get_pin(self, obj):
+        return obj.raw_pin
 
     class Meta:
         model = EmergencySettings
@@ -197,6 +223,8 @@ class EmergencySettingsSerializer(serializers.ModelSerializer):
             "show_note",
             "note",
             "updated_at",
+            "token",
+            "pin",
         ]
         read_only_fields = ["updated_at"]
 
@@ -225,8 +253,6 @@ class EmergencySettingsUpdateSerializer(serializers.Serializer):
     note = serializers.CharField(required=False, allow_blank=True)
 
     def save(self, instance: EmergencySettings):
-        from apps.core.utils import hash_token
-
         data = self.validated_data
         for field in (
             "show_blood_type", "show_allergies", "show_medications",
@@ -240,10 +266,10 @@ class EmergencySettingsUpdateSerializer(serializers.Serializer):
 
         if pin_enabled is False:
             instance.pin_enabled = False
-            instance.pin_hash = ""
+            instance.set_pin(None)
         elif raw_pin:
             instance.pin_enabled = True
-            instance.pin_hash = hash_token(raw_pin)
+            instance.set_pin(raw_pin)
         elif pin_enabled is True:
             instance.pin_enabled = True
 
@@ -357,6 +383,7 @@ class ProviderNoteSerializer(serializers.Serializer):
 # serializer for each lives in the records app; they are looked up lazily in
 # the view so this module stays free of a records import.
 PROVIDER_WRITABLE_SCOPES = (
+    "profile",
     "allergies",
     "medications",
     "conditions",
@@ -365,6 +392,25 @@ PROVIDER_WRITABLE_SCOPES = (
     "documents",
     "immunizations",
 )
+
+
+class _JSONObjectField(serializers.Field):
+    """A JSON object sent either as a JSON body value or, in a multipart upload, as a string."""
+
+    def to_internal_value(self, data):
+        import json
+
+        if isinstance(data, str):
+            try:
+                data = json.loads(data)
+            except ValueError as exc:
+                raise serializers.ValidationError("Send the record as a JSON object.") from exc
+        if not isinstance(data, dict):
+            raise serializers.ValidationError("Send the record as a JSON object.")
+        return data
+
+    def to_representation(self, value):
+        return value
 
 
 class ProviderRecordWriteSerializer(serializers.Serializer):
@@ -380,4 +426,4 @@ class ProviderRecordWriteSerializer(serializers.Serializer):
     scope = serializers.ChoiceField(choices=PROVIDER_WRITABLE_SCOPES)
     action = serializers.ChoiceField(choices=("create", "update"), default="create")
     id = serializers.UUIDField(required=False, allow_null=True)
-    data = serializers.DictField()
+    data = _JSONObjectField()

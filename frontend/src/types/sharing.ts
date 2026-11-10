@@ -64,11 +64,11 @@ export function summariseScopes(scopes: ShareScope[]): string {
 export type ProviderAccess = "VIEW" | "CONTRIBUTE";
 
 export const PROVIDER_ACCESS: { value: ProviderAccess; label: string; hint: string }[] = [
-  { value: "VIEW", label: "View only", hint: "They can read the records you pick — nothing more." },
+  { value: "VIEW", label: "View only", hint: "They can read the records you pick, nothing more." },
   {
     value: "CONTRIBUTE",
     label: "View & fill in",
-    hint: "They can add and edit records in the parts you pick — nothing outside them.",
+    hint: "They can add and edit records in the parts you pick, nothing outside them.",
   },
 ];
 

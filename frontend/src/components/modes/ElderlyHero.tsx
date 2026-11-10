@@ -40,8 +40,8 @@ export function ElderlyHero({
         <div className="mt-4 grid grid-cols-3 gap-2.5">
           <div className="rounded-mhl-sm bg-mhl-sunk p-4 text-center">
             <p className="text-mhl-fine text-mhl-muted">Blood type</p>
-            <p className="mt-1 text-mhl-title font-bold text-mhl-ink">{bloodType ?? "—"}</p>
-            <p className="text-mhl-fine text-mhl-muted">{genotype ? `Genotype ${genotype}` : "Genotype —"}</p>
+            <p className="mt-1 text-mhl-title font-bold text-mhl-ink">{bloodType ?? "Not recorded"}</p>
+            <p className="text-mhl-fine text-mhl-muted">{genotype ? `Genotype ${genotype}` : "Genotype not recorded"}</p>
           </div>
           <Link to="/app/conditions" className="mhl-row rounded-mhl-sm bg-mhl-sunk p-4 text-center">
             <p className="text-mhl-fine text-mhl-muted">Active conditions</p>

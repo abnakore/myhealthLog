@@ -47,7 +47,6 @@ import {
   CameraIcon,
   DownloadIcon,
   EditIcon,
-  LinkIcon,
   MapPinIcon,
   PhoneIcon,
   PlusIcon,
@@ -66,7 +65,7 @@ function Detail({ label, value, full = false }: { label: string; value: ReactNod
   return (
     <div className={cn("min-w-0", full && "col-span-2 sm:col-span-3")}>
       <dt className="text-mhl-fine text-mhl-muted">{label}</dt>
-      <dd className="mt-0.5 text-mhl-body font-medium text-mhl-ink">{value || "—"}</dd>
+      <dd className="mt-0.5 text-mhl-body font-medium text-mhl-ink">{value || "Not recorded"}</dd>
     </div>
   );
 }
@@ -182,7 +181,7 @@ export default function Profile() {
     removeEmergencyContact,
   } = useRecords();
   const { meta: modeMeta } = useAppMode();
-  const { providers, connections } = useSharing();
+  const { providers } = useSharing();
   const { pregnancy, updatePregnancy } = useContexts();
   // Everything on this page is the record's own details, so each control checks the
   // same permission: the owner's record, or a full-access proxy's.
@@ -384,7 +383,7 @@ export default function Profile() {
             className="mt-4"
             icon={<MapPinIcon size={26} />}
             title="No contact details yet"
-            description="Add a phone number and address so your record can reach you — and a responder can too."
+            description="Add a phone number and address so your record can reach you, and a responder can too."
             action={
               canEdit ? (
                 <Button icon={<PlusIcon size={18} strokeWidth={2.25} />} onClick={openLocation}>
@@ -486,7 +485,7 @@ export default function Profile() {
       >
         {isProxyView ? (
           <p className="mt-3 rounded-mhl-sm bg-mhl-sunk px-3.5 py-3 text-mhl-fine text-mhl-muted">
-            Only {activeOwnerName} can decide who sees this record. A care proxy can read it — handing
+            Only {activeOwnerName} can decide who sees this record. A care proxy can read it, but handing
             it on to anyone else isn't theirs to do.
           </p>
         ) : (
@@ -511,13 +510,6 @@ export default function Profile() {
               subtitle="The code, the optional PIN, and exactly what it reveals"
               to="/app/emergency"
             />
-            <ActionRow
-              icon={<LinkIcon size={20} />}
-              title="Connected apps & devices"
-              subtitle="Samsung Health and more, feeding readings in"
-              to="/app/connections"
-              trailing={connections.length > 0 ? <Tag tone="neutral">{connections.length}</Tag> : undefined}
-            />
           </div>
         )}
       </Section>
@@ -526,7 +518,7 @@ export default function Profile() {
       <Section
         icon={<SlidersIcon size={18} />}
         question="How should the app work for you?"
-        lead="Condition-aware modes reshape myHealthLog around what matters now — same record, different focus."
+        lead="Condition-aware modes reshape myHealthLog around what matters now. Same record, different focus."
         action={
           <Button variant="secondary" icon={<SlidersIcon size={18} />} onClick={() => setModeOpen(true)}>
             Change mode
@@ -574,7 +566,7 @@ export default function Profile() {
         <Section
           icon={<DownloadIcon size={18} />}
           question="Your data"
-          lead={isProxyView ? `A copy of ${activeOwnerName}'s record — for a doctor, or another app.` : "Your record is yours to take anywhere."}
+          lead={isProxyView ? `A copy of ${activeOwnerName}'s record, for a doctor, or another app.` : "Your record is yours to take anywhere."}
         >
           <div className="mt-2 space-y-1">
             <ActionRow
@@ -613,7 +605,7 @@ export default function Profile() {
       <RecordEditModal<LocationDraft>
         open={locationDraft !== null}
         title="Contact details"
-        description="All optional — fill in what you're comfortable sharing."
+        description="All optional. Fill in what you're comfortable sharing."
         draft={locationDraft}
         errors={{}}
         Fields={LocationFields}

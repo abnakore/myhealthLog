@@ -21,7 +21,7 @@ export function ProxyBanner() {
           <LockIcon size={18} />
         </span>
         <p className="min-w-0 flex-1 text-mhl-fine text-mhl-ink">
-          Viewing <span className="font-bold">{activeOwnerName}</span>'s record —{" "}
+          Viewing <span className="font-bold">{activeOwnerName}</span>'s record.{" "}
           {proxyPermissionLabel(permission)}
         </p>
         <button

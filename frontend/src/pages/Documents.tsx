@@ -225,7 +225,7 @@ function DocumentItem({
           preview and file live in the document viewer. */}
       {(document.aiExtractionStatus === "PENDING" || document.aiExtractionStatus === "PROCESSING") && (
         <p className="mt-2 px-5 text-mhl-fine font-medium text-mhl-accent">
-          AI is reading this document…
+          AI is reading this document...
         </p>
       )}
       {document.aiExtractionStatus === "DONE" && document.aiExtraction?.summary && (
@@ -335,7 +335,7 @@ export default function Documents() {
     const url = `${window.location.origin}/app/records/documents/${doc.id}`;
     try {
       if (typeof navigator.share === "function") {
-        await navigator.share({ title: doc.title, text: `${doc.title} — myHealthLog`, url });
+        await navigator.share({ title: doc.title, text: `${doc.title} | myHealthLog`, url });
         return;
       }
       await navigator.clipboard?.writeText(url);
@@ -405,7 +405,7 @@ export default function Documents() {
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search titles, labs, imaging…"
+                placeholder="Search titles, labs, imaging..."
                 className="min-w-0 flex-1 border-0 bg-transparent text-mhl-body text-mhl-ink outline-none placeholder:text-mhl-faint"
               />
             </label>

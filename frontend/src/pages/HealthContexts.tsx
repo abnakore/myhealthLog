@@ -92,7 +92,7 @@ export default function HealthContexts() {
     <div>
       <PageHeader
         title="Condition-aware profiles"
-        subtitle="Read your record through one condition at a time — without changing a thing on it."
+        subtitle="Read your record through one condition at a time, without changing a thing on it."
       />
 
       <Section
@@ -104,7 +104,7 @@ export default function HealthContexts() {
             <InfoIcon size={20} />
           </span>
           <p className="min-w-0 text-mhl-fine text-mhl-ink">
-            Opening a profile brings this condition's records to the front — the medicines,
+            Opening a profile brings this condition's records to the front: the medicines,
             results, visits and documents linked to it. Everything else stays exactly where it
             is, one click away on the{" "}
             <Link to="/app/timeline" className="font-semibold text-mhl-accent hover:underline">
@@ -152,7 +152,7 @@ export default function HealthContexts() {
 
       <Section
         question="Which condition should lead?"
-        lead="Pick a condition already on your record. The profile points at it — it never makes a second copy."
+        lead="Pick a condition already on your record. The profile points at it. It never makes a second copy."
       >
         {openable.length === 0 && !hasPregnancy && contexts.length === 0 ? (
           <EmptyState
@@ -309,7 +309,7 @@ export default function HealthContexts() {
           <div className="min-w-0 flex-1 text-mhl-fine text-mhl-ink">
             <p className="font-semibold">All health records</p>
             <p className="mt-0.5 text-mhl-muted">
-              Every condition, medicine, allergy, measurement, result, visit and document — the
+              Every condition, medicine, allergy, measurement, result, visit and document. The
               complete record, available whether a profile is open or not.
             </p>
             <div className="mt-2.5 flex flex-wrap gap-2">
@@ -331,7 +331,7 @@ export default function HealthContexts() {
         title="Remove this profile?"
         message={
           removing
-            ? `The ${contextLabel(removing, conditions)} profile will be taken off your record. No medicines, results, visits or documents are deleted — they all stay on your health record. You can open the profile again whenever you like.`
+            ? `The ${contextLabel(removing, conditions)} profile will be taken off your record. No medicines, results, visits or documents are deleted. They all stay on your health record. You can open the profile again whenever you like.`
             : ""
         }
         confirmLabel="Remove profile"

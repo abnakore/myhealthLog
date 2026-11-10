@@ -92,7 +92,7 @@ export default function Allergies() {
         <EmptyState
           icon={<AllergyIcon size={22} />}
           title="No allergies recorded"
-          description="Add anything you react to — a drug, a food, or something in the environment."
+          description="Add anything you react to: a drug, a food, or something in the environment."
           action={
             canEdit ? (
               <Link to="/app/add?type=allergy" className={buttonStyles("primary", "md")}>

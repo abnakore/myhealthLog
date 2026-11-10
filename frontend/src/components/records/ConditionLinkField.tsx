@@ -9,6 +9,8 @@
  * It reads the conditions already on file. With none on file there is nothing to link
  * to, so the field stays out of the form rather than offering an empty box.
  */
+import { useContext } from "react";
+import { ConditionOptionsContext } from "./conditionOptions";
 import { Tag } from "@/components/ui/Tag";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
@@ -27,7 +29,9 @@ export function ConditionLinkField({
   onChange,
   label = "Related conditions",
 }: ConditionLinkFieldProps) {
-  const { conditions } = useRecords();
+  const own = useRecords().conditions;
+  const override = useContext(ConditionOptionsContext);
+  const conditions = override ?? own;
   if (conditions.length === 0) return null;
 
   const sorted = [...conditions].sort((a, b) => a.name.localeCompare(b.name));
@@ -44,7 +48,7 @@ export function ConditionLinkField({
       </legend>
       <p className="mt-0.5 text-mhl-fine text-mhl-muted">
         Leave empty if it isn't about one condition in particular. Pick more than one if
-        it's for several — profiles read these links, they never copy the record.
+        it's for several. Profiles read these links; they never copy the record.
       </p>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {sorted.map((c) => {

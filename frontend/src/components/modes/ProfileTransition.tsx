@@ -71,7 +71,7 @@ export function ProfileTransition() {
         title: isProxyView ? activeOwnerName : "Your own record",
         line: isProxyView
           ? "You're now reading their record with the access they gave you."
-          : "Back to the record that is yours — everything as you left it.",
+          : "Back to the record that is yours, everything as you left it.",
       };
     } else if (last.activeId !== activeId && activeId) {
       if (Date.now() < suppressUntil.current) return;
@@ -79,7 +79,7 @@ export function ProfileTransition() {
         kind: "profile",
         eyebrow: "Profile in focus",
         title: activeLabel || "Profile",
-        line: "Reading the record through this profile — nothing is copied, hidden or moved.",
+        line: "Reading the record through this profile. Nothing is copied, hidden or moved.",
       };
     }
     if (!next) return;

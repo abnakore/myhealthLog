@@ -130,8 +130,8 @@ export function ElderlyDash({
           <StripCell
             icon={<DropIcon size={20} />}
             label="Blood type"
-            value={bloodType ?? "—"}
-            sub={genotype ? `Genotype ${genotype}` : "Genotype —"}
+            value={bloodType ?? "Not recorded"}
+            sub={genotype ? `Genotype ${genotype}` : "Genotype not recorded"}
           />
         </Link>
         <Link to="/app/conditions" className="mhl-cardlink min-w-0 overflow-hidden rounded-mhl border border-mhl-rule bg-mhl-surface shadow-mhl">

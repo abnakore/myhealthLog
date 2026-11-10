@@ -99,18 +99,18 @@ function widthOf(text: string, font: string): number {
 /** One line that fits the box: shortened with an ellipsis, never overflowing. */
 function fit(text: string, maxWidth: number, font: string): string {
   const clean = text.replace(/\s+/g, " ").trim();
-  if (!clean) return "—";
+  if (!clean) return "Not recorded";
   if (widthOf(clean, font) <= maxWidth) return clean;
   let out = clean;
-  while (out.length > 1 && widthOf(`${out}…`, font) > maxWidth) {
+  while (out.length > 1 && widthOf(`${out}...`, font) > maxWidth) {
     out = out.slice(0, -1);
   }
-  return `${out.trimEnd()}…`;
+  return `${out.trimEnd()}...`;
 }
 
 /** Break a value onto at most `maxLines` lines, ellipsis on the last if it spills. */
 function wrap(text: string, maxWidth: number, font: string, maxLines: number): string[] {
-  const clean = text.replace(/\s+/g, " ").trim() || "—";
+  const clean = text.replace(/\s+/g, " ").trim() || "Not recorded";
   const words = clean.split(" ");
   const lines: string[] = [];
   let line = "";
@@ -203,7 +203,7 @@ export function buildEmergencyCardSvg(input: EmergencyCardInput): string {
   if (input.show.bloodType && (input.bloodType || input.genotype)) {
     facts.push({
       label: "Blood & genotype",
-      value: `${input.bloodType || "—"} · ${input.genotype || "—"}`,
+      value: `${input.bloodType || "Not recorded"} · ${input.genotype || "Not recorded"}`,
     });
   }
   if (input.show.allergies) {

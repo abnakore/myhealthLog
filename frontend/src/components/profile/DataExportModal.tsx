@@ -83,7 +83,7 @@ export function DataExportModal({ open, onClose }: { open: boolean; onClose: () 
       open={open}
       onClose={onClose}
       title="Export your record"
-      description="Take a copy with you — to another app, or to a doctor."
+      description="Take a copy with you, to another app, or to a doctor."
       footer={
         <Button variant="secondary" onClick={onClose}>
           Done
@@ -102,7 +102,7 @@ export function DataExportModal({ open, onClose }: { open: boolean; onClose: () 
         <ExportOption
           icon={<DownloadIcon size={20} />}
           title="Full record · FHIR"
-          desc="The HL7 FHIR format hospitals and health apps can read back in — one .json file."
+          desc="The HL7 FHIR format hospitals and health apps can read back in. One .json file."
           cta="Download FHIR"
           onClick={handleFhir}
           loading={fhirLoading}

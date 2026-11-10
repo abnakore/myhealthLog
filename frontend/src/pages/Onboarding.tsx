@@ -62,10 +62,10 @@ import { PlusIcon, TrashIcon } from "@/components/icons";
 const KEY = "mhl.onboarding.v1";
 
 const STEPS = [
-  { tag: "Basics", q: "Let's start with the basics", lead: "None of this is required — add what you know and skip the rest." },
+  { tag: "Basics", q: "Let's start with the basics", lead: "None of this is required, add what you know and skip the rest." },
   { tag: "Location", q: "Where can we reach you?", lead: "So a clinic or emergency team knows how and where to find you." },
   { tag: "Allergies", q: "Any allergies we should flag?", lead: "Severe ones show on your emergency card, so they're worth adding first." },
-  { tag: "Medications", q: "What are you taking right now?", lead: "Add anything you take regularly — past medications can wait." },
+  { tag: "Medications", q: "What are you taking right now?", lead: "Add anything you take regularly. Past medications can wait." },
   { tag: "Conditions", q: "Any ongoing conditions?", lead: "Things a clinician is treating or keeping an eye on." },
   { tag: "Emergency contact", q: "Who should we call in an emergency?", lead: "One trusted person is enough to start." },
   { tag: "Review", q: "Does this look right?", lead: "You can change any of it later from your record." },
@@ -303,7 +303,7 @@ export default function Onboarding() {
       if (details.weightKg) fieldErrs.weightKg = details.weightKg;
       if (Object.keys(fieldErrs).length > 0) {
         setBasicsErr(fieldErrs);
-        setSaveError("Some details need fixing — check the highlighted fields.");
+        setSaveError("Some details need fixing. Check the highlighted fields.");
         goTo(0);
       } else {
         setSaveError(apiErrorMessage(err));
@@ -455,7 +455,7 @@ export default function Onboarding() {
     }
   }
 
-  const primaryLabel = step === 6 ? (saving ? "Saving…" : "Go to Dashboard") : step === 5 ? "Review" : "Continue";
+  const primaryLabel = step === 6 ? (saving ? "Saving..." : "Go to Dashboard") : step === 5 ? "Review" : "Continue";
 
   return (
     <div className="flex min-h-dvh flex-col bg-mhl-bg px-4 py-8 sm:py-10">

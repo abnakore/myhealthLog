@@ -28,7 +28,7 @@ export function CopyButton({ value, label = "Copy", className }: CopyButtonProps
     <button
       type="button"
       onClick={copy}
-      aria-label={copied ? `${label} — copied` : label}
+      aria-label={copied ? `${label}, copied` : label}
       className={cn(
         "inline-flex items-center gap-1.5 text-mhl-fine font-semibold text-mhl-accent transition-colors hover:text-mhl-accent-strong",
         className,

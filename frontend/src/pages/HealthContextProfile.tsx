@@ -63,7 +63,7 @@ function Fact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="min-w-0">
       <dt className="text-mhl-fine text-mhl-muted">{label}</dt>
-      <dd className="mt-0.5 text-mhl-body font-medium text-mhl-ink">{value || "—"}</dd>
+      <dd className="mt-0.5 text-mhl-body font-medium text-mhl-ink">{value || "Not recorded"}</dd>
     </div>
   );
 }
@@ -168,9 +168,9 @@ export default function HealthContextProfile() {
           <p className="min-w-0 text-mhl-fine text-mhl-ink">
             Viewing {isProxyView ? `${activeOwnerName}'s record` : "your record"} through the{" "}
             <span className="font-bold">{profile.label}</span> profile. Nothing has been moved
-            copied or hidden —{" "}
+            copied or hidden.{" "}
             <Link to="/app/timeline" className="font-semibold text-mhl-accent hover:underline">
-              all health records
+              All health records
             </Link>{" "}
             still hold everything.
           </p>
@@ -249,13 +249,13 @@ export default function HealthContextProfile() {
             ? "Every record on file is in view here."
             : `${profile.counts.rest} ${
                 profile.counts.rest === 1 ? "record" : "records"
-              } aren't shown in this profile — they're untouched on your record, a click away on the full timeline.`}
+              } aren't shown in this profile. They're untouched on your record, a click away on the full timeline.`}
           {unlinkedCount > 0 && canEdit && (
             <>
               {" "}
               {unlinkedCount} {unlinkedCount === 1 ? "row" : "rows"} above{" "}
               {unlinkedCount === 1 ? "looks" : "look"} related but{" "}
-              {unlinkedCount === 1 ? "isn't" : "aren't"} linked yet — link{" "}
+              {unlinkedCount === 1 ? "isn't" : "aren't"} linked yet. Link{" "}
               {unlinkedCount === 1 ? "it" : "them"} if they belong here.
             </>
           )}
@@ -290,7 +290,7 @@ function ConditionOverview({ anchor }: { anchor: NonNullable<ContextProfile["anc
   return (
     <Section
       question="What this profile is built around"
-      lead="The condition as it stands on your record — read from it, never copied into it."
+      lead="The condition as it stands on your record, read from it, never copied into it."
       action={
         <Link
           to="/app/conditions"

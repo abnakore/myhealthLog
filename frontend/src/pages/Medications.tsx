@@ -71,7 +71,7 @@ export default function Medications() {
         <EmptyState
           icon={<PillIcon size={22} />}
           title="No medications yet"
-          description="Add anything you take regularly — the dose and how often is enough to start."
+          description="Add anything you take regularly. The dose and how often is enough to start."
           action={
             canEdit ? (
               <Link to="/app/add?type=medication" className={buttonStyles("primary", "md")}>

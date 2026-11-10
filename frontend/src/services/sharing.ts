@@ -10,6 +10,7 @@ import type {
   Appointment,
   Condition,
   HealthDocument,
+  HealthProfile,
   Immunization,
   Medication,
   VitalReading,
@@ -41,8 +42,9 @@ interface BackendProvider {
   last_accessed_at: string | null;
   created_at: string;
   updated_at: string;
-  // Only on create response
-  share_code?: string;
+  /** The owner's own code and PIN, so the link and QR can be reopened. */
+  share_code?: string | null;
+  pin?: string | null;
 }
 
 function toProvider(b: BackendProvider): CareProvider & { _rawCode?: string } {
@@ -53,13 +55,14 @@ function toProvider(b: BackendProvider): CareProvider & { _rawCode?: string } {
     facility: b.facility || undefined,
     scopes: b.scopes,
     access: b.access as ProviderAccess,
-    shareCode: b.share_code ?? "••••••••",   // raw code only on create
+    shareCode: b.share_code ?? "",
+    pin: b.pin ?? undefined,
     pinEnabled: b.pin_enabled,
     status: b.status as ShareStatus,
     expiresAt: b.expires_at ?? undefined,
     lastAccessedAt: b.last_accessed_at ?? undefined,
     createdAt: b.created_at,
-    _rawCode: b.share_code,
+    _rawCode: b.share_code ?? undefined,
   };
 }
 
@@ -141,8 +144,10 @@ interface BackendEmergencySettings {
   show_note: boolean;
   note: string;
   updated_at: string;
-  // raw token — only returned on first creation or after regenerate
+  /** The live token, decrypted for the owner on every read. */
   token?: string;
+  /** The card PIN, for the owner to see and print. Null when no PIN is set. */
+  pin?: string | null;
 }
 
 export function toEmergencySettings(
@@ -152,6 +157,7 @@ export function toEmergencySettings(
   return {
     token: rawToken ?? b.token ?? "",
     pinEnabled: b.pin_enabled,
+    pin: b.pin ?? undefined,
     showBloodType: b.show_blood_type,
     showAllergies: b.show_allergies,
     showMedications: b.show_medications,
@@ -165,7 +171,6 @@ export function toEmergencySettings(
 
 export async function fetchEmergencySettings(): Promise<EmergencySettings> {
   const res = await api.get<BackendEmergencySettings>("/v1/sharing/emergency/");
-  // token field present only on first creation
   return toEmergencySettings(res.data, res.data.token);
 }
 
@@ -295,6 +300,7 @@ export async function updateProxyPermission(
 
 /** The scopes a provider may write to — mirrors the backend's writable list. */
 export type ProviderWritableScope =
+  | "profile"
   | "allergies"
   | "medications"
   | "conditions"
@@ -336,6 +342,8 @@ export function toProviderRecord(raw: Record<string, unknown>): ProviderRecordDa
 /** Map one saved record back into the collection the window is showing. */
 export function toProviderItem(scope: ProviderWritableScope, raw: unknown): unknown {
   switch (scope) {
+    case "profile":
+      return raw;
     case "allergies":
       return toAllergy(raw as never);
     case "medications":
@@ -386,15 +394,32 @@ export async function saveProviderRecord(
   data: Record<string, unknown>,
   pin?: string,
   id?: string,
+  file?: File | null,
 ): Promise<unknown> {
-  const res = await api.post<unknown>("/v1/sharing/provider-access/records/", {
+  const body = {
     share_code: shareCode,
     pin: pin ?? "",
     scope,
     action,
     id: action === "update" ? id : null,
     data,
-  });
+  };
+  if (file) {
+    // A document travels as multipart: the record as JSON, the file beside it.
+    const fd = new FormData();
+    fd.append("share_code", body.share_code);
+    fd.append("pin", body.pin);
+    fd.append("scope", scope);
+    fd.append("action", action);
+    if (body.id) fd.append("id", body.id);
+    fd.append("data", JSON.stringify(data));
+    fd.append("file", file, file.name);
+    const res = await api.post<unknown>("/v1/sharing/provider-access/records/", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return res.data;
+  }
+  const res = await api.post<unknown>("/v1/sharing/provider-access/records/", body);
   return res.data;
 }
 
@@ -420,6 +445,20 @@ export function providerPayload(
   item: unknown,
 ): Record<string, unknown> {
   switch (scope) {
+    case "profile": {
+      // Basic info arrives as a ProfileBasicsDraft patch already in app shape.
+      const p = item as Partial<HealthProfile>;
+      const out: Record<string, unknown> = {
+        full_name: p.fullName,
+        date_of_birth: p.dateOfBirth ?? null,
+        sex: p.sex ?? "",
+        blood_type: p.bloodType ?? "",
+        genotype: p.genotype ?? "",
+        height_cm: p.heightCm ?? null,
+      };
+      if (p.weightKg != null) out.weightKg = p.weightKg;
+      return out;
+    }
     case "allergies": {
       const a = item as Allergy;
       return {

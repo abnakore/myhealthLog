@@ -5,6 +5,7 @@ import { useRecords } from "@/store/RecordsContext";
 import { useCareProxy } from "@/store/CareProxyContext";
 import { APPOINTMENT_STATUS_LABELS, DOCUMENT_TYPE_LABELS, formatVitalValue, vitalName } from "@/types/health";
 import { formatDate, yearOf } from "@/lib/format";
+import { recordPath } from "@/lib/recordLinks";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAppMode } from "@/store/AppModeContext";
 import { ModeHint } from "@/components/modes/ModeHint";
@@ -14,6 +15,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import {
   AllergyIcon,
   CalendarIcon,
+  ChevronRightIcon,
   ConditionIcon,
   DocumentIcon,
   PillIcon,
@@ -32,6 +34,8 @@ interface TimelineEvent {
   Icon: EventIcon;
   title: string;
   meta?: string;
+  /** The record's own page, when it has one. */
+  to?: string;
 }
 
 export default function Timeline() {
@@ -48,6 +52,7 @@ export default function Timeline() {
       if (a.firstReactionDate)
         events.push({
           key: `al-${a.id}`,
+          to: recordPath("allergies", a.id),
           date: a.firstReactionDate,
           Icon: AllergyIcon,
           title: `First reaction to ${a.substance}`,
@@ -58,6 +63,7 @@ export default function Timeline() {
       if (m.startDate)
         events.push({
           key: `md-start-${m.id}`,
+          to: recordPath("medications", m.id),
           date: m.startDate,
           Icon: PillIcon,
           title: `Started ${m.name}`,
@@ -66,6 +72,7 @@ export default function Timeline() {
       if (m.endDate)
         events.push({
           key: `md-end-${m.id}`,
+          to: recordPath("medications", m.id),
           date: m.endDate,
           Icon: PillIcon,
           title: `Stopped ${m.name}`,
@@ -76,6 +83,7 @@ export default function Timeline() {
       if (c.onsetDate)
         events.push({
           key: `cn-on-${c.id}`,
+          to: recordPath("conditions", c.id),
           date: c.onsetDate,
           Icon: ConditionIcon,
           title: `Diagnosed with ${c.name}`,
@@ -84,6 +92,7 @@ export default function Timeline() {
       if (c.resolvedDate)
         events.push({
           key: `cn-res-${c.id}`,
+          to: recordPath("conditions", c.id),
           date: c.resolvedDate,
           Icon: ConditionIcon,
           title: `${c.name} resolved`,
@@ -93,6 +102,7 @@ export default function Timeline() {
     for (const a of appointments) {
       events.push({
         key: `ap-${a.id}`,
+        to: recordPath("appointments", a.id),
         date: a.scheduledFor,
         Icon: CalendarIcon,
         title: a.title,
@@ -102,6 +112,7 @@ export default function Timeline() {
     for (const d of documents) {
       events.push({
         key: `doc-${d.id}`,
+        to: recordPath("documents", d.id),
         date: d.documentDate ?? d.uploadedAt,
         Icon: d.docType === "SCAN" ? ScanIcon : DocumentIcon,
         title: `Added ${d.title}`,
@@ -111,6 +122,7 @@ export default function Timeline() {
     for (const im of immunizations) {
       events.push({
         key: `im-${im.id}`,
+        to: recordPath("immunizations", im.id),
         date: im.administeredOn,
         Icon: VaccineIcon,
         title: `Vaccinated: ${im.vaccine}`,
@@ -120,6 +132,7 @@ export default function Timeline() {
     for (const p of procedures) {
       events.push({
         key: `pr-${p.id}`,
+        to: recordPath("procedures", p.id),
         date: p.performedOn,
         Icon: ConditionIcon,
         title: p.name,
@@ -129,6 +142,7 @@ export default function Timeline() {
     for (const v of vitals) {
       events.push({
         key: `vt-${v.id}`,
+        to: recordPath("measurements", v.id),
         date: v.measuredAt,
         Icon: VitalsIcon,
         title: `${vitalName(v)} recorded`,
@@ -154,9 +168,9 @@ export default function Timeline() {
         title={mode === "elderly" ? "My Records" : "Timeline"}
         subtitle={
           mode === "critical" && focusName
-            ? `${focusName} first, then everything else — newest first.`
+            ? `${focusName} first, then everything else, newest first.`
             : mode === "pregnancy"
-              ? "Your pregnancy journey, newest first — the full record is here."
+              ? "Your pregnancy journey, newest first. The full record is here."
               : "Everything on your record, newest first."
         }
         action={
@@ -188,7 +202,7 @@ export default function Timeline() {
         <Section
           icon={<TimelineIcon size={18} />}
           question="Everything on your record"
-          lead="Grouped by year, newest first. Every record you keep is here."
+          lead="Grouped by year, newest first. Tap an entry to open it."
         >
           {groups.map(([year, events], gi) => (
             <div key={year} className={cn(gi > 0 && "mt-5 border-t border-mhl-rule pt-5")}>
@@ -209,17 +223,28 @@ export default function Timeline() {
                       <span className="relative grid h-11 w-11 flex-none place-items-center rounded-full bg-mhl-accent-lo text-mhl-accent ring-4 ring-mhl-surface">
                         <ev.Icon size={20} />
                       </span>
-                      <div className="min-w-0 flex-1 pt-2">
-                        <p className="text-[0.99rem] font-semibold text-mhl-ink">
-                          {ev.title}
-                        </p>
-                        {ev.meta && (
-                          <p className="mt-0.5 text-[0.845rem] text-mhl-muted">{ev.meta}</p>
-                        )}
-                        <p className="mt-0.5 text-[0.845rem] text-mhl-faint [font-variant-numeric:tabular-nums]">
-                          {formatDate(ev.date)}
-                        </p>
-                      </div>
+                      {(() => {
+                        const body = (
+                          <>
+                            <p className="text-[0.99rem] font-semibold text-mhl-ink">{ev.title}</p>
+                            {ev.meta && <p className="mt-0.5 text-[0.845rem] text-mhl-muted">{ev.meta}</p>}
+                            <p className="mt-0.5 text-[0.845rem] text-mhl-faint [font-variant-numeric:tabular-nums]">
+                              {formatDate(ev.date)}
+                            </p>
+                          </>
+                        );
+                        return ev.to ? (
+                          <Link
+                            to={ev.to}
+                            className="group -mx-2 -my-1 flex min-w-0 flex-1 items-start gap-2 rounded-mhl-sm px-2 py-1 pt-3 transition-colors hover:bg-mhl-sunk focus-visible:bg-mhl-sunk"
+                          >
+                            <div className="min-w-0 flex-1">{body}</div>
+                            <ChevronRightIcon size={18} className="mt-1 flex-none text-mhl-faint transition-colors group-hover:text-mhl-ink" />
+                          </Link>
+                        ) : (
+                          <div className="min-w-0 flex-1 pt-2">{body}</div>
+                        );
+                      })()}
                     </li>
                   );
                 })}

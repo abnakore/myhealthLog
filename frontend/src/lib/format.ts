@@ -27,35 +27,35 @@ function toDate(value: string | Date | null | undefined): Date | null {
 /** "14 Sep 2026" */
 export function formatDate(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  if (!d) return "—";
+  if (!d) return "Not set";
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /** "14 Sep" — year dropped; for recent/this-year items. */
 export function formatShortDate(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  if (!d) return "—";
+  if (!d) return "Not set";
   return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
 /** "9:00" (24h, no leading zero on the hour). */
 export function formatTime(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  if (!d) return "—";
+  if (!d) return "Not set";
   return `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 /** "14 Sep, 9:00" */
 export function formatDateTime(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  if (!d) return "—";
+  if (!d) return "Not set";
   return `${formatShortDate(d)}, ${formatTime(d)}`;
 }
 
 /** Just the year, e.g. for "Since 2024". */
 export function yearOf(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  return d ? String(d.getFullYear()) : "—";
+  return d ? String(d.getFullYear()) : "Not set";
 }
 
 /** Whole years between a date of birth and now. */
@@ -72,7 +72,7 @@ export function calcAge(dob: string | Date | null | undefined): number | null {
 /** "just now", "4 min ago", "2 hr ago", "3 days ago", else a date. */
 export function formatRelative(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  if (!d) return "—";
+  if (!d) return "Not set";
   const secs = Math.round((Date.now() - d.getTime()) / 1000);
   if (secs < 0) return formatDate(d);
   if (secs < 45) return "just now";

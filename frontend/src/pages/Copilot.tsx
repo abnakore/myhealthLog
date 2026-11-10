@@ -21,7 +21,7 @@ import { CopilotIcon, InfoIcon, ShieldIcon, UserIcon } from "@/components/icons"
 
 const DISCLAIMER =
   "Health Copilot uses your medical records to personalise answers. " +
-  "This is not medical advice — always consult your physician.";
+  "This is not medical advice. Always consult your physician.";
 
 const WELCOME =
   "Hello! I'm your Health Copilot. I can answer questions about your health, " +
@@ -255,7 +255,7 @@ export default function Copilot() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about your health, medications, or lifestyle…"
+          placeholder="Ask about your health, medications, or lifestyle..."
           rows={1}
           maxLength={2000}
           disabled={sending}

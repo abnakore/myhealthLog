@@ -27,7 +27,6 @@ import EmergencyAccess from "@/pages/EmergencyAccess";
 import EmergencyView from "@/pages/EmergencyView";
 import ProviderAccess from "@/pages/ProviderAccess";
 import RecordsIndex from "@/pages/RecordsIndex";
-import Connections from "@/pages/Connections";
 import Copilot from "@/pages/Copilot";
 
 export default function App() {
@@ -95,7 +94,8 @@ export default function App() {
         <Route path="providers" element={<CareProviders />} />
         <Route path="proxy" element={<CareProxy />} />
         <Route path="emergency" element={<EmergencyAccess />} />
-        <Route path="connections" element={<Connections />} />
+        {/* Connected apps & devices is hidden until a real integration exists;
+            pages/Connections.tsx is kept for when it does. */}
         <Route path="copilot" element={<Copilot />} />
         {/* The plain-language index of every record shelf — the one door Elderly
             mode's simplified nav uses in place of six separate links. */}

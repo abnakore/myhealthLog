@@ -22,7 +22,7 @@ export type ProxyPermission = "VIEW" | "FULL";
 /** The two levels, in the order they're offered. Copy states the consequence, not
     the setting: what the person on the other end of it will actually be able to do. */
 export const PROXY_PERMISSIONS: { value: ProxyPermission; label: string; hint: string }[] = [
-  { value: "VIEW", label: "View only", hint: "They can read the whole record — nothing more." },
+  { value: "VIEW", label: "View only", hint: "They can read the whole record, nothing more." },
   { value: "FULL", label: "Full access", hint: "They can also add and edit records for you." },
 ];
 

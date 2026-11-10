@@ -25,8 +25,9 @@ function triggerDownload(filename: string, blob: Blob): void {
 /** Download the user's FHIR R4 Bundle from the backend. */
 export async function downloadFhirBundleFromApi(): Promise<void> {
   const res = await api.get("/v1/export/fhir/", {
+    // No custom Accept header: the API negotiates on it, and an exotic type
+    // there is refused with a 406 before the file is ever built.
     responseType: "blob",
-    headers: { Accept: "application/fhir+json" },
   });
   triggerDownload(`myhealthlog-fhir-${stamp()}.json`, res.data as Blob);
 }
@@ -35,7 +36,6 @@ export async function downloadFhirBundleFromApi(): Promise<void> {
 export async function downloadClinicalSummaryFromApi(): Promise<void> {
   const res = await api.get("/v1/export/summary/", {
     responseType: "blob",
-    headers: { Accept: "text/html" },
   });
   triggerDownload(`myhealthlog-summary-${stamp()}.html`, res.data as Blob);
 }

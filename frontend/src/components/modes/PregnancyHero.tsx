@@ -57,7 +57,7 @@ export function PregnancyHero({
             <div className="h-full rounded-full bg-mhl-accent" style={{ width: `${pct}%` }} />
           </div>
           <p className="mt-1.5 text-mhl-fine text-mhl-muted">
-            {pct}% — your baby is growing, and so are you.
+            {pct}%. Your baby is growing, and so are you.
           </p>
         </div>
       )}

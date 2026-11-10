@@ -1,16 +1,16 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { useRecords } from "@/store/RecordsContext";
 import { useAppMode } from "@/store/AppModeContext";
 import { useCareProxy } from "@/store/CareProxyContext";
 import { useSharing } from "@/store/SharingContext";
-import { emergencyUrl, tokenSuffix } from "@/lib/emergency";
-import { formatDate } from "@/lib/format";
-import { isCriticalAllergy, SEX_LABELS } from "@/types/health";
+import { emergencyUrl } from "@/lib/emergency";
+import { isCriticalAllergy } from "@/types/health";
 import { ShieldIcon, DownloadIcon, ShareIcon, CheckIcon, LockIcon } from "@/components/icons";
 import { QrCode } from "./QrCode";
 import { EmergencyCardExport } from "./EmergencyCardExport";
+import { useEmergencyCardInput } from "./useEmergencyCardInput";
 
 interface EmergencyCardProps {
   className?: string;
@@ -51,60 +51,14 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
   const primaryContact = [...profile.emergencyContacts].sort((a, b) => a.priority - b.priority)[0];
   const note = emergency.note.trim();
 
-  // The printed/downloaded card is the same record, drawn to scale — built here so
-  // the preview, the PNG and the print sheet can never drift apart.
-  const card = useMemo(
-    () => ({
-      name: ownerName || profile.fullName,
-      // A responder needs the date of birth, not an age that is wrong the day
-      // after it was printed. Age is deliberately absent from the card.
-      meta: [
-        profile.sex ? SEX_LABELS[profile.sex] : null,
-        profile.dateOfBirth ? `born ${formatDate(profile.dateOfBirth)}` : null,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-      bloodType: profile.bloodType,
-      genotype: profile.genotype,
-      allergies: critical,
-      medications: activeMeds,
-      conditions: activeConditions,
-      contact: primaryContact
-        ? [primaryContact.name, primaryContact.phone].filter(Boolean).join(" · ")
-        : undefined,
-      note,
-      url,
-      pin: emergency.pinEnabled ? emergency.pin : undefined,
-      tokenLabel: tokenSuffix(token),
-      mode,
-      show: {
-        bloodType: emergency.showBloodType,
-        allergies: emergency.showAllergies,
-        medications: emergency.showMedications,
-        conditions: emergency.showConditions,
-        contacts: emergency.showContacts,
-        note: emergency.showNote,
-      },
-    }),
-    [
-      ownerName,
-      profile,
-      critical,
-      activeMeds,
-      activeConditions,
-      primaryContact,
-      note,
-      url,
-      emergency,
-      token,
-      mode,
-    ],
-  );
+  // The printed/downloaded card is the same record, drawn to scale. One source
+  // keeps the preview, the PNG and the print sheet from drifting apart.
+  const card = useEmergencyCardInput();
 
   async function handleShare() {
     const data = {
       title: "myHealthLog emergency card",
-      text: `${profile.fullName} — critical health details`,
+      text: `${profile.fullName}: critical health details`,
       url,
     };
     try {
@@ -161,7 +115,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
             value={url}
             size={100}
             className="block text-mhl-emerg"
-            label="Emergency QR code — scan to open the emergency view"
+            label="Emergency QR code. Scan to open the emergency view"
           />
         </div>
         <dl className="min-w-0 space-y-1.5 text-[0.88rem] leading-tight">
@@ -169,7 +123,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
             <div>
               <dt className="text-[0.78rem] text-mhl-emerg-muted">Blood &amp; genotype</dt>
               <dd className="font-semibold text-mhl-emerg-ink [font-variant-numeric:tabular-nums]">
-                {profile.bloodType ?? "—"} · {profile.genotype ?? "—"}
+                {profile.bloodType ?? "Not recorded"} · {profile.genotype ?? "Not recorded"}
               </dd>
             </div>
           )}
@@ -195,7 +149,7 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
               </dd>
               {mode === "critical" && focusName && (
                 <dd className="mt-1 text-mhl-fine text-mhl-emerg-amber">
-                  {focusName} leads — it is the Critical-mode focus.
+                  {focusName} leads. It is the Critical-mode focus.
                 </dd>
               )}
             </div>
@@ -253,8 +207,8 @@ export function EmergencyCard({ className, hideManageLink = false }: EmergencyCa
             <>
               <span className="underline decoration-mhl-emerg-muted/60 underline-offset-2">
                 Protected with a PIN
-              </span>{" "}
-              — a responder enters it to open {isProxyView ? `${ownerName}'s` : "your"} card.
+              </span>
+              . A responder enters it to open {isProxyView ? `${ownerName}'s` : "your"} card.
             </>
           ) : (
             "You choose what shows on this card."

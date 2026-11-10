@@ -191,7 +191,7 @@ export function addProviderNote(provider: CareProvider, ownerId: string, text: s
     providerId: provider.id,
     providerName: provider.name,
     action: "ADDED_NOTE",
-    detail: clean.length > 120 ? `${clean.slice(0, 117)}…` : clean,
+    detail: clean.length > 120 ? `${clean.slice(0, 117)}...` : clean,
     at,
   });
   return true;

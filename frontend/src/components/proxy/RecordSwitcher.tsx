@@ -57,7 +57,7 @@ export function RecordSwitcher({ variant = "rail" }: RecordSwitcherProps) {
           <option value={selfId}>My record</option>
           {others.map((grant) => (
             <option key={grant.id} value={grant.ownerUserId}>
-              {grant.ownerName} — {proxyPermissionLabel(grant.permission)}
+              {grant.ownerName} · {proxyPermissionLabel(grant.permission)}
             </option>
           ))}
         </select>

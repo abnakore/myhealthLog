@@ -69,10 +69,24 @@ class TestCareProviderEndpoints:
         assert data["name"] == "Dr. Smith"
         assert "share_code" in data
         assert len(data["share_code"]) > 0
-        # The share code should not be exposed on subsequent reads.
+        # The owner can see the same code again later, but only the hash and an
+        # encrypted copy are stored.
         provider_id = data["id"]
         read_resp = auth_client.get(f"/api/v1/sharing/providers/{provider_id}/")
-        assert "share_code" not in read_resp.json()
+        assert read_resp.json()["share_code"] == data["share_code"]
+        stored = CareProvider.objects.get(pk=provider_id)
+        assert data["share_code"] not in stored.share_code_encrypted
+        listed = auth_client.get("/api/v1/sharing/providers/").json()["results"]
+        assert listed[0]["share_code"] == data["share_code"]
+
+    def test_provider_window_never_receives_the_share_code(self, api_client, user):
+        _, code = CareProvider.create_share(owner=user, name="Dr. A", scopes=["allergies"], pin="2468")
+        response = api_client.post(
+            "/api/v1/sharing/provider-access/", {"share_code": code, "pin": "2468"}, format="json"
+        )
+        assert response.status_code == 200
+        assert "share_code" not in response.json()["provider"]
+        assert "pin" not in response.json()["provider"]
 
     def test_create_provider_with_invalid_scope_returns_400(self, auth_client):
         response = auth_client.post(
@@ -195,11 +209,23 @@ class TestEmergencySettings:
         assert data["show_allergies"] is True
         assert EmergencySettings.objects.filter(owner=user).exists()
 
-    def test_get_second_time_does_not_return_token(self, auth_client):
-        auth_client.get("/api/v1/sharing/emergency/")
+    def test_get_returns_the_same_token_every_time(self, auth_client, user):
+        first = auth_client.get("/api/v1/sharing/emergency/").json()["token"]
         response = auth_client.get("/api/v1/sharing/emergency/")
         assert response.status_code == 200
-        assert "token" not in response.json()
+        assert response.json()["token"] == first
+        assert first not in EmergencySettings.objects.get(owner=user).token_encrypted
+
+    def test_token_from_get_opens_the_public_card(self, auth_client, api_client):
+        token = auth_client.get("/api/v1/sharing/emergency/").json()["token"]
+        assert api_client.get(f"/api/v1/emergency/card/{token}/").status_code == 200
+
+    def test_pin_is_shown_back_to_the_owner(self, auth_client):
+        auth_client.get("/api/v1/sharing/emergency/")
+        auth_client.patch("/api/v1/sharing/emergency/", {"pin_enabled": True, "pin": "4826"}, format="json")
+        assert auth_client.get("/api/v1/sharing/emergency/").json()["pin"] == "4826"
+        auth_client.patch("/api/v1/sharing/emergency/", {"pin_enabled": False}, format="json")
+        assert auth_client.get("/api/v1/sharing/emergency/").json()["pin"] is None
 
     def test_patch_updates_toggles(self, auth_client, user):
         auth_client.get("/api/v1/sharing/emergency/")  # create
@@ -776,3 +802,53 @@ class TestProviderRecordWrites:
             format="json",
         )
         assert right.status_code == 201
+
+
+@pytest.mark.django_db
+class TestProviderWritesBeyondLists:
+    """Fill-in access covers basic info, documents and immunisations too."""
+
+    def test_provider_updates_basic_info(self, api_client, user):
+        _, code = CareProvider.create_share(owner=user, name="Dr. B", scopes=["profile"], access="CONTRIBUTE")
+        response = api_client.post(
+            "/api/v1/sharing/provider-access/records/",
+            {"share_code": code, "scope": "profile", "action": "update", "data": {"blood_type": "O+"}},
+            format="json",
+        )
+        assert response.status_code == 200
+        user.health_profile.refresh_from_db()
+        assert user.health_profile.blood_type == "O+"
+
+    def test_provider_uploads_a_document(self, api_client, user):
+        import json
+
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from apps.records.models import HealthDocument
+
+        _, code = CareProvider.create_share(owner=user, name="Dr. C", scopes=["documents"], access="CONTRIBUTE")
+        pdf = SimpleUploadedFile("result.pdf", b"%PDF-1.4\n%%EOF\n", content_type="application/pdf")
+        response = api_client.post(
+            "/api/v1/sharing/provider-access/records/",
+            {
+                "share_code": code,
+                "scope": "documents",
+                "action": "create",
+                "data": json.dumps({"title": "FBC", "doc_type": "LAB_RESULT"}),
+                "file": pdf,
+            },
+            format="multipart",
+        )
+        assert response.status_code == 201, response.content
+        doc = HealthDocument.objects.get(user=user)
+        assert doc.title == "FBC"
+        assert doc.provenance["addedByRole"] == "CARE_PROVIDER"
+
+    def test_view_only_provider_cannot_change_basic_info(self, api_client, user):
+        _, code = CareProvider.create_share(owner=user, name="Dr. D", scopes=["profile"], access="VIEW")
+        response = api_client.post(
+            "/api/v1/sharing/provider-access/records/",
+            {"share_code": code, "scope": "profile", "data": {"blood_type": "AB-"}},
+            format="json",
+        )
+        assert response.status_code == 400

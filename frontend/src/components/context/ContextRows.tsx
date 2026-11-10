@@ -102,7 +102,7 @@ export const CATEGORY_COPY: Record<
   },
   allergies: {
     question: "Anything to avoid?",
-    lead: "Allergies that relate to this condition — allergies stay allergies, never conditions.",
+    lead: "Allergies that relate to this condition. Allergies stay allergies, never conditions.",
     empty: () => "No related allergies on file.",
   },
   vitals: {

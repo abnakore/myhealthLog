@@ -2,6 +2,7 @@
 Shared utility functions for myHealthLog.
 """
 
+import base64
 import hashlib
 import os
 import uuid
@@ -76,3 +77,37 @@ def generate_emergency_token() -> str:
     Lowercase and opaque to match the frontend's style.
     """
     return f"eznk-{uuid.uuid4().hex[:4]}-{uuid.uuid4().hex[:4]}"
+
+
+def _secret_cipher():
+    """Fernet cipher keyed from SECRET_KEY (imported lazily so settings load first)."""
+    from cryptography.fernet import Fernet
+    from django.conf import settings
+
+    digest = hashlib.sha256(f"mhl-secret:{settings.SECRET_KEY}".encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(digest))
+
+
+def encrypt_secret(raw: str) -> str:
+    """
+    Encrypt a share code, emergency token or PIN so its owner can read it again.
+
+    The SHA-256 hash stays the lookup key; this copy only lets the owner see
+    their own code later (to reprint a card or resend a link). A database dump
+    alone does not reveal it without the SECRET_KEY.
+    """
+    if not raw:
+        return ""
+    return _secret_cipher().encrypt(raw.encode()).decode()
+
+
+def decrypt_secret(token: str) -> str | None:
+    """Reverse encrypt_secret(); None when empty or unreadable (e.g. key rotated)."""
+    if not token:
+        return None
+    try:
+        from cryptography.fernet import InvalidToken
+
+        return _secret_cipher().decrypt(token.encode()).decode()
+    except (InvalidToken, ValueError):
+        return None

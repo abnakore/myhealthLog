@@ -63,7 +63,7 @@ const FAMILY_RULES: FamilyRule[] = [
     watchVitals: ["PEAK_FLOW", "SPO2", "RESPIRATORY_RATE", "PULSE"],
     carePlan: [
       "Take your controller medication every day, even when you feel well",
-      "Avoid known triggers — smoke, dust, cold air and pet dander common ones",
+      "Avoid known triggers: smoke, dust, cold air and pet dander common ones",
       "Keep your reliever inhaler with you and use it as needed",
       "Attend regular check-ups with your care team",
     ],
@@ -122,7 +122,7 @@ const FAMILY_RULES: FamilyRule[] = [
     watchVitals: ["PAIN", "PULSE", "TEMPERATURE"],
     carePlan: [
       "Take your medication at the same times every day",
-      "Keep a note of episodes — when, how long, and what preceded them",
+      "Keep a note of episodes: when, how long, and what preceded them",
       "Rest well and keep a steady routine",
       "Attend regular check-ups with your care team",
     ],
@@ -135,7 +135,7 @@ const FAMILY_RULES: FamilyRule[] = [
     carePlan: [
       "Take pain medication as prescribed, with food",
       "Stay active with gentle movement most days",
-      "Protect your joints — warm, don't overreach",
+      "Protect your joints: warm, don't overreach",
       "Attend physiotherapy and check-ups as scheduled",
     ],
   },

@@ -41,8 +41,8 @@ export function ModeBanner() {
         : "Antenatal visits, key readings and dates lead"
       : mode === "critical"
         ? focusName
-          ? `${focusName} leads — treatment, schedule and numbers first`
-          : "One condition leads — treatment, schedule and numbers first"
+          ? `${focusName} leads: treatment, schedule and numbers first`
+          : "One condition leads: treatment, schedule and numbers first"
         : "Bigger text, fewer choices, medicines first";
 
   const profileTo = active ? `/app/contexts/${active.id}` : "/app/contexts";

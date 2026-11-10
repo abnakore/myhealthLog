@@ -189,7 +189,7 @@ export function PregnancyDash({
               <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                 <p className="text-mhl-fine font-bold text-mhl-ink">{view?.trimesterLabel}</p>
                 <p className="text-mhl-fine text-mhl-muted">
-                  {pct}% — your baby is growing, and so are you.
+                  {pct}%. Your baby is growing, and so are you.
                 </p>
               </div>
             </div>

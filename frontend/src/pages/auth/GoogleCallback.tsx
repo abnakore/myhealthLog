@@ -22,7 +22,7 @@ export default function GoogleCallback() {
         <GoogleIcon size={26} />
       </span>
       <p className="flex items-center gap-2 text-mhl-lead font-semibold text-mhl-ink">
-        <Spinner size={18} /> Redirecting to sign in…
+        <Spinner size={18} /> Redirecting to sign in...
       </p>
       <p className="mt-1 text-mhl-body text-mhl-muted">This only takes a moment.</p>
     </div>

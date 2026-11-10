@@ -20,3 +20,4 @@ django-storages[boto3]>=1.14,<2.0
 social-auth-app-django>=5.4,<6.0
 social-auth-core>=4.5,<5.0
 requests>=2.31,<3.0
+cryptography>=42.0

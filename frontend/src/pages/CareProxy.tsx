@@ -52,7 +52,7 @@ function emptyInvite(): InviteDraft { return { email: "", permission: "VIEW", me
 function identifierError(value: string): string | undefined {
   const v = value.trim();
   if (!v) return "Enter the email address or username they use.";
-  if (v.includes("@")) return /^\S+@\S+\.\S+$/.test(v) ? undefined : "Check the address — it looks incomplete.";
+  if (v.includes("@")) return /^\S+@\S+\.\S+$/.test(v) ? undefined : "Check the address. It looks incomplete.";
   return /^[a-zA-Z0-9._-]{3,}$/.test(v) ? undefined : "A username needs at least three letters, numbers or dots.";
 }
 
@@ -219,7 +219,7 @@ export default function CareProxy() {
               className="mt-4"
               icon={<UsersIcon size={26} />}
               title="No one else has access"
-              description="Invite someone you trust — a partner, a parent, a grown-up child."
+              description="Invite someone you trust, a partner, a parent, a grown-up child."
               action={<Button icon={<PlusIcon size={18} strokeWidth={2.25} />} onClick={openInvite}>Invite proxy</Button>}
             />
           ) : (
@@ -259,7 +259,7 @@ export default function CareProxy() {
 
       {/* Invite modal */}
       <Modal open={inviteOpen} onClose={() => setInviteOpen(false)} title="Invite a proxy"
-        description="They'll get an email with a link — and the invitation waits in their account too."
+        description="They'll get an email with a link, and the invitation waits in their account too."
         footer={
           <>
             <Button variant="secondary" onClick={() => setInviteOpen(false)}>Cancel</Button>
@@ -293,7 +293,7 @@ export default function CareProxy() {
             </li>
             <li className="flex gap-2.5">
               <span className="mt-0.5 flex-none text-mhl-accent"><ShieldIcon size={18} /></span>
-              Nothing of yours opens until they accept — and then they can{" "}
+              Nothing of yours opens until they accept, and then they can{" "}
               {sent.permission === "FULL" ? "read your record and add to it on your behalf." : "read your record, and change nothing in it."}
             </li>
           </ul>

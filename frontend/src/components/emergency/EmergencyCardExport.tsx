@@ -76,13 +76,13 @@ export function EmergencyCardExport({ open, onClose, card }: EmergencyCardExport
       new Blob([qrSvgMarkup(card.url, QR_PX)], { type: "image/svg+xml" }),
       "myhealthlog-emergency-code.svg",
     );
-    flash("Vector QR code saved — best for professional printing.");
+    flash("Vector QR code saved. Best for professional printing.");
   }
 
   async function share() {
     setBusy("share");
     const title = "myHealthLog emergency card";
-    const text = `${card.name} — emergency health summary`;
+    const text = `${card.name}: emergency health summary`;
     try {
       const blob = await svgToPngBlob(svg, 2);
       const file = new File([blob], `${filename}.png`, { type: "image/png" });
@@ -109,7 +109,7 @@ export function EmergencyCardExport({ open, onClose, card }: EmergencyCardExport
       onClose={onClose}
       size="lg"
       title="Save or print your card"
-      description="A real-sized card — 85.6 × 54 mm — for a wallet, a lock screen or a printer."
+      description="A real-sized card (85.6 × 54 mm) for a wallet, a lock screen or a printer."
       footer={<Button onClick={onClose}>Done</Button>}
     >
       <div className="space-y-4">
@@ -160,7 +160,7 @@ export function EmergencyCardExport({ open, onClose, card }: EmergencyCardExport
 
         <div className="rounded-mhl-sm bg-mhl-sunk px-3.5 py-3 text-mhl-fine leading-relaxed text-mhl-muted">
           <p>
-            The QR always opens your emergency summary — the page a clinician reads first.
+            The QR always opens your emergency summary, the page a clinician reads first.
             Print two: one for your wallet, one for the fridge.
           </p>
           {card.pin && (

@@ -133,7 +133,7 @@ export default function Measurements() {
         title="Measurements"
         subtitle={
           vitals.length === 0
-            ? "Track your numbers over time — blood pressure, weight, blood sugar and more."
+            ? "Track your numbers over time: blood pressure, weight, blood sugar and more."
             : `${vitals.length} reading${vitals.length === 1 ? "" : "s"} across ${snapshot.length} measure${snapshot.length === 1 ? "" : "s"}`
         }
         action={
@@ -151,7 +151,7 @@ export default function Measurements() {
         <EmptyState
           icon={<VitalsIcon size={22} />}
           title="No measurements yet"
-          description="Log a reading and it'll build into a trend you can watch — and share with a clinician."
+          description="Log a reading and it'll build into a trend you can watch, and share with a clinician."
           action={
             canEdit ? (
               <Link to={addLink} className={buttonStyles("primary", "md")}>

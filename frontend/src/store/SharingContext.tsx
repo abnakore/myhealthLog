@@ -145,8 +145,7 @@ export function SharingProvider({ children }: { children: ReactNode }) {
     if (patch.note !== undefined)           backendPatch.note = patch.note;
 
     const updated = await apiUpdateEmergency(backendPatch as never);
-    // Preserve the token we have (backend doesn't return it on PATCH)
-    setEmergency((prev) => ({ ...updated, token: prev.token }));
+    setEmergency((prev) => ({ ...updated, token: updated.token || prev.token }));
   }, []);
 
   const regenerateToken = useCallback(async (): Promise<EmergencySettings> => {

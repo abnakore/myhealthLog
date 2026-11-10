@@ -14,8 +14,9 @@ Three trust features:
                        Two permission levels: VIEW (read-only) or FULL (read+write).
 
 Security model:
-  - Share codes and emergency tokens are stored as SHA-256 hashes. The raw
-    code is returned to the owner once at creation and never persisted.
+  - Share codes and emergency tokens are looked up by SHA-256 hash. An
+    encrypted copy (keyed from SECRET_KEY) is kept so the owner, and only the
+    owner, can see their code again to reprint a card or resend a link.
   - A PIN is hashed with the same function; it is compared by hash, not plaintext.
   - Regenerating an emergency token invalidates the old one by construction.
 """
@@ -25,7 +26,13 @@ from django.conf import settings
 from django.db import models
 
 from apps.core.models import BaseModel
-from apps.core.utils import generate_emergency_token, generate_share_code, hash_token
+from apps.core.utils import (
+    decrypt_secret,
+    encrypt_secret,
+    generate_emergency_token,
+    generate_share_code,
+    hash_token,
+)
 
 # ---------------------------------------------------------------------------
 # CareProvider
@@ -66,8 +73,11 @@ class CareProvider(BaseModel):
 
     # The share code is stored as a SHA-256 hash.
     share_code_hash = models.CharField(max_length=64, unique=True, db_index=True)
-    # Optional PIN — SHA-256 hashed.
+    # Encrypted copy so the owner can see the code again. Never used for lookup.
+    share_code_encrypted = models.TextField(blank=True, default="")
+    # Optional PIN — SHA-256 hashed, plus an encrypted copy for the owner.
     pin_hash = models.CharField(max_length=64, blank=True, default="")
+    pin_encrypted = models.TextField(blank=True, default="")
     pin_enabled = models.BooleanField(default=False)
 
     status = models.CharField(
@@ -102,7 +112,7 @@ class CareProvider(BaseModel):
         """
         Mint a new share, return the (instance, raw_code) pair.
 
-        The raw_code is returned once and never stored; the hash is stored.
+        The hash is the lookup key; an encrypted copy lets the owner see it again.
         """
         raw_code = generate_share_code()
         pin_hash = hash_token(pin) if pin else ""
@@ -114,7 +124,9 @@ class CareProvider(BaseModel):
             role=role,
             facility=facility,
             share_code_hash=hash_token(raw_code),
+            share_code_encrypted=encrypt_secret(raw_code),
             pin_hash=pin_hash,
+            pin_encrypted=encrypt_secret(pin) if pin else "",
             pin_enabled=bool(pin),
             expires_at=expires_at,
         )
@@ -124,6 +136,20 @@ class CareProvider(BaseModel):
         if not self.pin_enabled or not self.pin_hash:
             return True
         return hash_token(pin) == self.pin_hash
+
+    def set_pin(self, pin: str | None) -> None:
+        """Set (or clear, with None/"") the PIN, keeping hash and copy in step."""
+        self.pin_hash = hash_token(pin) if pin else ""
+        self.pin_encrypted = encrypt_secret(pin) if pin else ""
+        self.pin_enabled = bool(pin)
+
+    @property
+    def raw_share_code(self) -> str | None:
+        return decrypt_secret(self.share_code_encrypted)
+
+    @property
+    def raw_pin(self) -> str | None:
+        return decrypt_secret(self.pin_encrypted) if self.pin_enabled else None
 
 
 # ---------------------------------------------------------------------------
@@ -148,10 +174,13 @@ class EmergencySettings(models.Model):
     )
     # Hashed token — validated against the hash on every public card request.
     token_hash = models.CharField(max_length=64, unique=True, db_index=True)
+    # Encrypted copy so the owner's settings page can always show the code.
+    token_encrypted = models.TextField(blank=True, default="")
 
     pin_enabled = models.BooleanField(default=False)
-    # PIN stored as SHA-256 hash.
+    # PIN stored as SHA-256 hash, plus an encrypted copy printed on the card.
     pin_hash = models.CharField(max_length=64, blank=True, default="")
+    pin_encrypted = models.TextField(blank=True, default="")
 
     # Section toggles — match the EmergencyToggleKey enum in the frontend.
     show_blood_type = models.BooleanField(default=True)
@@ -176,12 +205,29 @@ class EmergencySettings(models.Model):
             return True
         return hash_token(pin) == self.pin_hash
 
+    def set_pin(self, pin: str | None) -> None:
+        self.pin_hash = hash_token(pin) if pin else ""
+        self.pin_encrypted = encrypt_secret(pin) if pin else ""
+
+    @property
+    def raw_pin(self) -> str | None:
+        return decrypt_secret(self.pin_encrypted) if self.pin_enabled else None
+
     def regenerate_token(self) -> str:
-        """Mint a new raw token, store its hash, and return the raw token."""
+        """Mint a new raw token, store its hash and encrypted copy, return it."""
         raw = generate_emergency_token()
         self.token_hash = hash_token(raw)
-        self.save(update_fields=["token_hash", "updated_at"])
+        self.token_encrypted = encrypt_secret(raw)
+        self.save(update_fields=["token_hash", "token_encrypted", "updated_at"])
         return raw
+
+    def current_token(self) -> str:
+        """
+        The owner's live token. Rows created before the encrypted copy existed
+        have no way back to their raw token, so they get a fresh one once.
+        """
+        raw = decrypt_secret(self.token_encrypted)
+        return raw or self.regenerate_token()
 
     @classmethod
     def get_or_create_for_user(cls, user) -> tuple["EmergencySettings", str | None]:
@@ -197,6 +243,7 @@ class EmergencySettings(models.Model):
             settings_obj = cls.objects.create(
                 owner=user,
                 token_hash=hash_token(raw),
+                token_encrypted=encrypt_secret(raw),
             )
             return settings_obj, raw
 

@@ -121,7 +121,7 @@ function AttachmentField<D extends AttachmentDraft>({
           hasExisting && !draft.file
             ? draft.removeFile
               ? `${draft.existingFileName} will be removed when you save`
-              : `Currently: ${draft.existingFileName} — choose a new file to replace it`
+              : `Currently: ${draft.existingFileName}. Choose a new file to replace it`
             : hint
         }
         optional
@@ -191,7 +191,7 @@ export function AllergyFields({ draft, onChange, errors }: FieldSetProps<Allergy
         label="Notes"
         value={draft.notes}
         onChange={(e) => onChange({ notes: e.target.value })}
-        placeholder="Anything a clinician should know — current treatment, whether you carry adrenaline…"
+        placeholder="Anything a clinician should know, like current treatment, whether you carry adrenaline..."
         optional
       />
       <AttachmentField
@@ -600,7 +600,7 @@ export function ImagingFields({ draft, onChange, errors }: FieldSetProps<Documen
       <TextArea
         label="Findings / report"
         value={draft.findings}
-        placeholder="What the report says…"
+        placeholder="What the report says..."
         onChange={(e) => onChange({ findings: e.target.value })}
         optional
       />

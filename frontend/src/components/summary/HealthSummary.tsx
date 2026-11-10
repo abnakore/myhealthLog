@@ -272,7 +272,7 @@ function AttentionPanel({ insights }: { insights: Insight[] }) {
         </ul>
       )}
       <p className="mt-3 text-[0.72rem] text-mhl-faint">
-        Flags come from fixed clinical screening rules applied to this record. They prompt a check — they are not a diagnosis.
+        Flags come from fixed clinical screening rules applied to this record. They prompt a check. They are not a diagnosis.
       </p>
     </section>
   );
@@ -281,7 +281,7 @@ function AttentionPanel({ insights }: { insights: Insight[] }) {
 export function HealthSummary({
   data,
   title = "Medical summary",
-  subtitle = "Your record as a clinician reads it first — the facts they ask for, on one page.",
+  subtitle = "Your record as a clinician reads it first: the facts they ask for, on one page.",
   action,
   banner,
   showLinks = true,
@@ -361,25 +361,25 @@ export function HealthSummary({
           <StripCell
             icon={<CalendarIcon size={20} />}
             label="Age"
-            value={age ?? "—"}
+            value={age ?? "Not recorded"}
             sub={profile.dateOfBirth ? `Born ${formatDate(profile.dateOfBirth)}` : "Date of birth not on file"}
           />
           <StripCell
             icon={<UserIcon size={20} />}
             label="Sex"
-            value={profile.sex ? SEX_LABELS[profile.sex as Sex] ?? profile.sex : "—"}
+            value={profile.sex ? SEX_LABELS[profile.sex as Sex] ?? profile.sex : "Not recorded"}
             sub="On the profile"
           />
           <StripCell
             icon={<DropIcon size={20} />}
             label="Blood type"
-            value={profile.bloodType ?? "—"}
-            sub={`Genotype ${profile.genotype ?? "—"}`}
+            value={profile.bloodType ?? "Not recorded"}
+            sub={`Genotype ${profile.genotype ?? "not recorded"}`}
           />
           <StripCell
             icon={<UsersIcon size={20} />}
             label={contacts.length === 1 ? "Emergency contact" : "Emergency contacts"}
-            value={visible.contacts ? contacts.length : "—"}
+            value={visible.contacts ? contacts.length : "Hidden"}
             sub={visible.contacts ? contacts[0]?.name ?? "No one yet" : "Not shared"}
           />
         </div>

@@ -63,7 +63,7 @@ export const APP_MODES: AppModeMeta[] = [
     label: "Critical condition",
     pill: "Critical condition",
     tagline: "Focused on your selected condition.",
-    blurb: "Keeps the condition, its treatment, and the readings your team watches one tap away — and primes your emergency card.",
+    blurb: "Keeps the condition, its treatment, and the readings your team watches one tap away, and primes your emergency card.",
     greeting: "Here's what matters most right now.",
     focus: ["The active condition first", "Treatment & schedule", "The numbers that matter"],
     Icon: HeartPulseIcon,

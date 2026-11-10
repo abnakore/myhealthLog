@@ -18,6 +18,7 @@ import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
+import { recordPath, type LinkableRecord } from "@/lib/recordLinks";
 import { useNotifications } from "@/store/NotificationsContext";
 import type { AppNotification } from "@/services/notifications";
 import { Spinner } from "@/components/ui/Spinner";
@@ -51,6 +52,7 @@ const KIND_ICONS: Record<string, React.ElementType> = {
   PROXY_INVITE_ACCEPTED:  UsersIcon,
   PROXY_INVITE_DECLINED:  UsersIcon,
   PROXY_ACCESS_REVOKED:   UsersIcon,
+  RECORD_REVIEW:          StethoscopeIcon,
 };
 
 // Accent colours per kind group
@@ -70,8 +72,34 @@ const KIND_COLOUR: Record<string, string> = {
   PROXY_ACCESS_REVOKED:   "bg-mhl-danger-lo text-mhl-danger",
 };
 
-function defaultColour(kind: string) {
-  return KIND_COLOUR[kind] ?? "bg-mhl-sunk text-mhl-muted";
+function defaultColour(notif: AppNotification) {
+  if (notif.kind === "RECORD_REVIEW") {
+    // A review's tint follows how serious its top finding is.
+    return notif.data?.level === "critical" || notif.data?.level === "danger"
+      ? "bg-mhl-danger-lo text-mhl-danger"
+      : "bg-[oklch(0.95_0.05_80)] text-[oklch(0.5_0.11_70)]";
+  }
+  return KIND_COLOUR[notif.kind] ?? "bg-mhl-sunk text-mhl-muted";
+}
+
+/** Singular or plural record types as notifications name them, to the route key. */
+const RECORD_TYPE_ROUTE: Record<string, LinkableRecord> = {
+  allergy: "allergies", allergies: "allergies",
+  medication: "medications", medications: "medications",
+  condition: "conditions", conditions: "conditions",
+  appointment: "appointments", appointments: "appointments", visit: "appointments",
+  document: "documents", documents: "documents", lab: "documents", imaging: "documents",
+  vital: "measurements", measurement: "measurements", measurements: "measurements",
+  immunization: "immunizations", immunizations: "immunizations",
+};
+
+/** Where a notification opens: its own link, or else the record it is about. */
+function notificationLink(notif: AppNotification): string | undefined {
+  const data = notif.data as Record<string, unknown> | undefined;
+  if (typeof data?.link === "string" && data.link) return data.link;
+  const type = typeof data?.record_type === "string" ? RECORD_TYPE_ROUTE[data.record_type] : undefined;
+  const id = typeof data?.record_id === "string" ? data.record_id : undefined;
+  return type && id ? recordPath(type, id) : undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -86,12 +114,12 @@ interface NotifRowProps {
 
 function NotifRow({ notif, onRead, onDismiss }: NotifRowProps) {
   const Icon = KIND_ICONS[notif.kind] ?? BellIcon;
-  const colour = defaultColour(notif.kind);
+  const colour = defaultColour(notif);
   const navigate = useNavigate();
 
   function handleClick() {
     if (!notif.is_read) onRead(notif.id);
-    const link = notif.data?.link;
+    const link = notificationLink(notif);
     if (link) navigate(link);
   }
 

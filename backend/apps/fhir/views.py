@@ -10,13 +10,30 @@ import logging
 from datetime import date
 
 from django.http import HttpResponse
+from rest_framework.negotiation import BaseContentNegotiation
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import JSONRenderer
 from rest_framework.views import APIView
 
 from .builders import build_fhir_bundle
 from .html_summary import build_html_summary
 
 logger = logging.getLogger(__name__)
+
+
+class FileDownloadNegotiation(BaseContentNegotiation):
+    """
+    These views return a finished file (HttpResponse), not serializer data, so
+    the Accept header must never turn a download into a 406. The JSON renderer
+    is still chosen so error responses keep the API's usual shape.
+    """
+
+    def select_parser(self, request, parsers):
+        return parsers[0] if parsers else None
+
+    def select_renderer(self, request, renderers, format_suffix=None):
+        renderer = next((r for r in renderers if isinstance(r, JSONRenderer)), renderers[0])
+        return renderer, renderer.media_type
 
 
 class FHIRBundleExportView(APIView):
@@ -31,6 +48,7 @@ class FHIRBundleExportView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    content_negotiation_class = FileDownloadNegotiation
 
     def get(self, request):
         bundle = build_fhir_bundle(request.user)
@@ -52,6 +70,7 @@ class ClinicalSummaryExportView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    content_negotiation_class = FileDownloadNegotiation
 
     def get(self, request):
         html = build_html_summary(request.user)

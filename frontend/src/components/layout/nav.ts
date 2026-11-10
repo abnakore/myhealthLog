@@ -14,6 +14,7 @@ import {
   HeartIcon,
   StethoscopeIcon,
   CopilotIcon,
+  CompassIcon,
 } from "@/components/icons";
 import type { AppMode } from "@/lib/appModes";
 
@@ -35,12 +36,20 @@ export const primaryNav: NavItem[] = [
   { to: "/app/profile", label: "Profile", icon: UserIcon },
 ];
 
-/** The one-page read of the whole record — the last door under "Your records".
-    Not a category: it composes the six below it rather than adding a seventh. */
+/** The one-page read of the whole record, the last door under "Your records".
+    Not a category: it composes the shelves above it rather than adding another. */
 const SUMMARY_ITEM: NavItem = {
   to: "/app/summary",
   label: "Medical summary",
   icon: StethoscopeIcon,
+};
+
+/** Condition-aware profiles: one reading of the record per condition. Kept in
+    the rail in every mode so it is always one tap away (Profile links it too). */
+const CONTEXTS_ITEM: NavItem = {
+  to: "/app/contexts",
+  label: "Condition profiles",
+  icon: CompassIcon,
 };
 
 /** The record categories. Full list in the desktop rail and in the phone's
@@ -52,6 +61,7 @@ export const recordNav: NavItem[] = [
   { to: "/app/conditions", label: "Conditions", icon: ConditionIcon },
   { to: "/app/appointments", label: "Appointments", icon: CalendarIcon },
   { to: "/app/documents", label: "Documents", icon: DocumentIcon },
+  CONTEXTS_ITEM,
   SUMMARY_ITEM,
 ];
 
@@ -72,6 +82,7 @@ export function navForMode(mode: AppMode): { primary: NavItem[]; record: NavItem
         { to: "/app/records", label: "My Records", icon: RecordsIcon },
         { to: "/app/appointments", label: "Appointments", icon: CalendarIcon },
         { to: "/app/emergency", label: "Emergency", icon: ShieldIcon },
+        CONTEXTS_ITEM,
         SUMMARY_ITEM,
       ],
     };

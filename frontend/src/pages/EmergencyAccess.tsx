@@ -1,10 +1,9 @@
 /**
- * Emergency Access — real API-backed version.
- * Reads from SharingContext (which fetches from backend).
- * regenerate → calls API and updates the token.
- * All toggle changes → PATCH /sharing/emergency/.
+ * Emergency Access: the card, its code, and what it reveals.
+ * Settings come from SharingContext (backed by /sharing/emergency/). The preview
+ * is the exported card itself, drawn from the same data as the saved file.
  */
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSharing } from "@/store/SharingContext";
 import { useCareProxy } from "@/store/CareProxyContext";
 import {
@@ -21,34 +20,31 @@ import { Button, buttonStyles } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/Modal";
 import { Switch } from "@/components/ui/Switch";
 import { TextArea } from "@/components/ui/fields";
-import { EmergencyCard } from "@/components/emergency/EmergencyCard";
 import { QrCode } from "@/components/emergency/QrCode";
-import { qrSvgMarkup } from "@/lib/qrcode";
+import { EmergencyCardExport } from "@/components/emergency/EmergencyCardExport";
+import { useEmergencyCardInput } from "@/components/emergency/useEmergencyCardInput";
+import { buildEmergencyCardSvg, svgDataUrl } from "@/lib/emergencyCard";
 import { CopyButton } from "@/components/sharing/CopyButton";
 import { OwnerOnlyNotice } from "@/components/proxy/OwnerOnlyNotice";
+import { Spinner } from "@/components/ui/Spinner";
 import { DownloadIcon, RefreshIcon } from "@/components/icons";
 
 export default function EmergencyAccess() {
-  const { emergency, updateEmergency, regenerateToken } = useSharing();
+  const { emergency, updateEmergency, regenerateToken, isLoading } = useSharing();
   const { isProxyView, activeOwnerName } = useCareProxy();
   const [regenOpen, setRegenOpen] = useState(false);
   const [regenError, setRegenError] = useState<string | null>(null);
   const [regenLoading, setRegenLoading] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const url = emergencyUrl(emergency.token);
-
-  function handleDownloadCode() {
-    const blob = new Blob([qrSvgMarkup(url)], { type: "image/svg+xml" });
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = "myhealthlog-emergency-code.svg";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(objectUrl);
-  }
+  const card = useEmergencyCardInput();
+  // The preview is the exported file itself, so the two can never differ.
+  const cardPreview = useMemo(
+    () => (emergency.token ? svgDataUrl(buildEmergencyCardSvg(card)) : null),
+    [card, emergency.token],
+  );
 
   if (isProxyView) {
     return (
@@ -111,13 +107,15 @@ export default function EmergencyAccess() {
         </p>
       )}
 
-      <Section question="Your emergency code" lead="Scan it or open the link — no app, no account, and nothing else to find.">
+      <Section question="Your emergency code" lead="Scan it or open the link. No app, no account, nothing else to find.">
         <div className="mt-4 flex flex-col items-center gap-5 rounded-mhl-sm bg-mhl-sunk p-4 sm:flex-row sm:items-start">
           <div className="flex-none rounded-mhl-sm bg-white p-3 shadow-sm">
             {emergency.token ? (
               <QrCode value={url} size={188} className="block text-mhl-ink" label="Emergency QR code" />
             ) : (
-              <div className="h-[188px] w-[188px] flex items-center justify-center bg-mhl-sunk rounded text-mhl-faint text-mhl-fine">Loading…</div>
+              <div className="grid h-[188px] w-[188px] place-items-center rounded bg-mhl-sunk text-mhl-faint">
+                {isLoading ? <Spinner size={22} /> : <span className="px-4 text-center text-mhl-fine">No code yet</span>}
+              </div>
             )}
           </div>
           <div className="min-w-0 flex-1 text-center sm:text-left">
@@ -128,7 +126,9 @@ export default function EmergencyAccess() {
                 <div className="mt-1.5"><CopyButton value={url} label="Copy link" /></div>
               </>
             ) : (
-              <p className="mt-1 text-mhl-fine text-mhl-muted">Token loading…</p>
+              <p className="mt-1 text-mhl-fine text-mhl-muted">
+                {isLoading ? "Getting your code..." : "Your code couldn't be loaded. Generate one to continue."}
+              </p>
             )}
             <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
               {emergency.token && (
@@ -140,8 +140,8 @@ export default function EmergencyAccess() {
                 Regenerate
               </Button>
               {emergency.token && (
-                <Button variant="secondary" icon={<DownloadIcon size={16} />} onClick={handleDownloadCode}>
-                  Save code
+                <Button variant="secondary" icon={<DownloadIcon size={16} />} onClick={() => setExportOpen(true)}>
+                  Save or print
                 </Button>
               )}
             </div>
@@ -169,8 +169,21 @@ export default function EmergencyAccess() {
         )}
       </Section>
 
-      <Section question="What does a responder see?" lead="The exact card your code opens — every toggle below changes it live.">
-        <EmergencyCard hideManageLink className="mt-4" />
+      <Section question="What does a responder see?" lead="This is the exact card you save or print. Every switch below changes it straight away.">
+        <div className="mt-4 rounded-mhl-sm bg-mhl-sunk p-3 sm:p-4">
+          {cardPreview ? (
+            <img
+              src={cardPreview}
+              alt="Your emergency card as it will be saved or printed, with your chosen details and the QR code."
+              className="mx-auto block w-full max-w-[560px] rounded-[0.5rem] shadow-mhl"
+              style={{ aspectRatio: "1011 / 638" }}
+            />
+          ) : (
+            <div className="grid aspect-[1011/638] w-full place-items-center text-mhl-faint">
+              {isLoading ? <Spinner size={22} /> : <span className="text-mhl-fine">The card appears once you have a code.</span>}
+            </div>
+          )}
+        </div>
       </Section>
 
       <Section question="What should the card show?" lead="Tick exactly what a responder may see.">
@@ -211,10 +224,14 @@ export default function EmergencyAccess() {
         open={regenOpen}
         title="Generate a new code?"
         message="The code on any card already printed or shared will stop working."
-        confirmLabel={regenLoading ? "Generating…" : "Generate new code"}
+        confirmLabel={regenLoading ? "Generating..." : "Generate new code"}
         onConfirm={handleRegen}
         onClose={() => { setRegenOpen(false); setRegenError(null); }}
       />
+
+      {emergency.token && (
+        <EmergencyCardExport open={exportOpen} onClose={() => setExportOpen(false)} card={card} />
+      )}
     </div>
   );
 }

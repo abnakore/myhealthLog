@@ -1,6 +1,6 @@
 /**
- * Care providers — real API-backed version.
- * Creates/revokes/deletes providers through SharingContext.
+ * Care providers: give a doctor or lab a link to part of the record.
+ * Creates, reopens and revokes shares through SharingContext.
  */
 import { useState } from "react";
 import { cn } from "@/lib/cn";
@@ -33,7 +33,7 @@ import { OwnerOnlyNotice } from "@/components/proxy/OwnerOnlyNotice";
 import { ScopeChecklist } from "@/components/sharing/ScopeChecklist";
 import { ShareCodePanel } from "@/components/sharing/ShareCodePanel";
 import { CopyButton } from "@/components/sharing/CopyButton";
-import { KeyIcon, PlusIcon, StethoscopeIcon, TrashIcon } from "@/components/icons";
+import { KeyIcon, PlusIcon, QrIcon, StethoscopeIcon, TrashIcon } from "@/components/icons";
 
 const STATUS_TAG: Record<ShareStatus, { tone: TagTone; label: string }> = {
   PENDING: { tone: "watch", label: SHARE_STATUS_LABELS.PENDING },
@@ -56,7 +56,7 @@ interface GrantDraft {
   scopes: ShareScope[];
   expiryDays: string;
   /** Every care-provider window is PIN-gated; this is the PIN the owner hands
-      over with the link. It is stored hashed and cannot be shown again. */
+      over with the link. The owner can see it again from the list. */
   pin: string;
 }
 
@@ -90,8 +90,9 @@ function AccessPicker({ value, onChange }: { value: ProviderAccess; onChange: (n
   );
 }
 
-// The code panel needs the raw share code + a link. We store these after creation.
-interface CodeReveal { provider: CareProvider; shareCode: string; pin?: string }
+// The code panel needs the share code and link. Shown after creation, and again
+// whenever the owner taps "Link & QR" on a provider.
+interface CodeReveal { provider: CareProvider; shareCode: string; pin?: string; justCreated?: boolean }
 
 export default function CareProviders() {
   const { providers, addProvider, resetProviderPin, removeProviderPin, revokeProvider } = useSharing();
@@ -116,7 +117,7 @@ export default function CareProviders() {
   if (isProxyView) {
     return (
       <div className="space-y-5">
-        <PageHeader title="Care providers" subtitle="Give a doctor or lab a code to read — or fill in — part of your record." />
+        <PageHeader title="Care providers" subtitle="Give a doctor or lab a link to read, or fill in, part of your record." />
         <OwnerOnlyNotice
           title={`Only ${activeOwnerName} can share this record`}
           description="You're viewing this record as a care proxy. Codes for doctors and labs belong to the record owner."
@@ -134,7 +135,7 @@ export default function CareProviders() {
 
   async function saveGrant() {
     const errs: Record<string, string> = {};
-    if (!draft.name.trim()) errs.name = "Enter a name — who is this access for?";
+    if (!draft.name.trim()) errs.name = "Enter a name. Who is this access for?";
     if (draft.scopes.length === 0) errs.scopes = "Pick at least one part of the record.";
     if (!/^\d{4,8}$/.test(draft.pin.trim())) {
       errs.pin = "Use a PIN of 4 to 8 digits.";
@@ -161,9 +162,8 @@ export default function CareProviders() {
       setCodeReveal({
         provider: result.provider,
         shareCode: result.shareCode,
-        // The PIN is hashed on the server, so the one the owner just set is
-        // the only copy that can be shown — keep it for the hand-over panel.
         pin: draft.pin.trim(),
+        justCreated: true,
       });
     } catch (err) {
       setSaveError(apiErrorMessage(err));
@@ -227,7 +227,7 @@ export default function CareProviders() {
     <div className="space-y-5">
       <PageHeader
         title="Care providers"
-        subtitle="Give a doctor or lab a code to read — or fill in — part of your record."
+        subtitle="Give a doctor or lab a link to read, or fill in, part of your record."
         action={<Button icon={<PlusIcon size={18} strokeWidth={2.25} />} onClick={openGrant}>Grant access</Button>}
       />
 
@@ -238,40 +238,55 @@ export default function CareProviders() {
               const status = displayStatus(p);
               if (status === "REVOKED") return null;
               return (
-                <li key={p.id} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
-                  <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-mhl-sunk text-mhl-muted">
-                    <StethoscopeIcon size={20} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="truncate text-mhl-body font-semibold text-mhl-ink">{p.name}</p>
-                      <Tag tone={STATUS_TAG[status].tone}>{STATUS_TAG[status].label}</Tag>
+                <li key={p.id} className="py-4 first:pt-0 last:pb-0">
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-mhl-sunk text-mhl-muted">
+                      <StethoscopeIcon size={20} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="truncate text-mhl-body font-semibold text-mhl-ink">{p.name}</p>
+                        <Tag tone={STATUS_TAG[status].tone}>{STATUS_TAG[status].label}</Tag>
+                      </div>
+                      <p className="truncate text-mhl-fine text-mhl-muted">
+                        {[p.role, p.facility].filter(Boolean).join(" · ") || "No role or facility on file"}
+                      </p>
+                      <p className="text-mhl-fine text-mhl-faint">
+                        {providerAccessLabel(p.access)} · {summariseScopes(p.scopes)}
+                        {p.pinEnabled ? " · PIN protected" : " · No PIN set"}
+                      </p>
+                      <p className="text-mhl-fine text-mhl-faint">
+                        {p.lastAccessedAt ? `Last opened ${formatRelative(p.lastAccessedAt)}` : "Not opened yet"}
+                        {" · "}
+                        {p.expiresAt ? `Expires ${formatDate(p.expiresAt)}` : "Open until you revoke it"}
+                      </p>
                     </div>
-                    <p className="truncate text-mhl-fine text-mhl-muted">
-                      {[p.role, p.facility].filter(Boolean).join(" · ") || "No role or facility on file"}
-                    </p>
-                    <p className="truncate text-mhl-fine text-mhl-faint">
-                      {providerAccessLabel(p.access)} · {summariseScopes(p.scopes)}
-                      {p.pinEnabled ? " · PIN protected" : " · No PIN set"}
-                    </p>
-                    <p className="truncate text-mhl-fine text-mhl-faint">
-                      {p.lastAccessedAt ? `Last opened ${formatRelative(p.lastAccessedAt)}` : "Not opened yet"}
-                      {" · "}
-                      {p.expiresAt ? `Expires ${formatDate(p.expiresAt)}` : "Open until you revoke it"}
-                    </p>
                   </div>
-                  <div className="flex flex-none items-center gap-1">
-                    {/* The code cannot be re-shown, but its PIN can be set, changed
-                        or removed at any time. */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2 pl-[3.25rem]">
+                    {p.shareCode && status !== "EXPIRED" && (
+                      <Button
+                        variant="secondary"
+                        icon={<QrIcon size={16} />}
+                        onClick={() => setCodeReveal({ provider: p, shareCode: p.shareCode, pin: p.pin })}
+                        aria-label={`Show the link and QR code for ${p.name}`}
+                      >
+                        Link &amp; QR
+                      </Button>
+                    )}
                     <Button
-                      variant="secondary"
+                      variant="ghost"
                       icon={<KeyIcon size={16} />}
                       onClick={() => openPinReset(p)}
                       aria-label={`${p.pinEnabled ? "Change" : "Set"} the PIN for ${p.name}`}
                     >
                       {p.pinEnabled ? "Change PIN" : "Set PIN"}
                     </Button>
-                    <IconButton label={`Revoke access for ${p.name}`} tone="danger" onClick={() => { setRevoke(p); setRevokeError(null); }}>
+                    <IconButton
+                      label={`Revoke access for ${p.name}`}
+                      tone="danger"
+                      className="ml-auto"
+                      onClick={() => { setRevoke(p); setRevokeError(null); }}
+                    >
                       <TrashIcon size={18} />
                     </IconButton>
                   </div>
@@ -284,7 +299,7 @@ export default function CareProviders() {
             className="mt-4"
             icon={<StethoscopeIcon size={26} />}
             title="No one has access yet"
-            description="Grant a code after a visit — your doctor or lab sees exactly what you choose, nothing more."
+            description="Grant access after a visit. Your doctor or lab sees exactly what you choose, nothing more."
             action={<Button icon={<PlusIcon size={18} strokeWidth={2.25} />} onClick={openGrant}>Grant access</Button>}
           />
         )}
@@ -419,7 +434,7 @@ export default function CareProviders() {
               <CopyButton value={pinReveal.pin} label="Copy PIN" />
             </div>
             <p className="mt-3 text-mhl-fine text-mhl-muted">
-              This is the only time the PIN is shown. The provider's link and what it can open are unchanged.
+              You can see this PIN again from the provider's Link &amp; QR button. Their link and what it opens are unchanged.
             </p>
           </div>
         )}
@@ -429,8 +444,8 @@ export default function CareProviders() {
       <Modal
         open={codeReveal !== null}
         onClose={() => setCodeReveal(null)}
-        title="Share this code"
-        description={codeReveal ? `Give this to ${codeReveal.provider.name} — it opens only what you chose.` : undefined}
+        title={codeReveal?.justCreated ? "Access created" : `Access for ${codeReveal?.provider.name ?? ""}`}
+        description={codeReveal ? `Give this to ${codeReveal.provider.name}. It opens only what you chose. You can come back to it any time.` : undefined}
         footer={<Button onClick={() => setCodeReveal(null)}>Done</Button>}
       >
         {codeReveal && (

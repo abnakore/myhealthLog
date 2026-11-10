@@ -16,14 +16,14 @@ from datetime import date
 
 def _age(dob) -> str:
     if dob is None:
-        return "—"
+        return "Not recorded"
     today = date.today()
     years = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
     return str(years)
 
 
 def _escape(text: str) -> str:
-    """Minimal HTML escaping — not used for user-controlled dangerous contexts."""
+    """Minimal HTML escaping, not used for user-controlled dangerous contexts."""
     return (
         str(text)
         .replace("&", "&amp;")
@@ -65,9 +65,9 @@ def build_html_summary(user) -> str:
     name = _escape(profile.full_name if profile else user.name or user.email)
     dob = profile.date_of_birth if profile else None
     age = _age(dob)
-    sex = _escape(profile.sex or "—") if profile else "—"
-    blood_type = _escape(profile.blood_type or "—") if profile else "—"
-    genotype = _escape(profile.genotype or "—") if profile else "—"
+    sex = _escape(profile.sex or "Not recorded") if profile else "Not recorded"
+    blood_type = _escape(profile.blood_type or "Not recorded") if profile else "Not recorded"
+    genotype = _escape(profile.genotype or "Not recorded") if profile else "Not recorded"
 
     # Critical allergies
     list(
@@ -101,7 +101,7 @@ def build_html_summary(user) -> str:
     allergy_rows = ""
     for a in all_allergies:
         badge_class = "badge-red" if a.is_critical else "badge-yellow"
-        reactions = ", ".join(a.reactions or []) or "—"
+        reactions = ", ".join(a.reactions or []) or "Not recorded"
         allergy_rows += (
             f"<tr><td>{_escape(a.substance)}</td>"
             f"<td><span class='badge {badge_class}'>{_escape(a.severity)}</span></td>"
@@ -116,18 +116,18 @@ def build_html_summary(user) -> str:
             f"<tr><td>{_escape(m.name)}</td>"
             f"<td>{_escape(m.dosage)}</td>"
             f"<td>{_escape(m.frequency)}</td>"
-            f"<td>{_escape(m.prescriber or '—')}</td></tr>"
+            f"<td>{_escape(m.prescriber or 'Not recorded')}</td></tr>"
         )
     if not med_rows:
         med_rows = "<tr><td colspan='4'>No active medications</td></tr>"
 
     cond_rows = ""
     for c in active_conditions:
-        sev = _escape(c.severity or "—")
+        sev = _escape(c.severity or "Not recorded")
         cond_rows += (
             f"<tr><td>{_escape(c.name)}</td>"
             f"<td>{sev}</td>"
-            f"<td>{_escape(c.onset_date.isoformat() if c.onset_date else '—')}</td></tr>"
+            f"<td>{_escape(c.onset_date.isoformat() if c.onset_date else 'Not recorded')}</td></tr>"
         )
     if not cond_rows:
         cond_rows = "<tr><td colspan='3'>No active conditions</td></tr>"
@@ -135,7 +135,7 @@ def build_html_summary(user) -> str:
     vital_rows = ""
     for v in latest_vitals:
         val = f"{v.value}/{v.value2}" if v.value2 else str(v.value)
-        recorded = v.measured_at.date().isoformat() if v.measured_at else "—"
+        recorded = v.measured_at.date().isoformat() if v.measured_at else "Not recorded"
         vital_rows += (
             f"<tr><td>{_escape(v.label or v.vital_type)}</td>"
             f"<td>{_escape(val)} {_escape(v.unit)}</td>"
@@ -148,7 +148,7 @@ def build_html_summary(user) -> str:
     for ec in contacts:
         contact_rows += (
             f"<tr><td>{_escape(ec.name)}</td>"
-            f"<td>{_escape(ec.relationship or '—')}</td>"
+            f"<td>{_escape(ec.relationship or 'Not recorded')}</td>"
             f"<td>{_escape(ec.phone)}</td></tr>"
         )
     if not contact_rows:
@@ -161,7 +161,7 @@ def build_html_summary(user) -> str:
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Clinical Summary — {name}</title>
+<title>Clinical Summary: {name}</title>
 <style>{_CSS}</style>
 </head>
 <body>

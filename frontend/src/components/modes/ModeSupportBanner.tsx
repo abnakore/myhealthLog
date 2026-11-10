@@ -14,7 +14,7 @@ const COPY: Record<Exclude<AppMode, "standard">, { title: string; sub: string; c
   },
   critical: {
     title: "Need help with your condition?",
-    sub: "Your care team knows this record — reach them any time.",
+    sub: "Your care team knows this record. Reach them any time.",
     cta: "Contact your care team",
   },
   elderly: {

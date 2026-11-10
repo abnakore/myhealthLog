@@ -185,8 +185,8 @@ function medicineConditionCautions(meds: InsightMedication[], conditions: Insigh
   for (const m of meds) {
     const cls = classOfMedicine(m.name);
     if (cls === "nsaid") {
-      if (anyCond(KIDNEY)) out.push(caution(m, "NSAIDs can worsen kidney function — the record lists kidney disease."));
-      if (anyCond(ULCER)) out.push(caution(m, "NSAIDs raise the risk of stomach bleeding — the record lists an ulcer/gastritis."));
+      if (anyCond(KIDNEY)) out.push(caution(m, "NSAIDs can worsen kidney function. The record lists kidney disease."));
+      if (anyCond(ULCER)) out.push(caution(m, "NSAIDs raise the risk of stomach bleeding. The record lists an ulcer/gastritis."));
       if (anyCond(HEART_FAILURE)) out.push(caution(m, "NSAIDs can worsen heart failure."));
       if (anyCond(ASTHMA)) out.push(caution(m, "NSAIDs can trigger bronchospasm in some people with asthma."));
       if (onWarfarin && !norm(m.name).includes("warfarin")) {
@@ -194,7 +194,7 @@ function medicineConditionCautions(meds: InsightMedication[], conditions: Insigh
       }
     }
     if (norm(m.name).includes("metformin") && anyCond(KIDNEY)) {
-      out.push(caution(m, "Metformin dosing depends on kidney function — the record lists kidney disease."));
+      out.push(caution(m, "Metformin dosing depends on kidney function. The record lists kidney disease."));
     }
     if (pregnant) {
       if (has(ACE_ARB, m.name)) {
@@ -341,7 +341,7 @@ export function summaryInsights(input: InsightInput): Insight[] {
         level: band.level,
         section: "readings",
         title: `${readingName(r)} ${readingValue(r)}`,
-        detail: `The latest reading is ${band.note}${r.measuredAt ? ` — recorded ${new Date(r.measuredAt).toLocaleDateString()}` : ""}.`,
+        detail: `The latest reading is ${band.note}${r.measuredAt ? `, recorded ${new Date(r.measuredAt).toLocaleDateString()}` : ""}.`,
       });
     }
   }
@@ -380,13 +380,13 @@ export function summaryInsights(input: InsightInput): Insight[] {
   // 6. Gaps and housekeeping — only useful to the owner.
   if (!input.publicView) {
     if (!input.bloodType) {
-      out.push({ level: "info", section: "profile", title: "Blood type not recorded", detail: "Add it to your profile — it is the first thing asked in an emergency." });
+      out.push({ level: "info", section: "profile", title: "Blood type not recorded", detail: "Add it to your profile. It is the first thing asked in an emergency." });
     }
     if ((input.contactCount ?? 0) === 0) {
-      out.push({ level: "info", section: "profile", title: "No emergency contact", detail: "Add someone to call — it appears on your emergency card." });
+      out.push({ level: "info", section: "profile", title: "No emergency contact", detail: "Add someone to call. It appears on your emergency card." });
     }
     if (input.allergies.length === 0) {
-      out.push({ level: "info", section: "allergies", title: "No allergies recorded", detail: "If you have none, a clinician will still ask — add any you know of." });
+      out.push({ level: "info", section: "allergies", title: "No allergies recorded", detail: "If you have none, a clinician will still ask. Add any you know of." });
     }
     const now = Date.now();
     for (const a of input.appointments ?? []) {

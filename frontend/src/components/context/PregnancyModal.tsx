@@ -110,7 +110,7 @@ function countError(value: string): string | undefined {
   if (!trimmed) return undefined;
   if (!/^\d+$/.test(trimmed)) return "Use a whole number.";
   const n = Number(trimmed);
-  if (n > 30) return "That looks too high — check the number.";
+  if (n > 30) return "That looks too high. Check the number.";
   return undefined;
 }
 
@@ -130,7 +130,7 @@ function validatePregnancy(draft: PregnancyDraft): PregnancyErrors {
     if (lmp > now) {
       errors.lastMenstrualPeriod = "The first day of your last period can't be in the future.";
     } else if (daysBetween(lmp, now) > MAX_AGE_DAYS) {
-      errors.lastMenstrualPeriod = "That's more than 45 weeks ago — check the date.";
+      errors.lastMenstrualPeriod = "That's more than 45 weeks ago. Check the date.";
     }
   }
 
@@ -143,7 +143,7 @@ function validatePregnancy(draft: PregnancyDraft): PregnancyErrors {
         errors.estimatedDueDate = "Your due date has to fall after the first day of your last period.";
       } else if (Math.abs(gap - TERM_DAYS) > EDD_TOLERANCE_DAYS) {
         errors.estimatedDueDate =
-          "That's more than four weeks from the date your last period suggests — check one of the two.";
+          "That's more than four weeks from the date your last period suggests. Check one of the two.";
       }
     } else if (daysBetween(now, edd) > TERM_DAYS + EDD_TOLERANCE_DAYS) {
       errors.estimatedDueDate = "A due date that far ahead looks like a typo.";
@@ -292,7 +292,7 @@ export function PregnancyModal({
           {derivedDue && (
             <p className="mt-1 text-mhl-fine text-mhl-muted">
               Estimated due date: <span className="font-semibold text-mhl-ink">{derivedDue}</span>
-              {draft.estimatedDueDate ? "" : " — counted from your last period."}
+              {draft.estimatedDueDate ? "" : ", counted from your last period."}
             </p>
           )}
         </div>

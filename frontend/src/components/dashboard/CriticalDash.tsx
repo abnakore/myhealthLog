@@ -150,7 +150,7 @@ export function CriticalDash({
 
   const headlineValue = headline
     ? `${headline.latest.value}${headline.latest.value2 != null ? `/${headline.latest.value2}` : ""} ${headline.latest.unit}`
-    : "—";
+    : "No readings";
 
   return (
     <>
@@ -190,7 +190,7 @@ export function CriticalDash({
                 ? `${condition.notes.split(".")[0].trim()}.`
                 : status.label === "Stable"
                   ? "Your condition is currently steady on the record."
-                  : "Some recent readings sit outside the usual band — worth a look."}{" "}
+                  : "Some recent readings sit outside the usual band, worth a look."}{" "}
               Keep up with your medications and avoid known triggers.
             </p>
             <div className="mt-3.5 flex flex-wrap gap-2.5">
@@ -251,7 +251,7 @@ export function CriticalDash({
         <MetricCard
           icon={<CalendarIcon size={18} />}
           label="Next follow-up"
-          value={followUp ? formatDate(followUp.scheduledFor) : "—"}
+          value={followUp ? formatDate(followUp.scheduledFor) : "None booked"}
           sub={followUp?.facility ?? (followUp ? followUp.title : "Not booked yet")}
           to="/app/appointments"
         />
